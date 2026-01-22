@@ -1,31 +1,21 @@
 """Alembic environment configuration."""
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 from alembic import context
 import os
 import sys
 
-# Add app directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.database import Base
-from app.config import settings
+from app.db import Base
+from app.settings import settings
 
-# Import all models so Alembic can detect them
-from app.models import user, toolkit, chat, strategy
-
-# this is the Alembic Config object
 config = context.config
-
-# Set sqlalchemy.url from settings
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
-# Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Model metadata for autogenerate support
 target_metadata = Base.metadata
 
 
