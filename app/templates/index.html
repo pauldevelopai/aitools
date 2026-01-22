@@ -8,12 +8,44 @@
 </head>
 <body class="bg-gray-50">
     <div class="min-h-screen flex items-center justify-center">
-        <div class="text-center">
-            <h1 class="text-4xl font-bold text-blue-600 mb-4">ToolkitRAG</h1>
-            <p class="text-xl text-gray-600">AI Toolkit Learning Platform</p>
-            <div class="mt-8">
-                <a href="/health" class="text-blue-500 hover:text-blue-700 mr-4">Health</a>
-                <a href="/ready" class="text-blue-500 hover:text-blue-700">Ready</a>
+        <div class="text-center max-w-2xl px-4">
+            <h1 class="text-5xl font-bold text-blue-600 mb-4">ToolkitRAG</h1>
+            <p class="text-xl text-gray-600 mb-8">AI Toolkit Learning Platform</p>
+            <p class="text-gray-500 mb-8">
+                Get answers to your toolkit questions with AI-powered search and grounded citations.
+            </p>
+
+            <!-- CTA Buttons -->
+            <div class="flex justify-center gap-4 mb-12">
+                <a href="/login" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                    Sign In
+                </a>
+                <a href="/register" class="bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition">
+                    Create Account
+                </a>
+            </div>
+
+            <!-- Features -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left mb-12">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="font-bold text-lg mb-2">🔍 Smart Search</h3>
+                    <p class="text-sm text-gray-600">Vector similarity search finds relevant toolkit content.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="font-bold text-lg mb-2">📚 Grounded Answers</h3>
+                    <p class="text-sm text-gray-600">All responses cite specific toolkit sections.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="font-bold text-lg mb-2">💬 Feedback Loop</h3>
+                    <p class="text-sm text-gray-600">Rate answers to improve response quality.</p>
+                </div>
+            </div>
+
+            <!-- Links -->
+            <div class="text-sm text-gray-500">
+                <a href="/health" class="hover:text-gray-700 mr-4">Health</a>
+                <a href="/ready" class="hover:text-gray-700 mr-4">Ready</a>
+                <a href="/admin/ingest" class="hover:text-gray-700">Admin</a>
             </div>
         </div>
     </div>

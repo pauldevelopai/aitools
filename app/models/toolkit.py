@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
 import uuid
-from app.database import Base
+from app.db import Base
 
 
 class ToolkitDocument(Base):
@@ -15,7 +15,7 @@ class ToolkitDocument(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     version_tag = Column(String, unique=True, nullable=False, index=True)
     source_filename = Column(String, nullable=False)
-    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    file_path = Column(String, nullable=False)  # Path to uploaded file
     upload_date = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     chunk_count = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -30,9 +30,36 @@ class ToolkitChunk(Base):
     document_id = Column(UUID(as_uuid=True), ForeignKey("toolkit_documents.id", ondelete="CASCADE"), nullable=False, index=True)
     chunk_text = Column(Text, nullable=False)
     chunk_index = Column(Integer, nullable=False)
-    cluster = Column(String, nullable=True)
-    section = Column(String, nullable=True)
-    tool_name = Column(String, nullable=True)
-    tags = Column(JSONB, nullable=True)
+    heading = Column(String, nullable=True)  # Parent heading
+    metadata = Column(JSONB, nullable=True)  # Additional metadata
     embedding = Column(Vector(1536), nullable=True)  # OpenAI text-embedding-3-small dimension
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ChatLog(Base):
+    """Chat log for Q&A with citations."""
+
+    __tablename__ = "chat_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    query = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    citations = Column(JSONB, nullable=False)  # List of citation objects
+    similarity_score = Column(JSONB, nullable=True)  # Top similarity scores
+    filters_applied = Column(JSONB, nullable=True)  # Filters used in search
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+
+class Feedback(Base):
+    """User feedback on chat responses."""
+
+    __tablename__ = "feedback"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    chat_log_id = Column(UUID(as_uuid=True), ForeignKey("chat_logs.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    rating = Column(Integer, nullable=False)  # 1-5
+    issue_type = Column(String, nullable=True)  # hallucination, irrelevant, etc.
+    comment = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

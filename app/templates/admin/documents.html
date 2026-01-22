@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen py-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-900">Ingested Documents</h1>
+                <p class="mt-2 text-sm text-gray-600">List of all toolkit documents</p>
+            </div>
+
+            <div class="mb-4">
+                <a href="/admin/ingest" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                    + Ingest New Document
+                </a>
+            </div>
+
+            {% if documents %}
+            <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                <ul class="divide-y divide-gray-200">
+                    {% for doc in documents %}
+                    <li class="px-6 py-4 hover:bg-gray-50">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-medium text-gray-900">{{ doc.version_tag }}</h3>
+                                <p class="text-sm text-gray-500 mt-1">{{ doc.source_filename }}</p>
+                                <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                                    <span>{{ doc.chunk_count }} chunks</span>
+                                    <span>•</span>
+                                    <span>{{ doc.upload_date.strftime('%Y-%m-%d %H:%M') }}</span>
+                                    {% if doc.is_active %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Active
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                ID: {{ doc.id }}
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% else %}
+            <div class="bg-white shadow sm:rounded-lg">
+                <div class="px-6 py-12 text-center">
+                    <p class="text-gray-500">No documents ingested yet.</p>
+                    <a href="/admin/ingest" class="mt-4 inline-flex items-center text-blue-600 hover:text-blue-500">
+                        Ingest your first document →
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="mt-6 text-center">
+                <a href="/" class="text-sm text-gray-600 hover:text-gray-500">
+                    Back to home
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

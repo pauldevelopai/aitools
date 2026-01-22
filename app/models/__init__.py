@@ -1,2 +1,7 @@
 """Database models."""
-# Models will be added here as needed
+from app.models.toolkit import ToolkitDocument, ToolkitChunk
+
+__all__ = [
+    "ToolkitDocument",
+    "ToolkitChunk",
+]
