@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.routers import health, admin, rag, auth_routes, toolkit
+from app.routers import health, admin, rag, auth_routes, toolkit, browse
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ app.include_router(admin.router)
 app.include_router(rag.router)
 app.include_router(auth_routes.router)
 app.include_router(toolkit.router)
+app.include_router(browse.router)
 
 
 @app.get("/", response_class=HTMLResponse)

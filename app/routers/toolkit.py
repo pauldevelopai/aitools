@@ -1,7 +1,7 @@
 """Toolkit chat UI routes."""
 from typing import Optional
 from fastapi import APIRouter, Depends, Form, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import UUID
@@ -237,3 +237,32 @@ async def submit_feedback(
     return HTMLResponse(
         content=f'<div class="text-sm text-green-600">✓ Feedback submitted (Rating: {rating}/5)</div>'
     )
+
+
+@router.post("/ask-about", response_class=HTMLResponse)
+async def ask_about_section(
+    request: Request,
+    question: str = Form(...),
+    context: str = Form(...),
+    full_text: str = Form(None),
+    user: User = Depends(require_auth_page),
+    db: Session = Depends(get_db)
+):
+    """
+    Ask a question about a specific section from browse.
+
+    Combines the user's question with section context for better answers.
+    Redirects to toolkit page with the answer.
+    """
+    # Build query that includes context
+    enhanced_query = f"{question}\n\n[Context: {context}]"
+
+    # Generate answer
+    result = rag_answer(
+        db=db,
+        query=enhanced_query,
+        user_id=str(user.id)
+    )
+
+    # Redirect back to toolkit page where the answer will appear
+    return RedirectResponse(url="/toolkit", status_code=303)
