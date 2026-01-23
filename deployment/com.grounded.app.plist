@@ -4,7 +4,7 @@
 <dict>
     <!-- Service label (must match filename without .plist) -->
     <key>Label</key>
-    <string>com.toolkitrag.app</string>
+    <string>com.grounded.app</string>
 
     <!-- Program to run -->
     <key>ProgramArguments</key>
@@ -36,10 +36,10 @@
 
     <!-- Standard output and error logs -->
     <key>StandardOutPath</key>
-    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/logs/toolkitrag.log</string>
+    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/logs/grounded.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/logs/toolkitrag.error.log</string>
+    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/logs/grounded.error.log</string>
 
     <!-- Environment variables -->
     <key>EnvironmentVariables</key>

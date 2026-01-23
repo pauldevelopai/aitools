@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="ToolkitRAG",
+    title="Grounded",
     description="AI Toolkit Learning Platform",
     version="0.1.0",
     lifespan=lifespan
@@ -80,5 +80,5 @@ async def home(request: Request):
     """Homepage."""
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "title": "ToolkitRAG"}
+        {"request": request, "title": "Grounded"}
     )
