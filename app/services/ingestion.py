@@ -1,11 +1,14 @@
 """Document ingestion service."""
 import os
 import uuid
+import logging
 from typing import List, Optional, Dict, Any
 from docx import Document
 from sqlalchemy.orm import Session
 
 from app.models.toolkit import ToolkitDocument, ToolkitChunk
+
+logger = logging.getLogger(__name__)
 
 
 def parse_docx(file_path: str) -> List[Dict[str, Any]]:
@@ -239,5 +242,198 @@ def reindex_document(db: Session, document_id: str) -> ToolkitDocument:
     # Recreate embeddings
     from app.services.embeddings import create_embeddings_for_document
     create_embeddings_for_document(db, doc.id)
+
+    return doc
+
+
+def ingest_from_kit(
+    db: Session,
+    version_tag: str = "kit-v1",
+    create_embeddings: bool = True
+) -> ToolkitDocument:
+    """
+    Ingest toolkit content from /kit JSON files into the database.
+
+    Reads structured tool, cluster, and foundation JSON files from the kit
+    directory and creates chunked records with enriched metadata for RAG search.
+
+    Args:
+        db: Database session
+        version_tag: Version identifier for this ingestion
+        create_embeddings: Whether to create embeddings
+
+    Returns:
+        Created ToolkitDocument instance
+    """
+    from app.services.kit_loader import (
+        get_all_tools, get_all_clusters, get_all_foundations, clear_cache
+    )
+
+    # Clear cache to pick up any new data
+    clear_cache()
+
+    # Check if version already exists
+    existing = db.query(ToolkitDocument).filter(
+        ToolkitDocument.version_tag == version_tag
+    ).first()
+    if existing:
+        # Deactivate old version
+        existing.is_active = False
+        db.commit()
+        # Bump version tag
+        version_tag = f"{version_tag}-{uuid.uuid4().hex[:8]}"
+
+    tools = get_all_tools()
+    clusters = get_all_clusters()
+    foundations = get_all_foundations()
+
+    logger.info(f"Ingesting from kit: {len(tools)} tools, {len(clusters)} clusters, {len(foundations)} foundations")
+
+    # Build chunks from all kit content
+    all_chunks = []
+    chunk_index = 0
+
+    # 1. Chunk each tool's content
+    for tool in tools:
+        # Build the full text for this tool
+        parts = [f"Tool: {tool['name']}"]
+        if tool.get("description"):
+            parts.append(tool["description"])
+        if tool.get("purpose"):
+            parts.append(f"Purpose: {tool['purpose']}")
+        if tool.get("journalism_relevance"):
+            parts.append(f"Journalism Relevance: {tool['journalism_relevance']}")
+        if tool.get("comments"):
+            parts.append(f"Comments: {tool['comments']}")
+
+        cdi = tool.get("cdi_scores", {})
+        parts.append(f"CDI Score - Cost: {cdi.get('cost', 0)}/10, Difficulty: {cdi.get('difficulty', 0)}/10, Invasiveness: {cdi.get('invasiveness', 0)}/10")
+
+        td = tool.get("time_dividend", {})
+        if td.get("time_saved"):
+            parts.append(f"Time Saved: {td['time_saved']}")
+        if td.get("reinvestment"):
+            parts.append(f"Time Reinvestment: {td['reinvestment']}")
+
+        full_text = "\n\n".join(parts)
+
+        # Metadata for this tool's chunks
+        metadata = {
+            "type": "tool",
+            "tool_name": tool["name"],
+            "tool_slug": tool["slug"],
+            "cluster": tool.get("cluster_name", ""),
+            "cluster_slug": tool.get("cluster_slug", ""),
+            "cdi_scores": cdi,
+            "tags": tool.get("tags", []),
+        }
+
+        # Create chunks from tool text
+        tool_chunks = chunk_content(
+            [{"type": "paragraph", "text": full_text, "heading": tool["name"]}],
+            target_size=1000,
+            overlap=150
+        )
+
+        for tc in tool_chunks:
+            tc["metadata"] = {**tc.get("metadata", {}), **metadata}
+            tc["heading"] = tool["name"]
+            tc["chunk_index"] = chunk_index
+            chunk_index += 1
+            all_chunks.append(tc)
+
+    # 2. Chunk each cluster's description and teaching content
+    for cluster in clusters:
+        parts = [f"Cluster: {cluster['name']}"]
+        if cluster.get("description"):
+            parts.append(cluster["description"])
+        if cluster.get("teaching_guidance"):
+            parts.append(f"Teaching Guidance: {cluster['teaching_guidance']}")
+        if cluster.get("where_to_start"):
+            parts.append(f"Where to Start: {cluster['where_to_start']}")
+        for ex in cluster.get("exercises", []):
+            parts.append(f"Exercise {ex.get('number', '')}: {ex.get('title', '')} - {ex.get('description', '')}")
+
+        full_text = "\n\n".join(parts)
+        metadata = {
+            "type": "cluster",
+            "cluster": cluster["name"],
+            "cluster_slug": cluster["slug"],
+        }
+
+        cluster_chunks = chunk_content(
+            [{"type": "paragraph", "text": full_text, "heading": cluster["name"]}],
+            target_size=1000,
+            overlap=150
+        )
+
+        for cc in cluster_chunks:
+            cc["metadata"] = {**cc.get("metadata", {}), **metadata}
+            cc["heading"] = cluster["name"]
+            cc["chunk_index"] = chunk_index
+            chunk_index += 1
+            all_chunks.append(cc)
+
+    # 3. Chunk foundational content
+    for foundation in foundations:
+        content = foundation.get("content", "")
+        if not content:
+            continue
+
+        title = foundation.get("title", "Foundation")
+        metadata = {
+            "type": "foundation",
+            "foundation_slug": foundation.get("slug", ""),
+        }
+
+        foundation_chunks = chunk_content(
+            [{"type": "paragraph", "text": content, "heading": title}],
+            target_size=1000,
+            overlap=150
+        )
+
+        for fc in foundation_chunks:
+            fc["metadata"] = {**fc.get("metadata", {}), **metadata}
+            fc["heading"] = title
+            fc["chunk_index"] = chunk_index
+            chunk_index += 1
+            all_chunks.append(fc)
+
+    # Create document record
+    from pathlib import Path
+    kit_dir = Path(__file__).resolve().parent.parent.parent / "kit"
+
+    doc = ToolkitDocument(
+        version_tag=version_tag,
+        source_filename="toolkit.pdf",
+        file_path=str(kit_dir / "toolkit.pdf"),
+        chunk_count=len(all_chunks)
+    )
+    db.add(doc)
+    db.flush()
+
+    # Create chunk records
+    chunk_objects = []
+    for chunk_data in all_chunks:
+        chunk = ToolkitChunk(
+            document_id=doc.id,
+            chunk_text=chunk_data["chunk_text"],
+            chunk_index=chunk_data["chunk_index"],
+            heading=chunk_data.get("heading"),
+            chunk_metadata=chunk_data.get("metadata"),
+            embedding=None
+        )
+        chunk_objects.append(chunk)
+
+    db.bulk_save_objects(chunk_objects)
+    db.commit()
+    db.refresh(doc)
+
+    logger.info(f"Ingested {len(all_chunks)} chunks from kit (version: {version_tag})")
+
+    # Create embeddings if requested
+    if create_embeddings:
+        from app.services.embeddings import create_embeddings_for_document
+        create_embeddings_for_document(db, doc.id)
 
     return doc

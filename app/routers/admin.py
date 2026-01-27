@@ -13,7 +13,7 @@ from app.db import get_db
 from app.dependencies import require_admin
 from app.models.auth import User
 from app.models.toolkit import ToolkitDocument, ToolkitChunk, ChatLog, Feedback
-from app.services.ingestion import ingest_document, reindex_document
+from app.services.ingestion import ingest_document, reindex_document, ingest_from_kit
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -259,6 +259,34 @@ async def reindex_document_route(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Reindexing failed: {str(e)}")
+
+
+@router.post("/documents/ingest-kit")
+async def ingest_kit_route(
+    create_embeddings: bool = Form(True),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Ingest toolkit content from /kit JSON files.
+
+    Reads the structured JSON data extracted from toolkit.pdf
+    and creates chunks with enriched metadata for RAG search.
+    """
+    try:
+        from app.services.kit_loader import get_kit_stats
+        stats = get_kit_stats()
+
+        doc = ingest_from_kit(
+            db=db,
+            version_tag=f"kit-v1",
+            create_embeddings=create_embeddings
+        )
+
+        return RedirectResponse(url="/admin/documents", status_code=303)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Kit ingestion failed: {str(e)}")
 
 
 @router.post("/documents/{document_id}/toggle-active")

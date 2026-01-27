@@ -1,55 +1,57 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50">
-    <div class="min-h-screen flex items-center justify-center">
-        <div class="text-center max-w-2xl px-4">
-            <h1 class="text-5xl font-bold text-blue-600 mb-4">Grounded</h1>
-            <p class="text-xl text-gray-600 mb-8">AI Toolkit Learning Platform</p>
-            <p class="text-gray-500 mb-8">
-                Get answers to your toolkit questions with AI-powered search and grounded citations.
-            </p>
+{% extends "base.html" %}
 
-            <!-- CTA Buttons -->
-            <div class="flex justify-center gap-4 mb-12">
-                <a href="/login" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-                    Sign In
-                </a>
-                <a href="/register" class="bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition">
-                    Create Account
-                </a>
-            </div>
+{% block title %}Grounded - AI Toolkit Learning Platform{% endblock %}
 
-            <!-- Features -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left mb-12">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="font-bold text-lg mb-2">🔍 Smart Search</h3>
-                    <p class="text-sm text-gray-600">Vector similarity search finds relevant toolkit content.</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="font-bold text-lg mb-2">📚 Grounded Answers</h3>
-                    <p class="text-sm text-gray-600">All responses cite specific toolkit sections.</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="font-bold text-lg mb-2">💬 Feedback Loop</h3>
-                    <p class="text-sm text-gray-600">Rate answers to improve response quality.</p>
-                </div>
-            </div>
+{% block content %}
+<div class="px-4 sm:px-0">
 
-            <!-- Quick Links -->
-            <div class="text-sm text-gray-500 space-x-4">
-                <a href="/login" class="hover:text-blue-600 font-medium">Sign In</a>
-                <span class="text-gray-300">|</span>
-                <a href="/register" class="hover:text-blue-600 font-medium">Register</a>
-                <span class="text-gray-300">|</span>
-                <a href="/admin" class="hover:text-blue-600 font-medium">Admin</a>
-            </div>
+    <!-- Hero -->
+    <div class="text-center py-12">
+        <h1 class="text-5xl font-bold text-blue-600 mb-4">Grounded</h1>
+        <p class="text-xl text-gray-600 mb-4">AI Toolkit Learning Platform</p>
+        <p class="text-gray-500 max-w-2xl mx-auto mb-8">
+            Explore 46 AI tools across 7 clusters, each rated on Cost, Difficulty and Invasiveness.
+            Learn how to use AI responsibly in journalism.
+        </p>
+        <div class="flex justify-center gap-4">
+            <a href="/tools" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">
+                Explore Tools
+            </a>
+            <a href="/clusters" class="bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition font-medium">
+                View Clusters
+            </a>
         </div>
     </div>
-</body>
-</html>
+
+    <!-- Feature Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <a href="/tools" class="block bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+            <h3 class="font-bold text-lg mb-2 text-gray-900">46 AI Tools</h3>
+            <p class="text-sm text-gray-600">Each tool rated with CDI scores - Cost, Difficulty, Invasiveness - so you know the trade-offs before you start.</p>
+        </a>
+        <a href="/clusters" class="block bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+            <h3 class="font-bold text-lg mb-2 text-gray-900">7 Clusters</h3>
+            <p class="text-sm text-gray-600">From transcription to verification to AI agents. Tools grouped by function with teaching guidance and exercises.</p>
+        </a>
+        <a href="/toolkit" class="block bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+            <h3 class="font-bold text-lg mb-2 text-gray-900">Ask Questions</h3>
+            <p class="text-sm text-gray-600">Chat with the toolkit using AI-powered search. Every answer is grounded in the source material with citations.</p>
+        </a>
+    </div>
+
+    <!-- Clusters Quick Overview -->
+    <div class="mb-12">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Tool Clusters</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {% for cluster in clusters %}
+            <a href="/clusters/{{ cluster.slug }}"
+               class="block bg-white rounded-lg shadow p-4 hover:shadow-md transition border-l-4 border-blue-500">
+                <h3 class="font-semibold text-gray-900 text-sm">{{ cluster.name }}</h3>
+                <p class="text-xs text-gray-500 mt-1">{{ cluster.tool_count }} tools</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
