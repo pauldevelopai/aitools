@@ -1,6 +1,6 @@
 """Tool listing, detail, and finder routes."""
 from typing import Optional
-from fastapi import APIRouter, Depends, Request, HTTPException, Query
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -132,20 +132,26 @@ async def tools_index(
     request: Request,
     cluster: Optional[str] = None,
     q: Optional[str] = None,
-    max_cost: Optional[int] = Query(None, ge=0, le=10),
-    max_difficulty: Optional[int] = Query(None, ge=0, le=10),
-    max_invasiveness: Optional[int] = Query(None, ge=0, le=10),
+    max_cost: Optional[str] = None,
+    max_difficulty: Optional[str] = None,
+    max_invasiveness: Optional[str] = None,
     user: Optional[User] = Depends(get_current_user),
 ):
     """List all tools with optional filtering."""
     clusters = get_all_clusters()
 
+    # Parse optional int params (empty strings from form become None)
+    cost_val = int(max_cost) if max_cost and max_cost.isdigit() else None
+    diff_val = int(max_difficulty) if max_difficulty and max_difficulty.isdigit() else None
+    inv_val = int(max_invasiveness) if max_invasiveness and max_invasiveness.isdigit() else None
+    cluster_val = cluster if cluster else None
+
     tools = search_tools(
         query=q or "",
-        cluster_slug=cluster,
-        max_cost=max_cost,
-        max_difficulty=max_difficulty,
-        max_invasiveness=max_invasiveness,
+        cluster_slug=cluster_val,
+        max_cost=cost_val,
+        max_difficulty=diff_val,
+        max_invasiveness=inv_val,
     )
 
     return templates.TemplateResponse(
@@ -155,11 +161,11 @@ async def tools_index(
             "user": user,
             "tools": tools,
             "clusters": clusters,
-            "cluster": cluster,
+            "cluster": cluster_val,
             "q": q or "",
-            "max_cost": max_cost,
-            "max_difficulty": max_difficulty,
-            "max_invasiveness": max_invasiveness,
+            "max_cost": cost_val,
+            "max_difficulty": diff_val,
+            "max_invasiveness": inv_val,
             "total_tools": len(get_all_tools()),
         }
     )
