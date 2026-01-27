@@ -1,212 +1,163 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Toolkit Chat - Grounded</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-</head>
-<body class="bg-gray-50">
-    <!-- Header -->
-    <header class="bg-white shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div class="flex items-center space-x-6">
-                <h1 class="text-2xl font-bold text-gray-900">Grounded Chat</h1>
-                <nav class="flex space-x-4 text-sm">
-                    <a href="/" class="text-gray-600 hover:text-gray-900">Home</a>
-                    <a href="/toolkit" class="text-blue-600 font-medium">Chat</a>
-                    <a href="/browse" class="text-gray-600 hover:text-gray-900">Browse</a>
-                    {% if user.is_admin %}
-                    <a href="/admin/documents/upload" class="text-gray-600 hover:text-gray-900">Upload</a>
-                    {% endif %}
-                    <a href="/strategy" class="text-gray-600 hover:text-gray-900">Strategy</a>
-                </nav>
-            </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-sm text-gray-600">{{ user.username }}</span>
-                <form action="/auth/logout" method="POST">
-                    <button type="submit" class="text-sm text-blue-600 hover:text-blue-800">
-                        Logout
+{% extends "base.html" %}
+
+{% block title %}Toolkit Chat - Grounded{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Main Chat Area (2 columns) -->
+        <div class="lg:col-span-2 space-y-4">
+
+            <!-- Chat Input -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <form
+                    hx-post="/toolkit/ask"
+                    hx-target="#response-area"
+                    hx-indicator="#loading"
+                    class="space-y-4"
+                >
+                    <div>
+                        <label for="query" class="block text-sm font-medium text-gray-700 mb-2">
+                            Ask a question about the toolkit
+                        </label>
+                        <textarea
+                            id="query"
+                            name="query"
+                            rows="3"
+                            required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="What are the best practices for..."
+                        ></textarea>
+                    </div>
+                    <button
+                        type="submit"
+                        class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        Ask
                     </button>
+                    <div id="loading" class="htmx-indicator text-center text-gray-600">
+                        <span class="inline-block animate-pulse">Searching toolkit...</span>
+                    </div>
                 </form>
             </div>
-        </div>
-    </header>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            <!-- Main Chat Area (2 columns) -->
-            <div class="lg:col-span-2 space-y-4">
-
-                <!-- Chat Input -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <form
-                        hx-post="/toolkit/ask"
-                        hx-target="#response-area"
-                        hx-indicator="#loading"
-                        class="space-y-4"
-                    >
-                        <div>
-                            <label for="query" class="block text-sm font-medium text-gray-700 mb-2">
-                                Ask a question about the toolkit
-                            </label>
-                            <textarea
-                                id="query"
-                                name="query"
-                                rows="3"
-                                required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="What are the best practices for..."
-                            ></textarea>
+            <!-- Response Area -->
+            <div id="response-area" class="space-y-4">
+                {% if recent_logs %}
+                    {% for log in recent_logs %}
+                    <div class="bg-white rounded-lg shadow">
+                        <!-- Question -->
+                        <div class="p-4 border-b border-gray-200">
+                            <div class="text-sm font-medium text-gray-500 mb-1">You asked:</div>
+                            <div class="text-gray-900">{{ log.query }}</div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                {{ log.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </div>
                         </div>
-                        <button
-                            type="submit"
-                            class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        >
-                            Ask
-                        </button>
-                        <div id="loading" class="htmx-indicator text-center text-gray-600">
-                            <span class="inline-block animate-pulse">Searching toolkit...</span>
-                        </div>
-                    </form>
-                </div>
 
-                <!-- Response Area -->
-                <div id="response-area" class="space-y-4">
-                    {% if recent_logs %}
-                        {% for log in recent_logs %}
-                        <div class="bg-white rounded-lg shadow">
-                            <!-- Question -->
-                            <div class="p-4 border-b border-gray-200">
-                                <div class="text-sm font-medium text-gray-500 mb-1">You asked:</div>
-                                <div class="text-gray-900">{{ log.query }}</div>
-                                <div class="text-xs text-gray-500 mt-1">
-                                    {{ log.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        <!-- Answer -->
+                        <div class="p-4">
+                            <div class="text-sm font-medium text-gray-700 mb-2">Answer:</div>
+                            <div class="text-gray-900 whitespace-pre-wrap">{{ log.answer }}</div>
+
+                            <!-- Citations -->
+                            {% if log.citations %}
+                            <div class="mt-4">
+                                <div class="text-sm font-medium text-gray-700 mb-2">Sources:</div>
+                                <div class="space-y-2">
+                                    {% for citation in log.citations %}
+                                    <div class="text-sm border-l-2 border-blue-500 pl-3 py-1">
+                                        <div class="font-medium text-gray-900">
+                                            {{ citation.heading or 'Section' }}
+                                            <span class="text-xs text-gray-500">(similarity: {{ "%.2f"|format(citation.similarity_score) }})</span>
+                                        </div>
+                                        <div class="text-gray-600 text-xs mt-1">{{ citation.snippet }}</div>
+                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
+                            {% endif %}
 
-                            <!-- Answer -->
-                            <div class="p-4">
-                                <div class="text-sm font-medium text-gray-700 mb-2">Answer:</div>
-                                <div class="text-gray-900 whitespace-pre-wrap">{{ log.answer }}</div>
-
-                                <!-- Citations -->
-                                {% if log.citations %}
-                                <div class="mt-4">
-                                    <div class="text-sm font-medium text-gray-700 mb-2">Sources:</div>
-                                    <div class="space-y-2">
-                                        {% for citation in log.citations %}
-                                        <div class="text-sm border-l-2 border-blue-500 pl-3 py-1">
-                                            <div class="font-medium text-gray-900">
-                                                {{ citation.heading or 'Section' }}
-                                                <span class="text-xs text-gray-500">(similarity: {{ "%.2f"|format(citation.similarity_score) }})</span>
-                                            </div>
-                                            <div class="text-gray-600 text-xs mt-1">{{ citation.snippet }}</div>
-                                        </div>
+                            <!-- Feedback Form -->
+                            {% if not log.feedback %}
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <form
+                                    hx-post="/toolkit/feedback/{{ log.id }}"
+                                    hx-target="#feedback-{{ log.id }}"
+                                    class="space-y-3"
+                                >
+                                    <div class="text-sm font-medium text-gray-700">Rate this answer:</div>
+                                    <div class="flex space-x-2">
+                                        {% for i in range(1, 6) %}
+                                        <label class="flex items-center">
+                                            <input type="radio" name="rating" value="{{ i }}" required class="mr-1">
+                                            <span class="text-sm">{{ i }}</span>
+                                        </label>
                                         {% endfor %}
                                     </div>
-                                </div>
-                                {% endif %}
-
-                                <!-- Feedback Form (if not already submitted) -->
-                                {% if not log.feedback %}
-                                <div class="mt-4 pt-4 border-t border-gray-200">
-                                    <form
-                                        hx-post="/toolkit/feedback/{{ log.id }}"
-                                        hx-target="#feedback-{{ log.id }}"
-                                        class="space-y-3"
+                                    <div>
+                                        <select name="issue_type" class="text-sm border border-gray-300 rounded px-2 py-1">
+                                            <option value="">No issues</option>
+                                            <option value="hallucination">Hallucination</option>
+                                            <option value="irrelevant">Irrelevant</option>
+                                            <option value="too_vague">Too vague</option>
+                                            <option value="security_concern">Security concern</option>
+                                            <option value="cost_concern">Cost concern</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <textarea
+                                            name="comment"
+                                            rows="2"
+                                            placeholder="Optional comment..."
+                                            class="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                                        ></textarea>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        class="text-sm bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
                                     >
-                                        <div class="text-sm font-medium text-gray-700">Rate this answer:</div>
-
-                                        <!-- Rating -->
-                                        <div class="flex space-x-2">
-                                            {% for i in range(1, 6) %}
-                                            <label class="flex items-center">
-                                                <input type="radio" name="rating" value="{{ i }}" required class="mr-1">
-                                                <span class="text-sm">{{ i }}</span>
-                                            </label>
-                                            {% endfor %}
-                                        </div>
-
-                                        <!-- Issue Type -->
-                                        <div>
-                                            <select name="issue_type" class="text-sm border border-gray-300 rounded px-2 py-1">
-                                                <option value="">No issues</option>
-                                                <option value="hallucination">Hallucination</option>
-                                                <option value="irrelevant">Irrelevant</option>
-                                                <option value="too_vague">Too vague</option>
-                                                <option value="security_concern">Security concern</option>
-                                                <option value="cost_concern">Cost concern</option>
-                                                <option value="other">Other</option>
-                                            </select>
-                                        </div>
-
-                                        <!-- Comment -->
-                                        <div>
-                                            <textarea
-                                                name="comment"
-                                                rows="2"
-                                                placeholder="Optional comment..."
-                                                class="w-full text-sm border border-gray-300 rounded px-2 py-1"
-                                            ></textarea>
-                                        </div>
-
-                                        <button
-                                            type="submit"
-                                            class="text-sm bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
-                                        >
-                                            Submit Feedback
-                                        </button>
-                                    </form>
-                                    <div id="feedback-{{ log.id }}"></div>
-                                </div>
-                                {% else %}
-                                <div class="mt-4 pt-4 border-t border-gray-200 text-sm text-gray-600">
-                                    ✓ Feedback submitted (Rating: {{ log.feedback.rating }}/5)
-                                </div>
-                                {% endif %}
+                                        Submit Feedback
+                                    </button>
+                                </form>
+                                <div id="feedback-{{ log.id }}"></div>
                             </div>
+                            {% else %}
+                            <div class="mt-4 pt-4 border-t border-gray-200 text-sm text-gray-600">
+                                Feedback submitted (Rating: {{ log.feedback.rating }}/5)
+                            </div>
+                            {% endif %}
                         </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-                            Ask a question to get started!
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Citations Panel (1 column) -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-lg shadow p-6 sticky top-6">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">About</h2>
-                    <div class="text-sm text-gray-600 space-y-2">
-                        <p>This chat interface provides answers grounded in the toolkit documentation.</p>
-                        <p class="font-medium">How it works:</p>
-                        <ul class="list-disc list-inside space-y-1 text-xs">
-                            <li>Questions are matched to relevant sections</li>
-                            <li>Answers cite specific toolkit content</li>
-                            <li>Your feedback helps improve responses</li>
-                        </ul>
-                        <p class="mt-4 pt-4 border-t border-gray-200 text-xs">
-                            <strong>Privacy:</strong> You can only see your own chat history.
-                        </p>
                     </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                        Ask a question to get started!
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Citations Panel (1 column) -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow p-6 sticky top-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">About</h2>
+                <div class="text-sm text-gray-600 space-y-2">
+                    <p>This chat interface provides answers grounded in the toolkit documentation.</p>
+                    <p class="font-medium">How it works:</p>
+                    <ul class="list-disc list-inside space-y-1 text-xs">
+                        <li>Questions are matched to relevant sections</li>
+                        <li>Answers cite specific toolkit content</li>
+                        <li>Your feedback helps improve responses</li>
+                    </ul>
+                    <p class="mt-4 pt-4 border-t border-gray-200 text-xs">
+                        <strong>Privacy:</strong> You can only see your own chat history.
+                    </p>
                 </div>
             </div>
         </div>
     </div>
-
-    <style>
-        .htmx-indicator {
-            display: none;
-        }
-        .htmx-request .htmx-indicator {
-            display: block;
-        }
-    </style>
-</body>
-</html>
+</div>
+{% endblock %}

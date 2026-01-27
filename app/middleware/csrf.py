@@ -33,6 +33,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/auth/register",
             "/auth/logout",
             "/toolkit/ask",
+            "/toolkit/ask-widget",
             "/toolkit/feedback",
             "/health",
             "/ready",

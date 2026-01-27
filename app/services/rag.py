@@ -132,7 +132,8 @@ def generate_answer(
     query: str,
     search_results: List[SearchResult],
     user_id: Optional[str] = None,
-    save_to_log: bool = True
+    save_to_log: bool = True,
+    user_profile: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Generate answer using retrieved chunks with strict grounding.
@@ -184,6 +185,25 @@ IMPORTANT RULES:
 4. Do not add information from your general knowledge
 5. Be concise and factual
 6. If you're unsure, say so rather than guessing"""
+
+    # Append user profile context if available
+    if user_profile:
+        profile_parts = []
+        if user_profile.get("role"):
+            profile_parts.append(f"Role: {user_profile['role']}")
+        if user_profile.get("organisation_type"):
+            profile_parts.append(f"Organisation type: {user_profile['organisation_type']}")
+        if user_profile.get("country"):
+            profile_parts.append(f"Country: {user_profile['country']}")
+        if user_profile.get("interests"):
+            profile_parts.append(f"Interests: {user_profile['interests']}")
+        if user_profile.get("ai_experience_level"):
+            profile_parts.append(f"AI experience: {user_profile['ai_experience_level']}")
+        if profile_parts:
+            system_prompt += f"""
+
+USER CONTEXT (tailor your answer's complexity and focus accordingly):
+{chr(10).join(profile_parts)}"""
 
     user_prompt = f"""Context from toolkit:
 
@@ -256,7 +276,8 @@ def rag_answer(
     user_id: Optional[str] = None,
     top_k: Optional[int] = None,
     similarity_threshold: Optional[float] = None,
-    filters: Optional[Dict[str, Any]] = None
+    filters: Optional[Dict[str, Any]] = None,
+    user_profile: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Complete RAG pipeline: search + generate answer.
@@ -268,6 +289,7 @@ def rag_answer(
         top_k: Number of chunks to retrieve (default from settings)
         similarity_threshold: Minimum similarity (default from settings)
         filters: Optional filters for search
+        user_profile: Optional user profile dict for personalizing answers
 
     Returns:
         Dictionary with answer and citations
@@ -286,4 +308,4 @@ def rag_answer(
     )
 
     # Generate answer with citations
-    return generate_answer(db, query, search_results, user_id=user_id, save_to_log=True)
+    return generate_answer(db, query, search_results, user_id=user_id, save_to_log=True, user_profile=user_profile)

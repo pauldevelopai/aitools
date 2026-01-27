@@ -1,6 +1,7 @@
 """FastAPI dependencies for authentication."""
 from typing import Optional
-from fastapi import Cookie, Depends, HTTPException, status
+from urllib.parse import quote
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -58,6 +59,7 @@ async def require_auth(
 
 
 async def require_auth_page(
+    request: Request,
     session_token: Optional[str] = Cookie(None, alias=settings.SESSION_COOKIE_NAME),
     db: Session = Depends(get_db)
 ) -> User:
@@ -68,13 +70,19 @@ async def require_auth_page(
         User object if authenticated
 
     Raises:
-        HTTPException with redirect to login page
+        HTTPException with redirect to login page (includes next URL)
     """
+    # Build the next URL from current request path
+    current_path = request.url.path
+    if request.url.query:
+        current_path += f"?{request.url.query}"
+    login_url = f"/login?next={quote(current_path)}"
+
     if not session_token:
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
             detail="Redirect to login",
-            headers={"Location": "/login"}
+            headers={"Location": login_url}
         )
 
     user = get_user_from_session(db, session_token)
@@ -83,7 +91,7 @@ async def require_auth_page(
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
             detail="Redirect to login",
-            headers={"Location": "/login"}
+            headers={"Location": login_url}
         )
 
     return user

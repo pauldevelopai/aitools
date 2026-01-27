@@ -64,11 +64,15 @@ async def ask_question(
     Returns HTML fragment with the new Q&A.
     """
 
+    # Build user profile for personalization
+    user_profile = _build_user_profile(user)
+
     # Generate answer using RAG
     result = rag_answer(
         db=db,
         query=query,
-        user_id=str(user.id)  # Pass user_id for logging
+        user_id=str(user.id),
+        user_profile=user_profile
     )
 
     # Get the chat log that was just created
@@ -257,12 +261,68 @@ async def ask_about_section(
     # Build query that includes context
     enhanced_query = f"{question}\n\n[Context: {context}]"
 
+    # Build user profile for personalization
+    user_profile = _build_user_profile(user)
+
     # Generate answer
     result = rag_answer(
         db=db,
         query=enhanced_query,
-        user_id=str(user.id)
+        user_id=str(user.id),
+        user_profile=user_profile
     )
 
     # Redirect back to toolkit page where the answer will appear
     return RedirectResponse(url="/toolkit", status_code=303)
+
+
+@router.post("/ask-widget", response_class=HTMLResponse)
+async def ask_widget(
+    request: Request,
+    query: str = Form(...),
+    user: User = Depends(require_auth_page),
+    db: Session = Depends(get_db)
+):
+    """
+    Lightweight chat widget endpoint.
+
+    Returns a compact HTML fragment for the floating chatbot panel.
+    """
+    user_profile = _build_user_profile(user)
+
+    result = rag_answer(
+        db=db,
+        query=query,
+        user_id=str(user.id),
+        user_profile=user_profile
+    )
+
+    answer = result['answer']
+    # Build compact HTML response
+    html = f'<div class="whitespace-pre-wrap">{answer}</div>'
+
+    if result['citations']:
+        html += '<details class="mt-2"><summary class="text-xs text-blue-600 cursor-pointer">Sources</summary><div class="mt-1 space-y-1">'
+        for citation in result['citations']:
+            heading = citation.get('heading') or 'Section'
+            score = citation.get('similarity_score', 0)
+            html += f'<div class="text-xs border-l-2 border-blue-400 pl-2 text-gray-600">{heading} <span class="text-gray-400">({score:.2f})</span></div>'
+        html += '</div></details>'
+
+    return HTMLResponse(content=html)
+
+
+def _build_user_profile(user: User) -> dict:
+    """Build a user profile dict from a User object for RAG personalization."""
+    profile = {}
+    if getattr(user, 'role', None):
+        profile['role'] = user.role
+    if getattr(user, 'organisation_type', None):
+        profile['organisation_type'] = user.organisation_type
+    if getattr(user, 'country', None):
+        profile['country'] = user.country
+    if getattr(user, 'interests', None):
+        profile['interests'] = user.interests
+    if getattr(user, 'ai_experience_level', None):
+        profile['ai_experience_level'] = user.ai_experience_level
+    return profile if profile else None

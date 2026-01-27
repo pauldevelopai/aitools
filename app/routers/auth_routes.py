@@ -1,10 +1,13 @@
 """Authentication routes."""
+from typing import Optional
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.auth import User
+from app.dependencies import get_current_user
 from app.services.auth import create_user, authenticate_user, create_session, delete_session
 from app.settings import settings
 from app.middleware.csrf import CSRFProtectionMiddleware
@@ -15,20 +18,23 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, response: Response):
+async def login_page(
+    request: Request,
+    response: Response,
+    next: Optional[str] = None,
+    user: Optional[User] = Depends(get_current_user),
+):
     """Login page."""
-    # Generate CSRF token
+    # Already logged in — redirect
+    if user:
+        return RedirectResponse(url=next or "/", status_code=302)
+
     csrf_token = CSRFProtectionMiddleware.generate_token()
-    
-    # Create template response
     template_response = templates.TemplateResponse(
         "auth/login.html",
-        {"request": request, "csrf_token": csrf_token}
+        {"request": request, "csrf_token": csrf_token, "user": None, "next": next or ""}
     )
-    
-    # Set CSRF cookie
     CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)
-    
     return template_response
 
 
@@ -37,26 +43,28 @@ async def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    next: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """Process login form."""
     user = authenticate_user(db, username, password)
 
     if not user:
-        # Generate new CSRF token for error page
         csrf_token = CSRFProtectionMiddleware.generate_token()
         template_response = templates.TemplateResponse(
             "auth/login.html",
-            {"request": request, "error": "Invalid username or password", "csrf_token": csrf_token}
+            {"request": request, "error": "Invalid username or password", "csrf_token": csrf_token, "user": None, "next": next or ""}
         )
         CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)
         return template_response
 
-    # Create session
-    session = create_session(db, str(user.id))
+    # Validate redirect URL (must be relative, not protocol-relative)
+    redirect_url = "/toolkit"
+    if next and next.startswith("/") and not next.startswith("//"):
+        redirect_url = next
 
-    # Redirect to toolkit with session cookie
-    response = RedirectResponse(url="/toolkit", status_code=303)
+    session = create_session(db, str(user.id))
+    response = RedirectResponse(url=redirect_url, status_code=303)
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
         value=session.session_token,
@@ -65,25 +73,25 @@ async def login(
         samesite=settings.COOKIE_SAMESITE,
         max_age=settings.SESSION_MAX_AGE
     )
-
     return response
 
 
 @router.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request, response: Response):
+async def register_page(
+    request: Request,
+    response: Response,
+    user: Optional[User] = Depends(get_current_user),
+):
     """Registration page."""
-    # Generate CSRF token
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+
     csrf_token = CSRFProtectionMiddleware.generate_token()
-    
-    # Create template response
     template_response = templates.TemplateResponse(
         "auth/register.html",
-        {"request": request, "csrf_token": csrf_token}
+        {"request": request, "csrf_token": csrf_token, "user": None}
     )
-    
-    # Set CSRF cookie
     CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)
-    
     return template_response
 
 
@@ -96,24 +104,18 @@ async def register(
     db: Session = Depends(get_db)
 ):
     """Process registration form."""
-    # Validate password length
     if len(password) < 8:
         csrf_token = CSRFProtectionMiddleware.generate_token()
         template_response = templates.TemplateResponse(
             "auth/register.html",
-            {"request": request, "error": "Password must be at least 8 characters", "csrf_token": csrf_token}
+            {"request": request, "error": "Password must be at least 8 characters", "csrf_token": csrf_token, "user": None}
         )
         CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)
         return template_response
 
     try:
-        # Create user
         user = create_user(db, email, username, password)
-
-        # Create session
         session = create_session(db, str(user.id))
-
-        # Redirect to toolkit with session cookie
         response = RedirectResponse(url="/toolkit", status_code=303)
         response.set_cookie(
             key=settings.SESSION_COOKIE_NAME,
@@ -123,14 +125,12 @@ async def register(
             samesite=settings.COOKIE_SAMESITE,
             max_age=settings.SESSION_MAX_AGE
         )
-
         return response
-
     except ValueError as e:
         csrf_token = CSRFProtectionMiddleware.generate_token()
         template_response = templates.TemplateResponse(
             "auth/register.html",
-            {"request": request, "error": str(e), "csrf_token": csrf_token}
+            {"request": request, "error": str(e), "csrf_token": csrf_token, "user": None}
         )
         CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)
         return template_response
@@ -143,11 +143,9 @@ async def logout(
 ):
     """Logout (delete session)."""
     session_token = request.cookies.get("session")
-
     if session_token:
         delete_session(db, session_token)
 
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie(settings.SESSION_COOKIE_NAME)
-
     return response
