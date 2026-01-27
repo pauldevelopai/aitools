@@ -24,5 +24,15 @@
     "local-processing",
     "open-source",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "visualping"
+    ],
+    "use_cases": [
+      "web-monitoring"
+    ]
+  }
 }

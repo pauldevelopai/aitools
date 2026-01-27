@@ -603,5 +603,71 @@
       "slug": "addendum-e",
       "title": "Who to Follow Online"
     }
-  ]
+  ],
+  "sources": {
+    "total_entries": 83,
+    "batch_count": 12,
+    "batches": [
+      {
+        "batch": 1,
+        "theme": "Toolkit Footnotes & Core References",
+        "entry_count": 10
+      },
+      {
+        "batch": 2,
+        "theme": "Central European & Case Study Evidence",
+        "entry_count": 4
+      },
+      {
+        "batch": 3,
+        "theme": "Newsroom Chatbots, Transcription & Translation Tools",
+        "entry_count": 8
+      },
+      {
+        "batch": 4,
+        "theme": "Research Tools & Verification Plugins",
+        "entry_count": 8
+      },
+      {
+        "batch": 5,
+        "theme": "AI Literacy & Model Limitations",
+        "entry_count": 8
+      },
+      {
+        "batch": 6,
+        "theme": "Safety, Security & Privacy",
+        "entry_count": 8
+      },
+      {
+        "batch": 7,
+        "theme": "Business, Revenue & Sustainability",
+        "entry_count": 7
+      },
+      {
+        "batch": 8,
+        "theme": "Global South & Regional Case Studies",
+        "entry_count": 6
+      },
+      {
+        "batch": 9,
+        "theme": "Practice-Led Case Studies & Africa-Focused Evidence",
+        "entry_count": 6
+      },
+      {
+        "batch": 10,
+        "theme": "Claim Verification & LLM Surveys",
+        "entry_count": 4
+      },
+      {
+        "batch": 11,
+        "theme": "Datasets & Benchmarks for Fact Checking",
+        "entry_count": 6
+      },
+      {
+        "batch": 12,
+        "theme": "Open-source Tools & Infrastructure",
+        "entry_count": 8
+      }
+    ]
+  }
 }

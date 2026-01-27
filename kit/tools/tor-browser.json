@@ -22,5 +22,18 @@
   "tags": [
     "free",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "bitwarden",
+      "dangerzone-security-challenges",
+      "protonmail",
+      "veracrypt"
+    ],
+    "use_cases": [
+      "security-privacy"
+    ]
+  }
 }

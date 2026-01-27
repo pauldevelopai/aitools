@@ -23,5 +23,18 @@
     "free",
     "local-processing",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "bitwarden",
+      "protonmail",
+      "tor-browser",
+      "veracrypt"
+    ],
+    "use_cases": [
+      "security-privacy"
+    ]
+  }
 }

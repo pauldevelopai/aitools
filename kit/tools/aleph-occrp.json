@@ -23,5 +23,21 @@
     "free",
     "privacy-friendly",
     "sovereign-alternative"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [
+      "notebooklm",
+      "google-pinpoint"
+    ],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "google-pinpoint",
+      "neo4j",
+      "notebooklm"
+    ],
+    "use_cases": [
+      "document-research",
+      "network-analysis"
+    ]
+  }
 }

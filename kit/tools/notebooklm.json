@@ -22,5 +22,16 @@
   "tags": [
     "beginner-friendly",
     "free"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": "aleph-occrp",
+    "similar_tools": [
+      "aleph-occrp",
+      "google-pinpoint"
+    ],
+    "use_cases": [
+      "document-research"
+    ]
+  }
 }

@@ -22,5 +22,15 @@
   "tags": [
     "beginner-friendly",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": "bellingcat-online-investigation-toolkit",
+    "similar_tools": [
+      "changedetectionio"
+    ],
+    "use_cases": [
+      "web-monitoring"
+    ]
+  }
 }

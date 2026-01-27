@@ -24,5 +24,16 @@
     "local-processing",
     "open-source",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "pandas",
+      "tabula"
+    ],
+    "use_cases": [
+      "data-analysis"
+    ]
+  }
 }

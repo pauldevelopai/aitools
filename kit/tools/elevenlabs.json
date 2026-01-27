@@ -19,5 +19,16 @@
   },
   "comments": "",
   "url": "https://elevenlabs.io",
-  "tags": []
+  "tags": [],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "descript",
+      "narakeet"
+    ],
+    "use_cases": [
+      "audio-voice"
+    ]
+  }
 }

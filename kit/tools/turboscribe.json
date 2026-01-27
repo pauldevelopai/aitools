@@ -22,5 +22,16 @@
   "tags": [
     "beginner-friendly",
     "open-source"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": "openai-whisper",
+    "similar_tools": [
+      "happyscribe",
+      "openai-whisper"
+    ],
+    "use_cases": [
+      "transcription"
+    ]
+  }
 }

@@ -5,13 +5,15 @@
 {% block content %}
 <div class="px-4 sm:px-0">
 
-    <!-- Back -->
-    <div class="mb-6">
-        <a href="/tools" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Back to All Tools</a>
-        <span class="text-gray-400 mx-2">|</span>
-        <a href="/clusters/{{ tool.cluster_slug }}" class="text-blue-600 hover:text-blue-800 text-sm">
+    <!-- Breadcrumb -->
+    <div class="mb-6 text-sm">
+        <a href="/tools" class="text-blue-600 hover:text-blue-800">&larr; All Tools</a>
+        <span class="text-gray-400 mx-2">/</span>
+        <a href="/clusters/{{ tool.cluster_slug }}" class="text-blue-600 hover:text-blue-800">
             {{ tool.cluster_name }}
         </a>
+        <span class="text-gray-400 mx-2">/</span>
+        <span class="text-gray-500">{{ tool.name }}</span>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -30,7 +32,14 @@
                                 {{ tool.cluster_name }}
                             </a>
                             {% for tag in tool.tags %}
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm
+                                {% if tag == 'sovereign-alternative' %}bg-emerald-100 text-emerald-800
+                                {% elif tag == 'free' %}bg-green-100 text-green-800
+                                {% elif tag == 'open-source' %}bg-purple-100 text-purple-800
+                                {% elif tag == 'privacy-friendly' %}bg-teal-100 text-teal-800
+                                {% elif tag == 'beginner-friendly' %}bg-sky-100 text-sky-800
+                                {% elif tag == 'advanced' %}bg-orange-100 text-orange-800
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
                                 {{ tag }}
                             </span>
                             {% endfor %}
@@ -41,81 +50,101 @@
 
                 {% if tool.url %}
                 <a href="{{ tool.url }}" target="_blank" rel="noopener noreferrer"
-                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 mb-4">
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
                     {{ tool.url }} &nearr;
                 </a>
                 {% endif %}
             </div>
 
+            <!-- Sovereign Alternative Banner -->
+            {% if sovereign_alt %}
+            <div class="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-5">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 text-emerald-600 font-bold text-lg mt-0.5">&#9399;</div>
+                    <div>
+                        <h3 class="font-semibold text-emerald-900">Sovereign Alternative Available</h3>
+                        <p class="text-sm text-emerald-700 mt-1">
+                            For greater data sovereignty, consider
+                            <a href="/tools/{{ sovereign_alt.slug }}" class="font-semibold underline hover:text-emerald-900">
+                                {{ sovereign_alt.name }}
+                            </a>
+                            &mdash; {{ sovereign_alt.purpose }}
+                        </p>
+                        <div class="mt-2 flex gap-2 text-xs">
+                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                                Cost: {{ sovereign_alt.cdi_scores.cost }}/10
+                            </span>
+                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                                Difficulty: {{ sovereign_alt.cdi_scores.difficulty }}/10
+                            </span>
+                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                                Invasiveness: {{ sovereign_alt.cdi_scores.invasiveness }}/10
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if sovereign_for_tools %}
+            <div class="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-5">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 text-emerald-600 font-bold text-lg mt-0.5">&#9399;</div>
+                    <div>
+                        <h3 class="font-semibold text-emerald-900">This is a Sovereign Alternative</h3>
+                        <p class="text-sm text-emerald-700 mt-1">
+                            {{ tool.name }} offers greater data control and privacy compared to:
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {% for st in sovereign_for_tools %}
+                            <a href="/tools/{{ st.slug }}"
+                               class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100">
+                                {{ st.name }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- CDI Scores -->
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">CDI Score</h2>
+                <p class="text-sm text-gray-500 mb-4">
+                    Every tool is rated 0-10 on three dimensions.
+                    Lower is better for Cost and Invasiveness. Lower Difficulty means easier to learn.
+                </p>
                 <div class="grid grid-cols-3 gap-4">
-                    <!-- Cost -->
+                    {% for label, key, low_label, high_label in [
+                        ('Cost', 'cost', 'Free', 'Expensive'),
+                        ('Difficulty', 'difficulty', 'Easy', 'Advanced'),
+                        ('Invasiveness', 'invasiveness', 'Local', 'Cloud-dependent')
+                    ] %}
                     <div class="text-center">
-                        <div class="text-sm font-medium text-gray-500 mb-2">Cost</div>
+                        <div class="text-sm font-medium text-gray-500 mb-2">{{ label }}</div>
                         <div class="relative mx-auto w-20 h-20">
                             <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
                                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                       fill="none" stroke="#e5e7eb" stroke-width="3"/>
                                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                       fill="none"
-                                      stroke="{% if tool.cdi_scores.cost <= 3 %}#22c55e{% elif tool.cdi_scores.cost <= 6 %}#eab308{% else %}#ef4444{% endif %}"
+                                      stroke="{% if tool.cdi_scores[key] <= 3 %}#22c55e{% elif tool.cdi_scores[key] <= 6 %}#eab308{% else %}#ef4444{% endif %}"
                                       stroke-width="3"
-                                      stroke-dasharray="{{ tool.cdi_scores.cost * 10 }}, 100"/>
+                                      stroke-dasharray="{{ tool.cdi_scores[key] * 10 }}, 100"/>
                             </svg>
                             <div class="absolute inset-0 flex items-center justify-center">
-                                <span class="text-xl font-bold">{{ tool.cdi_scores.cost }}</span>
+                                <span class="text-xl font-bold">{{ tool.cdi_scores[key] }}</span>
                             </div>
                         </div>
                         <div class="text-xs text-gray-400 mt-1">
-                            {% if tool.cdi_scores.cost == 0 %}Free{% elif tool.cdi_scores.cost <= 3 %}Low{% elif tool.cdi_scores.cost <= 6 %}Medium{% else %}High{% endif %}
+                            {% if tool.cdi_scores[key] <= 2 %}{{ low_label }}
+                            {% elif tool.cdi_scores[key] <= 5 %}Moderate
+                            {% elif tool.cdi_scores[key] <= 7 %}High
+                            {% else %}{{ high_label }}{% endif %}
                         </div>
                     </div>
-
-                    <!-- Difficulty -->
-                    <div class="text-center">
-                        <div class="text-sm font-medium text-gray-500 mb-2">Difficulty</div>
-                        <div class="relative mx-auto w-20 h-20">
-                            <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                      fill="none" stroke="#e5e7eb" stroke-width="3"/>
-                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                      fill="none"
-                                      stroke="{% if tool.cdi_scores.difficulty <= 3 %}#22c55e{% elif tool.cdi_scores.difficulty <= 6 %}#eab308{% else %}#ef4444{% endif %}"
-                                      stroke-width="3"
-                                      stroke-dasharray="{{ tool.cdi_scores.difficulty * 10 }}, 100"/>
-                            </svg>
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <span class="text-xl font-bold">{{ tool.cdi_scores.difficulty }}</span>
-                            </div>
-                        </div>
-                        <div class="text-xs text-gray-400 mt-1">
-                            {% if tool.cdi_scores.difficulty <= 2 %}Easy{% elif tool.cdi_scores.difficulty <= 5 %}Moderate{% else %}Advanced{% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Invasiveness -->
-                    <div class="text-center">
-                        <div class="text-sm font-medium text-gray-500 mb-2">Invasiveness</div>
-                        <div class="relative mx-auto w-20 h-20">
-                            <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                      fill="none" stroke="#e5e7eb" stroke-width="3"/>
-                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                      fill="none"
-                                      stroke="{% if tool.cdi_scores.invasiveness <= 3 %}#22c55e{% elif tool.cdi_scores.invasiveness <= 6 %}#eab308{% else %}#ef4444{% endif %}"
-                                      stroke-width="3"
-                                      stroke-dasharray="{{ tool.cdi_scores.invasiveness * 10 }}, 100"/>
-                            </svg>
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <span class="text-xl font-bold">{{ tool.cdi_scores.invasiveness }}</span>
-                            </div>
-                        </div>
-                        <div class="text-xs text-gray-400 mt-1">
-                            {% if tool.cdi_scores.invasiveness == 0 %}Local{% elif tool.cdi_scores.invasiveness <= 3 %}Low{% elif tool.cdi_scores.invasiveness <= 6 %}Medium{% else %}High{% endif %}
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
 
                 {% if tool.comments %}
@@ -133,7 +162,7 @@
                 </div>
             </div>
 
-            <!-- Purpose & Relevance -->
+            <!-- Purpose & Journalism Relevance -->
             {% if tool.purpose or tool.journalism_relevance %}
             <div class="bg-white rounded-lg shadow p-6">
                 {% if tool.purpose %}
@@ -144,7 +173,7 @@
                 {% endif %}
                 {% if tool.journalism_relevance %}
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Journalism Relevance</h2>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Why It Matters for Journalism</h2>
                     <p class="text-gray-700">{{ tool.journalism_relevance }}</p>
                 </div>
                 {% endif %}
@@ -154,7 +183,8 @@
             <!-- Time Dividend -->
             {% if tool.time_dividend.time_saved or tool.time_dividend.reinvestment %}
             <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Time Dividend</h2>
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Time Dividend</h2>
+                <p class="text-xs text-gray-500 mb-4">How this tool saves time, and how to reinvest that time into better journalism.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {% if tool.time_dividend.time_saved %}
                     <div class="p-4 bg-green-50 rounded-lg border border-green-200">
@@ -172,6 +202,49 @@
             </div>
             {% endif %}
 
+            <!-- Similar Tools (Cross-Reference) -->
+            {% if similar_tools %}
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Similar Tools to Compare</h2>
+                <p class="text-xs text-gray-500 mb-4">Tools that serve a similar purpose. Compare CDI scores to choose the right fit.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {% for st in similar_tools %}
+                    <a href="/tools/{{ st.slug }}" class="block border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:bg-blue-50 transition">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">{{ st.name }}</div>
+                                <div class="text-xs text-gray-500 mt-1">{{ st.cluster_name }}</div>
+                            </div>
+                            {% if 'sovereign-alternative' in st.tags %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Sovereign</span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-2 flex gap-2 text-xs">
+                            <span class="px-2 py-0.5 rounded
+                                {% if st.cdi_scores.cost <= 3 %}bg-green-50 text-green-700
+                                {% elif st.cdi_scores.cost <= 6 %}bg-yellow-50 text-yellow-700
+                                {% else %}bg-red-50 text-red-700{% endif %}">
+                                C:{{ st.cdi_scores.cost }}
+                            </span>
+                            <span class="px-2 py-0.5 rounded
+                                {% if st.cdi_scores.difficulty <= 3 %}bg-green-50 text-green-700
+                                {% elif st.cdi_scores.difficulty <= 6 %}bg-yellow-50 text-yellow-700
+                                {% else %}bg-red-50 text-red-700{% endif %}">
+                                D:{{ st.cdi_scores.difficulty }}
+                            </span>
+                            <span class="px-2 py-0.5 rounded
+                                {% if st.cdi_scores.invasiveness <= 3 %}bg-green-50 text-green-700
+                                {% elif st.cdi_scores.invasiveness <= 6 %}bg-yellow-50 text-yellow-700
+                                {% else %}bg-red-50 text-red-700{% endif %}">
+                                I:{{ st.cdi_scores.invasiveness }}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Ask About This Tool -->
             {% if user %}
             <div class="bg-blue-50 rounded-lg border-2 border-blue-200 p-6">
@@ -181,7 +254,7 @@
                     <input type="hidden" name="full_text" value="{{ tool.description[:500] }}">
                     <div class="mb-3">
                         <input type="text" name="question" required
-                               placeholder="e.g., How does {{ tool.name }} handle sensitive data?"
+                               placeholder="e.g., Is {{ tool.name }} safe for confidential source material?"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     <button type="submit"
@@ -210,7 +283,7 @@
                 <dl class="space-y-3 text-sm">
                     <div>
                         <dt class="text-gray-500">Cluster</dt>
-                        <dd class="font-medium text-gray-900">
+                        <dd class="font-medium">
                             <a href="/clusters/{{ tool.cluster_slug }}" class="text-blue-600 hover:text-blue-800">
                                 {{ tool.cluster_name }}
                             </a>
@@ -251,10 +324,32 @@
                         </dd>
                     </div>
                     {% endif %}
+                    {% if tool.cross_references and tool.cross_references.use_cases %}
+                    <div>
+                        <dt class="text-gray-500">Use Cases</dt>
+                        <dd class="flex flex-wrap gap-1 mt-1">
+                            {% for uc in tool.cross_references.use_cases %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{{ uc | replace('-', ' ') | title }}</span>
+                            {% endfor %}
+                        </dd>
+                    </div>
+                    {% endif %}
                 </dl>
             </div>
 
-            <!-- Related Tools -->
+            <!-- Find the Right Tool CTA -->
+            <div class="bg-indigo-50 rounded-lg border border-indigo-200 p-5">
+                <h3 class="text-sm font-semibold text-indigo-900 mb-2">Not sure this is the right tool?</h3>
+                <p class="text-xs text-indigo-700 mb-3">
+                    Use the Tool Finder to match your journalism needs with the best AI tool based on cost, difficulty and privacy.
+                </p>
+                <a href="/tools/finder"
+                   class="block text-center text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md">
+                    Try Tool Finder
+                </a>
+            </div>
+
+            <!-- Also in This Cluster -->
             {% if related_tools %}
             <div class="bg-white rounded-lg shadow p-6">
                 <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
@@ -264,7 +359,12 @@
                     {% for rt in related_tools %}
                     <li>
                         <a href="/tools/{{ rt.slug }}" class="block hover:bg-gray-50 rounded p-2 -mx-2">
-                            <div class="text-sm font-medium text-gray-900">{{ rt.name }}</div>
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm font-medium text-gray-900">{{ rt.name }}</div>
+                                {% if 'sovereign-alternative' in rt.tags %}
+                                <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Sov.</span>
+                                {% endif %}
+                            </div>
                             <div class="text-xs text-gray-500 mt-1">
                                 C:{{ rt.cdi_scores.cost }} D:{{ rt.cdi_scores.difficulty }} I:{{ rt.cdi_scores.invasiveness }}
                             </div>

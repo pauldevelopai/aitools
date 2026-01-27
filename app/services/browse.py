@@ -14,7 +14,9 @@ class BrowseResult:
         heading: str,
         excerpt: str,
         cluster: Optional[str] = None,
+        cluster_slug: Optional[str] = None,
         tool_name: Optional[str] = None,
+        tool_slug: Optional[str] = None,
         tags: Optional[List[str]] = None,
         chunk_count: int = 1,
         first_chunk_id: Optional[str] = None
@@ -22,7 +24,9 @@ class BrowseResult:
         self.heading = heading
         self.excerpt = excerpt
         self.cluster = cluster
+        self.cluster_slug = cluster_slug
         self.tool_name = tool_name
+        self.tool_slug = tool_slug
         self.tags = tags or []
         self.chunk_count = chunk_count
         self.first_chunk_id = first_chunk_id
@@ -33,7 +37,9 @@ class BrowseResult:
             "heading": self.heading,
             "excerpt": self.excerpt,
             "cluster": self.cluster,
+            "cluster_slug": self.cluster_slug,
             "tool_name": self.tool_name,
+            "tool_slug": self.tool_slug,
             "tags": self.tags,
             "chunk_count": self.chunk_count,
             "first_chunk_id": self.first_chunk_id
@@ -146,19 +152,25 @@ def browse_chunks(
 
             # Extract metadata
             cluster_val = None
+            cluster_slug_val = None
             tool_name = None
+            tool_slug_val = None
             tags = []
 
             if chunk.chunk_metadata:
                 cluster_val = chunk.chunk_metadata.get('cluster')
+                cluster_slug_val = chunk.chunk_metadata.get('cluster_slug')
                 tool_name = chunk.chunk_metadata.get('tool_name')
+                tool_slug_val = chunk.chunk_metadata.get('tool_slug')
                 tags = chunk.chunk_metadata.get('tags', [])
 
             grouped[heading] = BrowseResult(
                 heading=heading,
                 excerpt=excerpt,
                 cluster=cluster_val,
+                cluster_slug=cluster_slug_val,
                 tool_name=tool_name,
+                tool_slug=tool_slug_val,
                 tags=tags if isinstance(tags, list) else [],
                 chunk_count=1,
                 first_chunk_id=str(chunk.id)
@@ -210,14 +222,21 @@ def get_section_detail(
 
     if first_chunk.chunk_metadata:
         cluster = first_chunk.chunk_metadata.get('cluster')
+        cluster_slug = first_chunk.chunk_metadata.get('cluster_slug')
         tool_name = first_chunk.chunk_metadata.get('tool_name')
+        tool_slug = first_chunk.chunk_metadata.get('tool_slug')
         tags = first_chunk.chunk_metadata.get('tags', [])
+    else:
+        cluster_slug = None
+        tool_slug = None
 
     return {
         "heading": heading,
         "full_text": full_text,
         "cluster": cluster,
+        "cluster_slug": cluster_slug,
         "tool_name": tool_name,
+        "tool_slug": tool_slug,
         "tags": tags if isinstance(tags, list) else [],
         "chunk_count": len(chunks),
         "chunks": [

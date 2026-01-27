@@ -266,7 +266,7 @@ def ingest_from_kit(
         Created ToolkitDocument instance
     """
     from app.services.kit_loader import (
-        get_all_tools, get_all_clusters, get_all_foundations, clear_cache
+        get_all_tools, get_all_clusters, get_all_foundations, get_all_sources, clear_cache
     )
 
     # Clear cache to pick up any new data
@@ -286,8 +286,10 @@ def ingest_from_kit(
     tools = get_all_tools()
     clusters = get_all_clusters()
     foundations = get_all_foundations()
+    sources_data = get_all_sources()
+    source_entries = sources_data.get("entries", [])
 
-    logger.info(f"Ingesting from kit: {len(tools)} tools, {len(clusters)} clusters, {len(foundations)} foundations")
+    logger.info(f"Ingesting from kit: {len(tools)} tools, {len(clusters)} clusters, {len(foundations)} foundations, {len(source_entries)} sources")
 
     # Build chunks from all kit content
     all_chunks = []
@@ -398,6 +400,40 @@ def ingest_from_kit(
             fc["chunk_index"] = chunk_index
             chunk_index += 1
             all_chunks.append(fc)
+
+    # 4. Chunk source citations
+    for entry in source_entries:
+        parts = [f"Source: {entry.get('title', '')}"]
+        if entry.get("excerpt"):
+            parts.append(f"Key excerpt: {entry['excerpt']}")
+        if entry.get("why_it_matters"):
+            parts.append(f"Why it matters: {entry['why_it_matters']}")
+        if entry.get("ai_extract"):
+            parts.append(entry["ai_extract"])
+        if entry.get("url"):
+            parts.append(f"URL: {entry['url']}")
+
+        full_text = "\n\n".join(parts)
+        metadata = {
+            "type": "source",
+            "source_id": entry.get("entry_id", ""),
+            "batch": entry.get("batch", 0),
+            "theme": entry.get("theme", ""),
+            "url": entry.get("url", ""),
+        }
+
+        source_chunks = chunk_content(
+            [{"type": "paragraph", "text": full_text, "heading": entry.get("title", "Source")}],
+            target_size=1000,
+            overlap=150
+        )
+
+        for sc in source_chunks:
+            sc["metadata"] = {**sc.get("metadata", {}), **metadata}
+            sc["heading"] = entry.get("title", "Source")
+            sc["chunk_index"] = chunk_index
+            chunk_index += 1
+            all_chunks.append(sc)
 
     # Create document record
     from pathlib import Path

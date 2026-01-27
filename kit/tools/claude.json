@@ -19,5 +19,17 @@
   },
   "comments": "",
   "url": "https://www.anthropic.com/claude",
-  "tags": []
+  "tags": [],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "chatgpt-team-plan",
+      "gemini",
+      "perplexity"
+    ],
+    "use_cases": [
+      "llm-writing"
+    ]
+  }
 }

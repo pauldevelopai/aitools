@@ -23,5 +23,15 @@
     "advanced",
     "local-processing",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "aleph-occrp"
+    ],
+    "use_cases": [
+      "network-analysis"
+    ]
+  }
 }

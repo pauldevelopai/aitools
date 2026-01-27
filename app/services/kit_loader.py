@@ -103,6 +103,52 @@ def get_foundation(slug: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+@lru_cache(maxsize=1)
+def get_all_sources() -> Dict[str, Any]:
+    """Load all source citation data from the combined JSON."""
+    sources_path = _KIT_DIR / "sources" / "all_sources.json"
+    if not sources_path.exists():
+        return {"total_entries": 0, "batch_count": 0, "batches": [], "entries": []}
+    return _load_json(sources_path)
+
+
+def get_source_batch(batch_num: int) -> Optional[Dict[str, Any]]:
+    """Get a single batch of sources by number."""
+    path = _KIT_DIR / "sources" / f"batch{batch_num}.json"
+    if path.exists():
+        return _load_json(path)
+    return None
+
+
+def get_sources_by_theme(theme_query: str) -> List[Dict[str, Any]]:
+    """Get source entries matching a theme keyword."""
+    data = get_all_sources()
+    query = theme_query.lower()
+    return [e for e in data.get("entries", []) if query in e.get("theme", "").lower()]
+
+
+def search_sources(query: str) -> List[Dict[str, Any]]:
+    """Search source entries by title, excerpt, or ai_extract."""
+    data = get_all_sources()
+    query_lower = query.lower().strip()
+    if not query_lower:
+        return data.get("entries", [])
+
+    results = []
+    for entry in data.get("entries", []):
+        searchable = " ".join([
+            entry.get("title", ""),
+            entry.get("excerpt", ""),
+            entry.get("ai_extract", ""),
+            entry.get("why_it_matters", ""),
+            entry.get("source", ""),
+            entry.get("theme", ""),
+        ]).lower()
+        if query_lower in searchable:
+            results.append(entry)
+    return results
+
+
 def search_tools(query: str, cluster_slug: Optional[str] = None,
                  max_cost: Optional[int] = None,
                  max_difficulty: Optional[int] = None,
@@ -176,12 +222,16 @@ def get_kit_stats() -> Dict[str, Any]:
     else:
         avg_cost = avg_diff = avg_inv = 0
 
+    sources = get_all_sources()
+
     return {
         "title": manifest.get("title", ""),
         "tool_count": len(tools),
         "cluster_count": len(clusters),
         "foundation_count": len(manifest.get("foundations", [])),
         "addenda_count": len(manifest.get("addenda", [])),
+        "source_count": sources.get("total_entries", 0),
+        "source_batch_count": sources.get("batch_count", 0),
         "avg_cdi": {
             "cost": round(avg_cost, 1),
             "difficulty": round(avg_diff, 1),
@@ -196,3 +246,4 @@ def clear_cache():
     get_all_tools.cache_clear()
     get_all_clusters.cache_clear()
     get_all_foundations.cache_clear()
+    get_all_sources.cache_clear()

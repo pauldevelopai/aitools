@@ -26,5 +26,25 @@
     "open-source",
     "privacy-friendly",
     "sovereign-alternative"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [
+      "turboscribe",
+      "happyscribe",
+      "deepl-pro",
+      "narakeet"
+    ],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "dangerzone",
+      "happyscribe",
+      "ollama",
+      "turboscribe",
+      "veracrypt"
+    ],
+    "use_cases": [
+      "transcription",
+      "local-ai"
+    ]
+  }
 }

@@ -19,5 +19,19 @@
   },
   "comments": "",
   "url": "",
-  "tags": []
+  "tags": [],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "elevenlabs",
+      "narakeet",
+      "opusclip",
+      "runway"
+    ],
+    "use_cases": [
+      "video-production",
+      "audio-voice"
+    ]
+  }
 }

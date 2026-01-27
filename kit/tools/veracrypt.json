@@ -24,5 +24,22 @@
     "local-processing",
     "open-source",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "bitwarden",
+      "dangerzone",
+      "dangerzone-security-challenges",
+      "ollama",
+      "openai-whisper",
+      "protonmail",
+      "tor-browser"
+    ],
+    "use_cases": [
+      "local-ai",
+      "security-privacy"
+    ]
+  }
 }

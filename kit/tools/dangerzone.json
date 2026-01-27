@@ -23,5 +23,17 @@
     "free",
     "local-processing",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "ollama",
+      "openai-whisper",
+      "veracrypt"
+    ],
+    "use_cases": [
+      "local-ai"
+    ]
+  }
 }

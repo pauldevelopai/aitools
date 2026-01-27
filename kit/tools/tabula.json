@@ -23,5 +23,16 @@
     "free",
     "local-processing",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "openrefine",
+      "pandas"
+    ],
+    "use_cases": [
+      "data-analysis"
+    ]
+  }
 }

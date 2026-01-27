@@ -21,5 +21,15 @@
   "url": "https://techcrunch.com/2025/08/04/perplexity-accused-of-scraping-websites-that-explicitly-blocked-ai-",
   "tags": [
     "beginner-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "languagetool"
+    ],
+    "use_cases": [
+      "text-editing"
+    ]
+  }
 }

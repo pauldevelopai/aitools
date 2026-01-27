@@ -26,5 +26,20 @@
     "open-source",
     "privacy-friendly",
     "sovereign-alternative"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [
+      "notebooklm",
+      "google-pinpoint",
+      "invid-weverify",
+      "visualping"
+    ],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "invid-weverify"
+    ],
+    "use_cases": [
+      "verification"
+    ]
+  }
 }

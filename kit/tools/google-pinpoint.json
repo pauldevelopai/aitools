@@ -21,5 +21,16 @@
   "url": "https://journaliststudio.google.com/pinpoint",
   "tags": [
     "free"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": "aleph-occrp",
+    "similar_tools": [
+      "aleph-occrp",
+      "notebooklm"
+    ],
+    "use_cases": [
+      "document-research"
+    ]
+  }
 }

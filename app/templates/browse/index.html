@@ -1,182 +1,156 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browse Toolkit - Grounded</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50">
+{% extends "base.html" %}
+
+{% block title %}Browse Toolkit - Grounded{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+
     <!-- Header -->
-    <header class="bg-white shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div class="flex items-center space-x-6">
-                <h1 class="text-2xl font-bold text-gray-900">Browse Toolkit</h1>
-                <nav class="flex space-x-4 text-sm">
-                    <a href="/" class="text-gray-600 hover:text-gray-900">Home</a>
-                    {% if user %}
-                    <a href="/toolkit" class="text-gray-600 hover:text-gray-900">Chat</a>
-                    {% endif %}
-                    <a href="/browse" class="text-blue-600 font-medium">Browse</a>
-                    {% if user and user.is_admin %}
-                    <a href="/admin/documents/upload" class="text-gray-600 hover:text-gray-900">Upload</a>
-                    {% endif %}
-                    {% if user %}
-                    <a href="/strategy" class="text-gray-600 hover:text-gray-900">Strategy</a>
-                    {% endif %}
-                </nav>
-            </div>
-            <div class="flex items-center space-x-4">
-                {% if user %}
-                <span class="text-sm text-gray-600">{{ user.username }}</span>
-                <form action="/auth/logout" method="POST">
-                    <button type="submit" class="text-sm text-blue-600 hover:text-blue-800">
-                        Logout
-                    </button>
-                </form>
-                {% else %}
-                <a href="/login" class="text-sm text-blue-600 hover:text-blue-800">Login</a>
-                {% endif %}
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-
-        <!-- Filters -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <form method="GET" action="/browse" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Cluster Filter -->
-                    <div>
-                        <label for="cluster" class="block text-sm font-medium text-gray-700 mb-2">
-                            Filter by Cluster
-                        </label>
-                        <select
-                            id="cluster"
-                            name="cluster"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            onchange="this.form.submit()"
-                        >
-                            <option value="">All Clusters</option>
-                            {% for cluster_option in available_clusters %}
-                            <option value="{{ cluster_option }}" {% if cluster == cluster_option %}selected{% endif %}>
-                                {{ cluster_option }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Keyword Search -->
-                    <div>
-                        <label for="keyword" class="block text-sm font-medium text-gray-700 mb-2">
-                            Search by Keyword
-                        </label>
-                        <div class="flex">
-                            <input
-                                type="text"
-                                id="keyword"
-                                name="keyword"
-                                value="{{ keyword or '' }}"
-                                placeholder="Search in content..."
-                                class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500"
-                            >
-                            <button
-                                type="submit"
-                                class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
-                            >
-                                Search
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {% if cluster or keyword %}
-                <div class="flex items-center justify-between pt-2">
-                    <div class="text-sm text-gray-600">
-                        {% if cluster %}
-                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                            Cluster: {{ cluster }}
-                        </span>
-                        {% endif %}
-                        {% if keyword %}
-                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 ml-2">
-                            Keyword: "{{ keyword }}"
-                        </span>
-                        {% endif %}
-                    </div>
-                    <a href="/browse" class="text-sm text-blue-600 hover:text-blue-800">Clear filters</a>
-                </div>
-                {% endif %}
-            </form>
-        </div>
-
-        <!-- Results -->
-        <div class="space-y-4">
-            {% if results %}
-                <div class="text-sm text-gray-600 mb-4">
-                    Found {{ results|length }} section(s)
-                </div>
-
-                {% for result in results %}
-                <div class="bg-white rounded-lg shadow hover:shadow-md transition p-6">
-                    <a href="/browse/section/{{ result.heading }}" class="block">
-                        <!-- Title -->
-                        <h2 class="text-xl font-semibold text-gray-900 mb-2 hover:text-blue-600">
-                            {{ result.heading }}
-                        </h2>
-
-                        <!-- Metadata -->
-                        <div class="flex flex-wrap gap-2 mb-3">
-                            {% if result.tool_name %}
-                            <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
-                                🔧 {{ result.tool_name }}
-                            </span>
-                            {% endif %}
-                            {% if result.cluster %}
-                            <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
-                                📁 {{ result.cluster }}
-                            </span>
-                            {% endif %}
-                            {% for tag in result.tags %}
-                            <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
-                                #{{ tag }}
-                            </span>
-                            {% endfor %}
-                        </div>
-
-                        <!-- Excerpt -->
-                        <p class="text-gray-600 mb-3">{{ result.excerpt }}</p>
-
-                        <!-- Footer -->
-                        <div class="flex items-center justify-between text-sm text-gray-500">
-                            <span>{{ result.chunk_count }} chunk(s)</span>
-                            <span class="text-blue-600 hover:text-blue-800">View details →</span>
-                        </div>
-                    </a>
-                </div>
-                {% endfor %}
-
-            {% else %}
-                <div class="bg-white rounded-lg shadow p-12 text-center">
-                    <div class="text-gray-400 text-6xl mb-4">📚</div>
-                    <h3 class="text-xl font-semibold text-gray-700 mb-2">No content found</h3>
-                    <p class="text-gray-500 mb-4">
-                        {% if cluster or keyword %}
-                        Try adjusting your filters or search terms.
-                        {% else %}
-                        No toolkit content has been ingested yet.
-                        {% endif %}
-                    </p>
-                    {% if cluster or keyword %}
-                    <a href="/browse" class="text-blue-600 hover:text-blue-800">Clear filters</a>
-                    {% else %}
-                    <a href="/admin/ingest" class="text-blue-600 hover:text-blue-800">Ingest content</a>
-                    {% endif %}
-                </div>
-            {% endif %}
-        </div>
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Browse Toolkit</h1>
+        <p class="mt-2 text-gray-600 max-w-2xl">
+            Search and filter ingested toolkit content by cluster or keyword.
+        </p>
     </div>
-</body>
-</html>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <form method="GET" action="/browse" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Cluster Filter -->
+                <div>
+                    <label for="cluster" class="block text-sm font-medium text-gray-700 mb-2">
+                        Filter by Cluster
+                    </label>
+                    <select
+                        id="cluster"
+                        name="cluster"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        onchange="this.form.submit()"
+                    >
+                        <option value="">All Clusters</option>
+                        {% for cluster_option in available_clusters %}
+                        <option value="{{ cluster_option }}" {% if cluster == cluster_option %}selected{% endif %}>
+                            {{ cluster_option }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Keyword Search -->
+                <div>
+                    <label for="keyword" class="block text-sm font-medium text-gray-700 mb-2">
+                        Search by Keyword
+                    </label>
+                    <div class="flex">
+                        <input
+                            type="text"
+                            id="keyword"
+                            name="keyword"
+                            value="{{ keyword or '' }}"
+                            placeholder="Search in content..."
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500"
+                        >
+                        <button
+                            type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                        >
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {% if cluster or keyword %}
+            <div class="flex items-center justify-between pt-2">
+                <div class="text-sm text-gray-600">
+                    {% if cluster %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                        Cluster: {{ cluster }}
+                    </span>
+                    {% endif %}
+                    {% if keyword %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 ml-2">
+                        Keyword: "{{ keyword }}"
+                    </span>
+                    {% endif %}
+                </div>
+                <a href="/browse" class="text-sm text-blue-600 hover:text-blue-800">Clear filters</a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Results -->
+    <div class="space-y-4">
+        {% if results %}
+            <div class="text-sm text-gray-600 mb-4">
+                Found {{ results|length }} section(s)
+            </div>
+
+            {% for result in results %}
+            <div class="bg-white rounded-lg shadow hover:shadow-md transition p-6">
+                <a href="/browse/section/{{ result.heading }}" class="block">
+                    <!-- Title -->
+                    <h2 class="text-xl font-semibold text-gray-900 mb-2 hover:text-blue-600">
+                        {{ result.heading }}
+                    </h2>
+
+                    <!-- Metadata -->
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        {% if result.tool_name %}
+                        <a href="/tools/{{ result.tool_slug }}" class="inline-flex items-center px-2 py-1 rounded text-xs bg-purple-100 text-purple-800 hover:bg-purple-200"
+                           onclick="event.stopPropagation()">
+                            {{ result.tool_name }}
+                        </a>
+                        {% endif %}
+                        {% if result.cluster %}
+                        <a href="/clusters/{{ result.cluster_slug }}" class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800 hover:bg-blue-200"
+                           onclick="event.stopPropagation()">
+                            {{ result.cluster }}
+                        </a>
+                        {% endif %}
+                        {% for tag in result.tags %}
+                        <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
+                            #{{ tag }}
+                        </span>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Excerpt -->
+                    <p class="text-gray-600 mb-3">{{ result.excerpt }}</p>
+
+                    <!-- Footer -->
+                    <div class="flex items-center justify-between text-sm text-gray-500">
+                        <span>{{ result.chunk_count }} chunk(s)</span>
+                        <span class="text-blue-600 hover:text-blue-800">View details &rarr;</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+
+        {% else %}
+            <div class="bg-white rounded-lg shadow p-12 text-center">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No content found</h3>
+                <p class="text-gray-500 mb-4">
+                    {% if cluster or keyword %}
+                    Try adjusting your filters or search terms.
+                    {% else %}
+                    No toolkit content has been ingested yet. Use the admin panel to ingest content from the kit.
+                    {% endif %}
+                </p>
+                {% if cluster or keyword %}
+                <a href="/browse" class="text-blue-600 hover:text-blue-800">Clear filters</a>
+                {% else %}
+                <div class="flex justify-center gap-3">
+                    <a href="/tools" class="text-blue-600 hover:text-blue-800">Browse tools instead</a>
+                    <span class="text-gray-300">|</span>
+                    <a href="/foundations" class="text-blue-600 hover:text-blue-800">Read foundations</a>
+                </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

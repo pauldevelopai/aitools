@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.routers import health, admin, rag, auth_routes, toolkit, browse, strategy, tools, clusters
+from app.routers import health, admin, rag, auth_routes, toolkit, browse, strategy, tools, clusters, foundations, sources
 from app.settings import settings
 from app.startup import run_startup_validation
 from app.middleware import (
@@ -75,12 +75,14 @@ app.include_router(browse.router)
 app.include_router(tools.router)
 app.include_router(clusters.router)
 app.include_router(strategy.router)
+app.include_router(foundations.router)
+app.include_router(sources.router)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Homepage."""
-    from app.services.kit_loader import get_all_clusters, get_cluster_tools
+    from app.services.kit_loader import get_all_clusters, get_cluster_tools, get_kit_stats
 
     clusters_data = get_all_clusters()
     enriched_clusters = []
@@ -91,11 +93,14 @@ async def home(request: Request):
             "tool_count": len(tool_list),
         })
 
+    stats = get_kit_stats()
+
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
             "title": "Grounded",
             "clusters": enriched_clusters,
+            "stats": stats,
         }
     )

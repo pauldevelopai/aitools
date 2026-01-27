@@ -103,7 +103,7 @@
         <!-- Quick Actions -->
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <a href="/admin/documents/upload" class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition">
                     <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -123,6 +123,18 @@
                         <p class="text-sm text-gray-600">Platform insights and metrics</p>
                     </div>
                 </a>
+
+                <form action="/admin/documents/ingest-kit" method="POST" class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition cursor-pointer"
+                      onclick="if(confirm('Ingest all toolkit content from /kit JSON files?')) this.submit();">
+                    <input type="hidden" name="create_embeddings" value="true">
+                    <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                    </svg>
+                    <div>
+                        <p class="font-medium text-gray-900">Ingest from Kit</p>
+                        <p class="text-sm text-gray-600">Load 46 tools, 7 clusters into RAG</p>
+                    </div>
+                </form>
             </div>
         </div>
 

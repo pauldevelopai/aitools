@@ -23,5 +23,18 @@
     "beginner-friendly",
     "open-source",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "apify",
+      "autogen",
+      "chatgpt-atlas",
+      "n8n"
+    ],
+    "use_cases": [
+      "automation"
+    ]
+  }
 }

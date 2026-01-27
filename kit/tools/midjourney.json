@@ -19,5 +19,15 @@
   },
   "comments": "",
   "url": "",
-  "tags": []
+  "tags": [],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "adobe-firefly"
+    ],
+    "use_cases": [
+      "image-generation"
+    ]
+  }
 }

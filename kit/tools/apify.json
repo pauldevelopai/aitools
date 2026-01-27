@@ -19,5 +19,18 @@
   },
   "comments": "Easier to deploy than agent frameworks and does not require deep engineering skills. Ethical and legal boundaries around scraping must be clearly understood. Best used with human review queues rather than automatic publication.",
   "url": "https://chatgpt.com/atlas/",
-  "tags": []
+  "tags": [],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "autogen",
+      "chatgpt-atlas",
+      "n8n",
+      "zapier-ai"
+    ],
+    "use_cases": [
+      "automation"
+    ]
+  }
 }

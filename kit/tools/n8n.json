@@ -23,5 +23,18 @@
     "advanced",
     "open-source",
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "apify",
+      "autogen",
+      "chatgpt-atlas",
+      "zapier-ai"
+    ],
+    "use_cases": [
+      "automation"
+    ]
+  }
 }

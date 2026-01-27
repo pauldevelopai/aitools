@@ -22,5 +22,17 @@
   "tags": [
     "free",
     "open-source"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "cursor",
+      "custom-gpts",
+      "replit"
+    ],
+    "use_cases": [
+      "coding-building"
+    ]
+  }
 }

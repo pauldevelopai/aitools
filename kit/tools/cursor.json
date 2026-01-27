@@ -21,5 +21,17 @@
   "url": "https://cursor.sh",
   "tags": [
     "privacy-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "custom-gpts",
+      "google-colab",
+      "replit"
+    ],
+    "use_cases": [
+      "coding-building"
+    ]
+  }
 }

@@ -47,9 +47,19 @@
                     <h2 class="text-lg font-semibold text-gray-900">Toolkit Documents</h2>
                     <p class="text-sm text-gray-600 mt-1">Manage ingested documents and embeddings</p>
                 </div>
-                <a href="/admin/documents/upload" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
-                    + Upload Document
-                </a>
+                <div class="flex gap-3">
+                    <form action="/admin/documents/ingest-kit" method="POST" class="inline">
+                        <input type="hidden" name="create_embeddings" value="true">
+                        <button type="submit"
+                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
+                                onclick="return confirm('Ingest all toolkit content from /kit JSON files? This will create a new document with all 46 tools, 7 clusters and foundational content.')">
+                            Ingest from Kit
+                        </button>
+                    </form>
+                    <a href="/admin/documents/upload" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                        + Upload Document
+                    </a>
+                </div>
             </div>
 
             {% if documents %}
@@ -163,6 +173,7 @@
                 <li><strong>Reindex:</strong> Re-parse and re-chunk the document, then regenerate embeddings</li>
                 <li><strong>Toggle Active:</strong> Active documents are searchable; inactive documents are hidden from queries</li>
                 <li><strong>Upload:</strong> Add a new document version to the knowledge base</li>
+                <li><strong>Ingest from Kit:</strong> Load all 46 tools, 7 clusters and foundational content from the /kit JSON files into the RAG pipeline</li>
             </ul>
         </div>
 

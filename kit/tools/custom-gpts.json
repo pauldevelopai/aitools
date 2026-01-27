@@ -21,5 +21,17 @@
   "url": "https://www.journalismai.info/programmes/innovation/innovation-challenge-2024",
   "tags": [
     "beginner-friendly"
-  ]
+  ],
+  "cross_references": {
+    "sovereign_alternative_for": [],
+    "sovereign_alternative": null,
+    "similar_tools": [
+      "cursor",
+      "google-colab",
+      "replit"
+    ],
+    "use_cases": [
+      "coding-building"
+    ]
+  }
 }
