@@ -142,7 +142,7 @@ async def logout(
     db: Session = Depends(get_db)
 ):
     """Logout (delete session)."""
-    session_token = request.cookies.get("session")
+    session_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if session_token:
         delete_session(db, session_token)
 

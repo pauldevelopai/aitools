@@ -72,11 +72,9 @@ class Settings(BaseSettings):
                     "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
                 )
 
-            # Force secure cookies in production
-            self.COOKIE_SECURE = True
-
-            # Require HTTPS-compatible SameSite in production
-            if self.COOKIE_SAMESITE == "none":
+            # Warn if secure cookies not enabled (requires HTTPS)
+            # COOKIE_SECURE can be set to false in .env when HTTPS is not configured
+            if self.COOKIE_SAMESITE == "none" and not self.COOKIE_SECURE:
                 raise ValueError(
                     "COOKIE_SAMESITE='none' requires COOKIE_SECURE=True. "
                     "Use 'lax' or 'strict' for production."
