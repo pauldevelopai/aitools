@@ -59,7 +59,7 @@ async def login(
         return template_response
 
     # Validate redirect URL (must be relative, not protocol-relative)
-    redirect_url = "/toolkit"
+    redirect_url = "/tools"
     if next and next.startswith("/") and not next.startswith("//"):
         redirect_url = next
 
@@ -116,7 +116,7 @@ async def register(
     try:
         user = create_user(db, email, username, password)
         session = create_session(db, str(user.id))
-        response = RedirectResponse(url="/toolkit", status_code=303)
+        response = RedirectResponse(url="/tools", status_code=303)
         response.set_cookie(
             key=settings.SESSION_COOKIE_NAME,
             value=session.session_token,
