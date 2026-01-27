@@ -150,8 +150,33 @@ def generate_answer(
     """
     # Check if we have any results above threshold
     if not search_results:
+        # No matching toolkit content — use LLM with general knowledge
+        try:
+            fallback_prompt = """You are "Grounded", a knowledgeable AI assistant for a journalism AI toolkit learning platform.
+
+You have access to a toolkit knowledge base, but no directly relevant toolkit content was found for this query. Use your general knowledge to help the user.
+
+RULES:
+1. If the user is greeting you or making small talk, respond warmly and mention you can help with questions about AI tools, strategies, and best practices for journalism.
+2. If the user asked a substantive question, answer it using your general knowledge. Be helpful and informative.
+3. If your answer relates to topics covered in the toolkit (AI tools, journalism, verification, fact-checking, content generation, data analysis, security), mention that the toolkit may have more specific guidance and suggest they ask about a related toolkit topic.
+4. Be concise but thorough."""
+
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            completion = client.chat.completions.create(
+                model=settings.OPENAI_CHAT_MODEL,
+                temperature=0.7,
+                messages=[
+                    {"role": "system", "content": fallback_prompt},
+                    {"role": "user", "content": query}
+                ]
+            )
+            fallback_answer = completion.choices[0].message.content
+        except Exception:
+            fallback_answer = "I couldn't find anything related to that in the toolkit. Try asking about a specific AI tool or strategy."
+
         response = {
-            "answer": "Not found in the toolkit",
+            "answer": fallback_answer,
             "citations": [],
             "similarity_scores": [],
             "refusal": True
@@ -175,16 +200,18 @@ def generate_answer(
     if len(context) > settings.RAG_MAX_CONTEXT_LENGTH:
         context = context[:settings.RAG_MAX_CONTEXT_LENGTH] + "..."
 
-    # Build prompt with strict grounding instructions
-    system_prompt = """You are a helpful assistant that answers questions based ONLY on the provided toolkit content.
+    # Build prompt with augmented grounding instructions
+    system_prompt = """You are "Grounded", a knowledgeable AI assistant for a journalism AI toolkit learning platform.
+You have deep expertise in AI, journalism, and technology. You are augmented with specific toolkit content provided below.
 
 IMPORTANT RULES:
-1. ONLY use information from the provided context below
-2. If the answer is not in the context, say "Not found in the toolkit"
-3. Always cite which section ([1], [2], etc.) you're referencing
-4. Do not add information from your general knowledge
-5. Be concise and factual
-6. If you're unsure, say so rather than guessing"""
+1. If the user is greeting you or making small talk, respond warmly. Mention you can help with questions about AI tools for journalism.
+2. PRIORITISE the provided toolkit context when answering. When you use toolkit content, cite which section ([1], [2], etc.) you're referencing.
+3. You MAY supplement with your general knowledge to give fuller, more useful answers — but clearly distinguish between what comes from the toolkit (cited) and your own knowledge.
+4. When citing CDI scores or other specific data from the toolkit, state the numbers exactly as given.
+5. If the question is outside the toolkit's scope, answer using your general knowledge and note that this isn't from the toolkit.
+6. Be helpful, concise, and accurate. Give practical advice where appropriate.
+7. If you're unsure, say so rather than guessing."""
 
     # Append user profile context if available
     if user_profile:

@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     # RAG Configuration
     RAG_TOP_K: int = 5
-    RAG_SIMILARITY_THRESHOLD: float = 0.7
+    RAG_SIMILARITY_THRESHOLD: float = 0.3
     RAG_MAX_CONTEXT_LENGTH: int = 4000
 
     # Admin (dev/staging only - should use proper admin creation in prod)
