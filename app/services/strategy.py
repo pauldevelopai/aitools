@@ -3,6 +3,8 @@ from typing import Dict, List, Any
 from sqlalchemy.orm import Session
 from openai import OpenAI
 
+# Import auth models first to ensure User table is registered
+from app.models.auth import User  # noqa: F401
 from app.models.toolkit import StrategyPlan
 from app.services.rag import search_similar_chunks
 from app.settings import settings
@@ -41,7 +43,7 @@ def generate_strategy_plan(
             db=db,
             query=query,
             top_k=5,
-            similarity_threshold=0.6
+            similarity_threshold=0.45
         )
         all_chunks.extend(chunks)
 

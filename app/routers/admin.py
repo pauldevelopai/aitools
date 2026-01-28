@@ -343,6 +343,31 @@ async def delete_user(
     return RedirectResponse(url="/admin/users", status_code=303)
 
 
+@router.post("/users/{user_id}/clear-history")
+async def clear_user_history(
+    user_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all chat logs for a user.
+    """
+    target_user = db.query(User).filter(User.id == user_id).first()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Delete all chat logs (feedback cascades)
+    db.query(ChatLog).filter(ChatLog.user_id == target_user.id).delete()
+
+    # Also delete user activities
+    db.query(UserActivity).filter(UserActivity.user_id == target_user.id).delete()
+
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/users/{user_id}", status_code=303)
+
+
 @router.post("/users/{user_id}/insights", response_class=HTMLResponse)
 async def generate_user_insights(
     user_id: str,
@@ -430,6 +455,53 @@ Keep it concise and actionable."""
             "insights": insights
         }
     )
+
+
+@router.post("/chats/{chat_id}/delete")
+async def delete_chat_log(
+    chat_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a specific chat log entry.
+    """
+    chat_log = db.query(ChatLog).filter(ChatLog.id == chat_id).first()
+
+    if not chat_log:
+        raise HTTPException(status_code=404, detail="Chat log not found")
+
+    # Delete associated feedback first
+    db.query(Feedback).filter(Feedback.chat_log_id == chat_id).delete()
+
+    # Delete the chat log
+    db.delete(chat_log)
+    db.commit()
+
+    return RedirectResponse(url="/admin/analytics", status_code=303)
+
+
+@router.post("/chats/delete-by-query")
+async def delete_chats_by_query(
+    query_text: str = Form(...),
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all chat logs matching a specific query text.
+    """
+    # Get all matching chat logs
+    matching_chats = db.query(ChatLog).filter(ChatLog.query == query_text).all()
+
+    # Delete associated feedback first
+    for chat in matching_chats:
+        db.query(Feedback).filter(Feedback.chat_log_id == chat.id).delete()
+
+    # Delete the chat logs
+    db.query(ChatLog).filter(ChatLog.query == query_text).delete()
+    db.commit()
+
+    return RedirectResponse(url="/admin/analytics", status_code=303)
 
 
 # ============================================================================
@@ -588,8 +660,8 @@ async def upload_document(
     Upload and ingest a new document.
     """
     # Validate file type
-    if not file.filename.endswith('.docx'):
-        raise HTTPException(status_code=400, detail="File must be a .docx file")
+    if not (file.filename.endswith('.docx') or file.filename.endswith('.pdf')):
+        raise HTTPException(status_code=400, detail="File must be a .docx or .pdf file")
 
     # Ensure upload directory exists
     os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -684,6 +756,31 @@ async def ingest_kit_route(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Kit ingestion failed: {str(e)}")
+
+
+@router.post("/documents/ingest-batch-pdfs")
+async def ingest_batch_pdfs_route(
+    create_embeddings: bool = Form(True),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Ingest all batch PDF files from the /kit directory.
+
+    Finds batch1.pdf through batch12.pdf and ingests each as a separate document.
+    """
+    try:
+        from app.services.ingestion import ingest_batch_pdfs
+
+        docs = ingest_batch_pdfs(
+            db=db,
+            create_embeddings=create_embeddings
+        )
+
+        return RedirectResponse(url="/admin/documents", status_code=303)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch PDF ingestion failed: {str(e)}")
 
 
 @router.post("/documents/{document_id}/toggle-active")

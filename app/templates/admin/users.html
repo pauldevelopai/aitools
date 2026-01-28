@@ -131,11 +131,20 @@
                                     <span class="text-gray-400 italic">You</span>
                                     {% endif %}
                                 {% else %}
-                                <form action="/admin/users/{{ u.id }}/promote" method="POST" class="inline">
+                                <form action="/admin/users/{{ u.id }}/promote" method="POST" class="inline mr-3">
                                     <button type="submit"
                                             class="text-green-600 hover:text-green-900"
                                             onclick="return confirm('Grant admin privileges to {{ u.username }}?')">
                                         Promote
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if u.id|string != user.id|string %}
+                                <form action="/admin/users/{{ u.id }}/delete" method="POST" class="inline">
+                                    <button type="submit"
+                                            class="text-red-600 hover:text-red-900"
+                                            onclick="return confirm('PERMANENTLY DELETE {{ u.username }} and all their data? This cannot be undone!')">
+                                        Delete
                                     </button>
                                 </form>
                                 {% endif %}

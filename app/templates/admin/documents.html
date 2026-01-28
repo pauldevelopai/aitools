@@ -71,6 +71,14 @@
                             Ingest from Kit
                         </button>
                     </form>
+                    <form action="/admin/documents/ingest-batch-pdfs" method="POST" class="inline">
+                        <input type="hidden" name="create_embeddings" value="true">
+                        <button type="submit"
+                                class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium"
+                                onclick="return confirm('Ingest all batch PDFs (batch1.pdf through batch12.pdf) from /kit directory? This will create 12 separate documents.')">
+                            Ingest Batch PDFs
+                        </button>
+                    </form>
                     <a href="/admin/documents/upload" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
                         + Upload Document
                     </a>
@@ -187,8 +195,9 @@
             <ul class="text-sm text-blue-800 space-y-1">
                 <li><strong>Reindex:</strong> Re-parse and re-chunk the document, then regenerate embeddings</li>
                 <li><strong>Toggle Active:</strong> Active documents are searchable; inactive documents are hidden from queries</li>
-                <li><strong>Upload:</strong> Add a new document version to the knowledge base</li>
+                <li><strong>Upload:</strong> Add a new document version to the knowledge base (supports .docx and .pdf)</li>
                 <li><strong>Ingest from Kit:</strong> Load all 46 tools, 7 clusters and foundational content from the /kit JSON files into the RAG pipeline</li>
+                <li><strong>Ingest Batch PDFs:</strong> Load all batch PDF files (batch1.pdf - batch12.pdf) from the /kit directory as separate searchable documents</li>
             </ul>
         </div>
 

@@ -2,13 +2,46 @@
 import os
 import uuid
 import logging
+from pathlib import Path
 from typing import List, Optional, Dict, Any
 from docx import Document
+import pdfplumber
 from sqlalchemy.orm import Session
 
 from app.models.toolkit import ToolkitDocument, ToolkitChunk
 
 logger = logging.getLogger(__name__)
+
+
+def parse_pdf(file_path: str) -> List[Dict[str, Any]]:
+    """
+    Parse PDF file and extract text content.
+
+    Args:
+        file_path: Path to PDF file
+
+    Returns:
+        List of content blocks with text and metadata
+    """
+    content_blocks = []
+
+    with pdfplumber.open(file_path) as pdf:
+        for page_num, page in enumerate(pdf.pages, 1):
+            text = page.extract_text()
+            if text and text.strip():
+                # Split by paragraphs (double newlines)
+                paragraphs = text.split('\n\n')
+                for para in paragraphs:
+                    para = para.strip()
+                    if para:
+                        content_blocks.append({
+                            'type': 'paragraph',
+                            'text': para,
+                            'heading': f'Page {page_num}',
+                            'page': page_num
+                        })
+
+    return content_blocks
 
 
 def parse_docx(file_path: str) -> List[Dict[str, Any]]:
@@ -128,7 +161,7 @@ def ingest_document(
 
     Args:
         db: Database session
-        file_path: Path to uploaded DOCX file
+        file_path: Path to uploaded DOCX or PDF file
         version_tag: Version identifier
         source_filename: Original filename
         create_embeddings: Whether to create embeddings (requires OpenAI API)
@@ -143,8 +176,13 @@ def ingest_document(
     if existing:
         raise ValueError(f"Version tag '{version_tag}' already exists")
 
-    # Parse document
-    content_blocks = parse_docx(file_path)
+    # Parse document based on file type
+    if file_path.lower().endswith('.pdf'):
+        content_blocks = parse_pdf(file_path)
+    elif file_path.lower().endswith('.docx'):
+        content_blocks = parse_docx(file_path)
+    else:
+        raise ValueError(f"Unsupported file type. Must be .docx or .pdf")
 
     # Create chunks
     chunks = chunk_content(content_blocks)
@@ -213,8 +251,13 @@ def reindex_document(db: Session, document_id: str) -> ToolkitDocument:
     db.query(ToolkitChunk).filter(ToolkitChunk.document_id == document_id).delete()
     db.commit()
 
-    # Re-parse document
-    content_blocks = parse_docx(doc.file_path)
+    # Re-parse document based on file type
+    if doc.file_path.lower().endswith('.pdf'):
+        content_blocks = parse_pdf(doc.file_path)
+    elif doc.file_path.lower().endswith('.docx'):
+        content_blocks = parse_docx(doc.file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {doc.file_path}")
 
     # Create new chunks
     chunks = chunk_content(content_blocks)
@@ -473,3 +516,109 @@ def ingest_from_kit(
         create_embeddings_for_document(db, doc.id)
 
     return doc
+
+
+def ingest_batch_pdfs(
+    db: Session,
+    create_embeddings: bool = True
+) -> List[ToolkitDocument]:
+    """
+    Ingest all batch PDF files from the /kit directory.
+
+    Finds all batch*.pdf files and ingests each as a separate document.
+
+    Args:
+        db: Database session
+        create_embeddings: Whether to create embeddings
+
+    Returns:
+        List of created ToolkitDocument instances
+    """
+    kit_dir = Path(__file__).resolve().parent.parent.parent / "kit"
+
+    # Find all batch PDFs
+    batch_pdfs = sorted(kit_dir.glob("batch*.pdf"), key=lambda p: int(p.stem.replace("batch", "") or 0))
+
+    if not batch_pdfs:
+        logger.warning("No batch PDFs found in kit directory")
+        return []
+
+    logger.info(f"Found {len(batch_pdfs)} batch PDFs to ingest")
+
+    ingested_docs = []
+
+    for pdf_path in batch_pdfs:
+        batch_name = pdf_path.stem  # e.g., "batch1"
+        version_tag = f"batch-{batch_name}"
+
+        # Check if already exists
+        existing = db.query(ToolkitDocument).filter(
+            ToolkitDocument.version_tag == version_tag
+        ).first()
+
+        if existing:
+            logger.info(f"Skipping {batch_name} - already ingested (version: {version_tag})")
+            ingested_docs.append(existing)
+            continue
+
+        try:
+            logger.info(f"Ingesting {pdf_path.name}...")
+
+            # Parse PDF
+            content_blocks = parse_pdf(str(pdf_path))
+
+            if not content_blocks:
+                logger.warning(f"No content extracted from {pdf_path.name}")
+                continue
+
+            # Create chunks
+            chunks = chunk_content(content_blocks)
+
+            # Create document record
+            doc = ToolkitDocument(
+                version_tag=version_tag,
+                source_filename=pdf_path.name,
+                file_path=str(pdf_path),
+                chunk_count=len(chunks)
+            )
+            db.add(doc)
+            db.flush()
+
+            # Create chunk records
+            chunk_objects = []
+            for chunk_data in chunks:
+                # Add batch metadata
+                chunk_metadata = chunk_data.get('metadata', {})
+                chunk_metadata['batch'] = batch_name
+                chunk_metadata['type'] = 'source_pdf'
+
+                chunk = ToolkitChunk(
+                    document_id=doc.id,
+                    chunk_text=chunk_data['chunk_text'],
+                    chunk_index=chunk_data['chunk_index'],
+                    heading=chunk_data.get('heading'),
+                    chunk_metadata=chunk_metadata,
+                    embedding=None
+                )
+                chunk_objects.append(chunk)
+
+            db.bulk_save_objects(chunk_objects)
+            db.commit()
+            db.refresh(doc)
+
+            logger.info(f"Ingested {pdf_path.name}: {len(chunks)} chunks")
+
+            # Create embeddings if requested
+            if create_embeddings:
+                from app.services.embeddings import create_embeddings_for_document
+                create_embeddings_for_document(db, doc.id)
+
+            ingested_docs.append(doc)
+
+        except Exception as e:
+            logger.error(f"Failed to ingest {pdf_path.name}: {e}")
+            db.rollback()
+            continue
+
+    logger.info(f"Batch PDF ingestion complete: {len(ingested_docs)} documents")
+    return ingested_docs

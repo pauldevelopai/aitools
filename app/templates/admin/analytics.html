@@ -96,7 +96,7 @@
                     {% if analytics.top_queries %}
                     <ol class="space-y-3">
                         {% for item in analytics.top_queries %}
-                        <li class="flex items-start">
+                        <li class="flex items-start group">
                             <span class="flex-shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-full bg-blue-100 text-blue-700 text-xs font-medium mr-3">
                                 {{ loop.index }}
                             </span>
@@ -105,6 +105,13 @@
                                 <p class="text-xs text-gray-500">{{ item.count }} times</p>
                                 <p class="text-xs text-blue-600">by: {{ item.users | join(', ') }}</p>
                             </div>
+                            <form action="/admin/chats/delete-by-query" method="POST" class="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                <input type="hidden" name="query_text" value="{{ item.query }}">
+                                <button type="submit" class="text-red-500 hover:text-red-700 text-xs"
+                                        onclick="return confirm('Delete ALL {{ item.count }} instances of this query?')">
+                                    &times;
+                                </button>
+                            </form>
                         </li>
                         {% endfor %}
                     </ol>
@@ -180,13 +187,21 @@
                 <div class="divide-y divide-gray-200">
                     {% if analytics.recent_chats %}
                     {% for chat, chat_user in analytics.recent_chats %}
-                    <div class="px-6 py-3">
+                    <div class="px-6 py-3 hover:bg-gray-50 group">
                         <div class="flex items-center justify-between">
                             <div class="flex-1 min-w-0 mr-4">
                                 <p class="text-sm text-gray-900 truncate">{{ chat.query }}</p>
                                 <p class="text-xs text-gray-500">{{ chat_user.username }}</p>
                             </div>
-                            <span class="text-xs text-gray-400 whitespace-nowrap">{{ chat.created_at.strftime('%b %d, %H:%M') }}</span>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs text-gray-400 whitespace-nowrap">{{ chat.created_at.strftime('%b %d, %H:%M') }}</span>
+                                <form action="/admin/chats/{{ chat.id }}/delete" method="POST" class="opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button type="submit" class="text-red-500 hover:text-red-700 text-xs"
+                                            onclick="return confirm('Delete this chat log?')">
+                                        &times;
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}

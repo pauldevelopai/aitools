@@ -18,17 +18,26 @@ templates = Jinja2Templates(directory="app/templates")
 @router.get("", response_class=HTMLResponse)
 async def sources_index(
     request: Request,
-    batch: Optional[int] = Query(None, ge=1, le=12),
+    batch: Optional[str] = Query(None),
     q: Optional[str] = None,
     user: Optional[User] = Depends(get_current_user),
 ):
+    # Convert batch to int if provided (handle empty string)
+    batch_num = None
+    if batch and batch.strip():
+        try:
+            batch_num = int(batch)
+            if batch_num < 1 or batch_num > 12:
+                batch_num = None
+        except ValueError:
+            batch_num = None
     """List all grounded citation sources with optional batch/search filter."""
     all_data = get_all_sources()
 
     if q:
         entries = search_sources(q)
-    elif batch:
-        batch_data = get_source_batch(batch)
+    elif batch_num:
+        batch_data = get_source_batch(batch_num)
         entries = batch_data["entries"] if batch_data else []
     else:
         entries = all_data.get("entries", [])
@@ -41,7 +50,7 @@ async def sources_index(
             "entries": entries,
             "batches": all_data.get("batches", []),
             "total_entries": all_data.get("total_entries", 0),
-            "selected_batch": batch,
+            "selected_batch": batch_num,
             "q": q or "",
         }
     )
