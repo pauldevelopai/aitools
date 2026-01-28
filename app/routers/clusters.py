@@ -98,13 +98,13 @@ def _parse_sections(text: str) -> List[Dict[str, Any]]:
 
         if '•' in content:
             items = [item.strip() for item in content.split('•') if item.strip()]
-            sections.append({"heading": heading, "items": items, "is_list": True})
+            sections.append({"heading": heading, "list_items": items, "is_list": True})
         else:
             # Check for multiple sentence-like items separated by ". "
             sentences = re.split(r'\.\s+(?=[A-Z])', content)
             if len(sentences) > 1:
                 items = [s.strip().rstrip('.') for s in sentences if s.strip()]
-                sections.append({"heading": heading, "items": items, "is_list": True})
+                sections.append({"heading": heading, "list_items": items, "is_list": True})
             else:
                 sections.append({
                     "heading": heading,

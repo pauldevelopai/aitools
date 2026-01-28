@@ -118,7 +118,7 @@
                         <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">{{ section.heading }}</h4>
                         {% if section.is_list %}
                         <ul class="text-sm text-gray-700 space-y-1">
-                            {% for item in section.items %}
+                            {% for item in section.list_items %}
                             <li class="flex items-start gap-2">
                                 <span class="mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0
                                     {% if block.type == 'start' %}bg-green-400
