@@ -148,6 +148,20 @@ CRITICAL RULES:
 5. Be specific and actionable
 6. Structure the plan clearly with sections"""
 
+    # Build activity section if available
+    activity_section = ""
+    activity_summary = inputs.get('activity_summary')
+    if activity_summary:
+        activity_section = f"""
+**User Activity History:**
+- Total activities: {activity_summary.get('total_activities', 0)}
+- Recent tool searches: {', '.join(activity_summary.get('tool_searches', [])[:5]) or 'None'}
+- Tool finder interests: {', '.join(activity_summary.get('tool_finder_needs', [])[:3]) or 'None'}
+- Browsed sections: {', '.join(activity_summary.get('browsed_sections', [])[:5]) or 'None'}
+
+Consider the user's browsing history and interests when making recommendations.
+"""
+
     user_prompt = f"""Create a strategic implementation plan based on these requirements:
 
 **User Context:**
@@ -158,7 +172,7 @@ CRITICAL RULES:
 - Budget: {inputs.get('budget', 'Not specified')}
 - Deployment Preference: {inputs.get('deployment_pref', 'Not specified')}
 - Use Cases: {', '.join(inputs.get('use_cases', [])) if inputs.get('use_cases') else 'Not specified'}
-
+{activity_section}
 **AI Editorial Toolkit Content:**
 
 {context}

@@ -30,6 +30,7 @@
                 id="role"
                 name="role"
                 required
+                value="{{ user.role or '' }}"
                 placeholder="e.g., CTO, Product Manager, Developer"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
@@ -47,12 +48,12 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="">Select organization type...</option>
-                <option value="startup">Startup</option>
-                <option value="sme">Small/Medium Enterprise</option>
-                <option value="enterprise">Enterprise</option>
-                <option value="government">Government</option>
-                <option value="nonprofit">Non-profit</option>
-                <option value="education">Education</option>
+                <option value="startup" {% if user.organisation_type == 'startup' %}selected{% endif %}>Startup</option>
+                <option value="sme" {% if user.organisation_type == 'sme' %}selected{% endif %}>Small/Medium Enterprise</option>
+                <option value="enterprise" {% if user.organisation_type == 'enterprise' %}selected{% endif %}>Enterprise</option>
+                <option value="government" {% if user.organisation_type == 'government' %}selected{% endif %}>Government</option>
+                <option value="nonprofit" {% if user.organisation_type == 'nonprofit' %}selected{% endif %}>Non-profit</option>
+                <option value="education" {% if user.organisation_type == 'education' %}selected{% endif %}>Education</option>
             </select>
         </div>
 
@@ -68,9 +69,9 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="">Select risk level...</option>
-                <option value="low">Low (Conservative, highly regulated)</option>
-                <option value="medium">Medium (Balanced approach)</option>
-                <option value="high">High (Innovation-focused)</option>
+                <option value="low" {% if user.risk_level == 'low' %}selected{% endif %}>Low (Conservative, highly regulated)</option>
+                <option value="medium" {% if user.risk_level == 'medium' %}selected{% endif %}>Medium (Balanced approach)</option>
+                <option value="high" {% if user.risk_level == 'high' %}selected{% endif %}>High (Innovation-focused)</option>
             </select>
         </div>
 
@@ -86,10 +87,10 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="">Select data sensitivity...</option>
-                <option value="public">Public (No sensitive data)</option>
-                <option value="internal">Internal (Business confidential)</option>
-                <option value="pii">Personal Identifiable Information (PII)</option>
-                <option value="regulated">Regulated (HIPAA, GDPR, etc.)</option>
+                <option value="public" {% if user.data_sensitivity == 'public' %}selected{% endif %}>Public (No sensitive data)</option>
+                <option value="internal" {% if user.data_sensitivity == 'internal' %}selected{% endif %}>Internal (Business confidential)</option>
+                <option value="pii" {% if user.data_sensitivity == 'pii' %}selected{% endif %}>Personal Identifiable Information (PII)</option>
+                <option value="regulated" {% if user.data_sensitivity == 'regulated' %}selected{% endif %}>Regulated (HIPAA, GDPR, etc.)</option>
             </select>
         </div>
 
@@ -105,10 +106,10 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="">Select budget range...</option>
-                <option value="minimal">Minimal ($0-$1k/month)</option>
-                <option value="small">Small ($1k-$10k/month)</option>
-                <option value="medium">Medium ($10k-$50k/month)</option>
-                <option value="large">Large ($50k+/month)</option>
+                <option value="minimal" {% if user.budget == 'minimal' %}selected{% endif %}>Minimal ($0-$1k/month)</option>
+                <option value="small" {% if user.budget == 'small' %}selected{% endif %}>Small ($1k-$10k/month)</option>
+                <option value="medium" {% if user.budget == 'medium' %}selected{% endif %}>Medium ($10k-$50k/month)</option>
+                <option value="large" {% if user.budget == 'large' %}selected{% endif %}>Large ($50k+/month)</option>
             </select>
         </div>
 
@@ -124,9 +125,9 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="">Select deployment...</option>
-                <option value="cloud">Cloud (SaaS, easy to deploy)</option>
-                <option value="hybrid">Hybrid (Mix of cloud and on-premise)</option>
-                <option value="sovereign">Sovereign (On-premise, data residency)</option>
+                <option value="cloud" {% if user.deployment_pref == 'cloud' %}selected{% endif %}>Cloud (SaaS, easy to deploy)</option>
+                <option value="hybrid" {% if user.deployment_pref == 'hybrid' %}selected{% endif %}>Hybrid (Mix of cloud and on-premise)</option>
+                <option value="sovereign" {% if user.deployment_pref == 'sovereign' %}selected{% endif %}>Sovereign (On-premise, data residency)</option>
             </select>
         </div>
 
@@ -137,30 +138,43 @@
             </label>
             <div class="space-y-2">
                 <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="content_generation" class="mr-2">
+                    <input type="checkbox" name="use_cases" value="content_generation" class="mr-2" {% if 'content_generation' in user_use_cases %}checked{% endif %}>
                     <span class="text-sm">Content Generation</span>
                 </label>
                 <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="code_assistance" class="mr-2">
+                    <input type="checkbox" name="use_cases" value="code_assistance" class="mr-2" {% if 'code_assistance' in user_use_cases %}checked{% endif %}>
                     <span class="text-sm">Code Assistance</span>
                 </label>
                 <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="data_analysis" class="mr-2">
+                    <input type="checkbox" name="use_cases" value="data_analysis" class="mr-2" {% if 'data_analysis' in user_use_cases %}checked{% endif %}>
                     <span class="text-sm">Data Analysis</span>
                 </label>
                 <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="customer_support" class="mr-2">
+                    <input type="checkbox" name="use_cases" value="customer_support" class="mr-2" {% if 'customer_support' in user_use_cases %}checked{% endif %}>
                     <span class="text-sm">Customer Support</span>
                 </label>
                 <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="research" class="mr-2">
+                    <input type="checkbox" name="use_cases" value="research" class="mr-2" {% if 'research' in user_use_cases %}checked{% endif %}>
                     <span class="text-sm">Research & Analysis</span>
                 </label>
                 <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="automation" class="mr-2">
+                    <input type="checkbox" name="use_cases" value="automation" class="mr-2" {% if 'automation' in user_use_cases %}checked{% endif %}>
                     <span class="text-sm">Process Automation</span>
                 </label>
             </div>
+        </div>
+
+        <!-- Options -->
+        <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+            <h3 class="text-sm font-medium text-gray-700">Options</h3>
+            <label class="flex items-center">
+                <input type="checkbox" name="include_activity" value="true" class="mr-2">
+                <span class="text-sm text-gray-600">Include my activity history (tools viewed, searches made) for personalized recommendations</span>
+            </label>
+            <label class="flex items-center">
+                <input type="checkbox" name="save_to_profile" value="true" class="mr-2" checked>
+                <span class="text-sm text-gray-600">Save these preferences to my profile for next time</span>
+            </label>
         </div>
 
         <!-- Submit -->

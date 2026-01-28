@@ -28,6 +28,13 @@ class User(Base):
     interests = Column(Text, nullable=True)
     ai_experience_level = Column(String, nullable=True)  # beginner, intermediate, advanced
 
+    # Strategy preferences (saved from strategy wizard)
+    risk_level = Column(String, nullable=True)  # low, medium, high
+    data_sensitivity = Column(String, nullable=True)  # public, internal, pii, regulated
+    budget = Column(String, nullable=True)  # minimal, small, medium, large
+    deployment_pref = Column(String, nullable=True)  # cloud, hybrid, sovereign
+    use_cases = Column(Text, nullable=True)  # comma-separated list
+
 
 class Session(Base):
     """User session for cookie-based auth."""
