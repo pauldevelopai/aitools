@@ -5,191 +5,131 @@
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 sm:px-0">
 
-    <!-- Introduction -->
-    <div class="bg-blue-50 rounded-lg p-6 mb-8 border-2 border-blue-200">
-        <h2 class="text-xl font-semibold text-gray-900 mb-2">Create Your AI Implementation Strategy</h2>
-        <p class="text-gray-700 mb-2">
-            Answer a few questions about your organization and goals, and we'll generate a customized strategy plan
-            based on editorial toolkit best practices.
-        </p>
-        <p class="text-sm text-gray-600">
-            <strong>Note:</strong> All recommendations will be grounded in editorial toolkit content with citations.
-        </p>
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">AI Implementation Strategy</h1>
+
+    <!-- Profile Status -->
+    {% set profile_complete = user.role and user.organisation_type and user.risk_level and user.data_sensitivity and user.budget and user.deployment_pref %}
+
+    {% if profile_complete %}
+    <!-- Profile Complete - Show Summary -->
+    <div class="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-6">
+        <div class="flex items-start justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-green-900 mb-2">Profile Ready</h2>
+                <p class="text-sm text-green-700 mb-4">Your strategy will be generated based on your profile:</p>
+                <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                    <div><span class="text-gray-600">Role:</span> <span class="font-medium">{{ user.role }}</span></div>
+                    <div><span class="text-gray-600">Organisation:</span> <span class="font-medium">{{ user.organisation_type or 'Not set' }}</span></div>
+                    <div><span class="text-gray-600">Risk Level:</span> <span class="font-medium">{{ user.risk_level }}</span></div>
+                    <div><span class="text-gray-600">Data Sensitivity:</span> <span class="font-medium">{{ user.data_sensitivity }}</span></div>
+                    <div><span class="text-gray-600">Budget:</span> <span class="font-medium">{{ user.budget }}</span></div>
+                    <div><span class="text-gray-600">Deployment:</span> <span class="font-medium">{{ user.deployment_pref }}</span></div>
+                    {% if user.use_cases %}
+                    <div class="col-span-2"><span class="text-gray-600">Use Cases:</span> <span class="font-medium">{{ user.use_cases.replace(',', ', ') }}</span></div>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="/profile" class="text-sm text-green-700 hover:text-green-900 font-medium">
+                Edit Profile &rarr;
+            </a>
+        </div>
     </div>
-
-    <!-- Wizard Form -->
-    <form method="POST" action="/strategy/generate" class="bg-white rounded-lg shadow p-8 space-y-6">
-
-        <!-- Role -->
-        <div>
-            <label for="role" class="block text-sm font-medium text-gray-700 mb-2">
-                What is your role? *
-            </label>
-            <input
-                type="text"
-                id="role"
-                name="role"
-                required
-                value="{{ user.role or '' }}"
-                placeholder="e.g., CTO, Product Manager, Developer"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            >
-        </div>
-
-        <!-- Organization Type -->
-        <div>
-            <label for="org_type" class="block text-sm font-medium text-gray-700 mb-2">
-                Organization Type *
-            </label>
-            <select
-                id="org_type"
-                name="org_type"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            >
-                <option value="">Select organization type...</option>
-                <option value="startup" {% if user.organisation_type == 'startup' %}selected{% endif %}>Startup</option>
-                <option value="sme" {% if user.organisation_type == 'sme' %}selected{% endif %}>Small/Medium Enterprise</option>
-                <option value="enterprise" {% if user.organisation_type == 'enterprise' %}selected{% endif %}>Enterprise</option>
-                <option value="government" {% if user.organisation_type == 'government' %}selected{% endif %}>Government</option>
-                <option value="nonprofit" {% if user.organisation_type == 'nonprofit' %}selected{% endif %}>Non-profit</option>
-                <option value="education" {% if user.organisation_type == 'education' %}selected{% endif %}>Education</option>
-            </select>
-        </div>
-
-        <!-- Risk Level -->
-        <div>
-            <label for="risk_level" class="block text-sm font-medium text-gray-700 mb-2">
-                Risk Tolerance *
-            </label>
-            <select
-                id="risk_level"
-                name="risk_level"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            >
-                <option value="">Select risk level...</option>
-                <option value="low" {% if user.risk_level == 'low' %}selected{% endif %}>Low (Conservative, highly regulated)</option>
-                <option value="medium" {% if user.risk_level == 'medium' %}selected{% endif %}>Medium (Balanced approach)</option>
-                <option value="high" {% if user.risk_level == 'high' %}selected{% endif %}>High (Innovation-focused)</option>
-            </select>
-        </div>
-
-        <!-- Data Sensitivity -->
-        <div>
-            <label for="data_sensitivity" class="block text-sm font-medium text-gray-700 mb-2">
-                Data Sensitivity *
-            </label>
-            <select
-                id="data_sensitivity"
-                name="data_sensitivity"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            >
-                <option value="">Select data sensitivity...</option>
-                <option value="public" {% if user.data_sensitivity == 'public' %}selected{% endif %}>Public (No sensitive data)</option>
-                <option value="internal" {% if user.data_sensitivity == 'internal' %}selected{% endif %}>Internal (Business confidential)</option>
-                <option value="pii" {% if user.data_sensitivity == 'pii' %}selected{% endif %}>Personal Identifiable Information (PII)</option>
-                <option value="regulated" {% if user.data_sensitivity == 'regulated' %}selected{% endif %}>Regulated (HIPAA, GDPR, etc.)</option>
-            </select>
-        </div>
-
-        <!-- Budget -->
-        <div>
-            <label for="budget" class="block text-sm font-medium text-gray-700 mb-2">
-                Budget Range *
-            </label>
-            <select
-                id="budget"
-                name="budget"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            >
-                <option value="">Select budget range...</option>
-                <option value="minimal" {% if user.budget == 'minimal' %}selected{% endif %}>Minimal ($0-$1k/month)</option>
-                <option value="small" {% if user.budget == 'small' %}selected{% endif %}>Small ($1k-$10k/month)</option>
-                <option value="medium" {% if user.budget == 'medium' %}selected{% endif %}>Medium ($10k-$50k/month)</option>
-                <option value="large" {% if user.budget == 'large' %}selected{% endif %}>Large ($50k+/month)</option>
-            </select>
-        </div>
-
-        <!-- Deployment Preference -->
-        <div>
-            <label for="deployment_pref" class="block text-sm font-medium text-gray-700 mb-2">
-                Deployment Preference *
-            </label>
-            <select
-                id="deployment_pref"
-                name="deployment_pref"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            >
-                <option value="">Select deployment...</option>
-                <option value="cloud" {% if user.deployment_pref == 'cloud' %}selected{% endif %}>Cloud (SaaS, easy to deploy)</option>
-                <option value="hybrid" {% if user.deployment_pref == 'hybrid' %}selected{% endif %}>Hybrid (Mix of cloud and on-premise)</option>
-                <option value="sovereign" {% if user.deployment_pref == 'sovereign' %}selected{% endif %}>Sovereign (On-premise, data residency)</option>
-            </select>
-        </div>
-
-        <!-- Use Cases -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Primary Use Cases * (Select all that apply)
-            </label>
-            <div class="space-y-2">
-                <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="content_generation" class="mr-2" {% if 'content_generation' in user_use_cases %}checked{% endif %}>
-                    <span class="text-sm">Content Generation</span>
-                </label>
-                <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="code_assistance" class="mr-2" {% if 'code_assistance' in user_use_cases %}checked{% endif %}>
-                    <span class="text-sm">Code Assistance</span>
-                </label>
-                <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="data_analysis" class="mr-2" {% if 'data_analysis' in user_use_cases %}checked{% endif %}>
-                    <span class="text-sm">Data Analysis</span>
-                </label>
-                <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="customer_support" class="mr-2" {% if 'customer_support' in user_use_cases %}checked{% endif %}>
-                    <span class="text-sm">Customer Support</span>
-                </label>
-                <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="research" class="mr-2" {% if 'research' in user_use_cases %}checked{% endif %}>
-                    <span class="text-sm">Research & Analysis</span>
-                </label>
-                <label class="flex items-center">
-                    <input type="checkbox" name="use_cases" value="automation" class="mr-2" {% if 'automation' in user_use_cases %}checked{% endif %}>
-                    <span class="text-sm">Process Automation</span>
-                </label>
+    {% else %}
+    <!-- Profile Incomplete - Show Warning -->
+    <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-6">
+        <div class="flex items-start justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-yellow-900 mb-2">Complete Your Profile</h2>
+                <p class="text-sm text-yellow-700 mb-4">
+                    To generate a personalized AI implementation strategy, please complete your profile with your organization details and preferences.
+                </p>
+                <div class="text-sm text-yellow-800">
+                    <strong>Missing:</strong>
+                    {% if not user.role %}Role, {% endif %}
+                    {% if not user.organisation_type %}Organisation Type, {% endif %}
+                    {% if not user.risk_level %}Risk Level, {% endif %}
+                    {% if not user.data_sensitivity %}Data Sensitivity, {% endif %}
+                    {% if not user.budget %}Budget, {% endif %}
+                    {% if not user.deployment_pref %}Deployment Preference{% endif %}
+                </div>
             </div>
         </div>
+        <a href="/profile" class="mt-4 inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm font-medium">
+            Complete Profile
+            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+        </a>
+    </div>
+    {% endif %}
 
-        <!-- Options -->
-        <div class="bg-gray-50 rounded-lg p-4 space-y-3">
-            <h3 class="text-sm font-medium text-gray-700">Options</h3>
-            <label class="flex items-center">
-                <input type="checkbox" name="include_activity" value="true" class="mr-2">
-                <span class="text-sm text-gray-600">Include my activity history (tools viewed, searches made) for personalized recommendations</span>
-            </label>
-            <label class="flex items-center">
-                <input type="checkbox" name="save_to_profile" value="true" class="mr-2" checked>
-                <span class="text-sm text-gray-600">Save these preferences to my profile for next time</span>
+    <!-- Generate Strategy Form -->
+    <form method="POST" action="/strategy/generate" class="bg-white rounded-lg shadow p-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Generate Strategy</h2>
+        <p class="text-gray-600 mb-6">
+            We'll analyze The AI Editorial Toolkit content and create a customized implementation plan based on your profile and activity.
+        </p>
+
+        <!-- Activity History Option -->
+        <div class="bg-blue-50 rounded-lg p-4 mb-6">
+            <label class="flex items-start cursor-pointer">
+                <input type="checkbox" name="include_activity" value="true" class="mt-1 mr-3" checked>
+                <div>
+                    <span class="text-sm font-medium text-gray-900">Include my activity history</span>
+                    <p class="text-xs text-gray-600 mt-1">
+                        Your tool searches, Tool Finder uses, and browsed content will be analyzed to provide more relevant recommendations.
+                        {% if activity_count > 0 %}
+                        <span class="font-medium text-blue-700">({{ activity_count }} activities recorded)</span>
+                        {% else %}
+                        <span class="text-gray-500">(No activity yet - browse tools to build history)</span>
+                        {% endif %}
+                    </p>
+                </div>
             </label>
         </div>
 
-        <!-- Submit -->
-        <div class="pt-4 border-t">
-            <button
-                type="submit"
-                class="w-full bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium"
-            >
-                Generate Strategy Plan
-            </button>
-            <p class="text-xs text-gray-500 mt-2 text-center">
-                This may take 10-30 seconds as we analyze editorial toolkit content
-            </p>
-        </div>
+        <!-- Generate Button -->
+        <button
+            type="submit"
+            {% if not profile_complete %}disabled{% endif %}
+            class="w-full bg-blue-600 text-white px-6 py-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium text-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+            {% if profile_complete %}
+            Generate AI Implementation Strategy
+            {% else %}
+            Complete Profile to Generate Strategy
+            {% endif %}
+        </button>
+        <p class="text-xs text-gray-500 mt-3 text-center">
+            This may take 10-30 seconds. Your strategy will be saved to your history.
+        </p>
     </form>
+
+    <!-- Previous Strategies -->
+    {% if previous_strategies %}
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Strategies</h2>
+        <div class="space-y-3">
+            {% for strategy in previous_strategies %}
+            <a href="/strategy/{{ strategy.id }}" class="block bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-medium text-gray-900">
+                            Strategy for {{ strategy.inputs.get('org_type', 'Unknown') | title }} - {{ strategy.inputs.get('deployment_pref', 'Unknown') | title }}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            Created {{ strategy.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
 </div>
 {% endblock %}
