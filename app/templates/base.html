@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}The AI Editorial Toolkit{% endblock %}</title>
 
+    <!-- SEO & sharing meta -->
+    <meta name="description" content="{% block meta_description %}A practical toolkit for teaching AI in journalism education. Explore tools, clusters, and strategies for responsible AI adoption in the newsroom.{% endblock %}">
+    <meta name="theme-color" content="#2563eb">
+
+    <!-- Open Graph (Facebook, LinkedIn, WhatsApp, iMessage, Slack, etc.) -->
+    <meta property="og:site_name" content="The AI Editorial Toolkit">
+    <meta property="og:title" content="{% block og_title %}The AI Editorial Toolkit{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}A practical toolkit for teaching AI in journalism education. Explore tools, clusters, and strategies for responsible AI adoption in the newsroom.{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_GB">
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="The AI Editorial Toolkit">
+    <meta name="twitter:description" content="A practical toolkit for teaching AI in journalism education.">
+
+    <!-- Favicon (inline SVG data URI so no extra file needed) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text x='50' y='72' font-size='60' text-anchor='middle' fill='white' font-family='system-ui,sans-serif' font-weight='bold'>AI</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text x='50' y='72' font-size='60' text-anchor='middle' fill='white' font-family='system-ui,sans-serif' font-weight='bold'>AI</text></svg>">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
