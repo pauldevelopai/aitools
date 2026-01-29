@@ -22,6 +22,7 @@ from app.services.discovery.pipeline import (
 from app.settings import settings
 from app.templates_engine import templates
 from app.products.guards import require_feature
+from app.products.admin_context import get_admin_context_dict
 
 logger = logging.getLogger(__name__)
 
@@ -367,13 +368,16 @@ async def discovery_dashboard(
         "source_breakdown": dict(source_breakdown)
     }
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/discovery/index.html",
         {
             "request": request,
             "user": user,
             "stats": stats,
-            "recent_runs": recent_runs
+            "recent_runs": recent_runs,
+            "active_admin_page": "discovery",
+            **admin_context,
         }
     )
 
@@ -439,6 +443,7 @@ async def discovery_tools_list(
             "match_count": match_count
         })
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/discovery/tools.html",
         {
@@ -456,7 +461,9 @@ async def discovery_tools_list(
                 "pending_review": total_pending,
                 "approved": total_approved,
                 "rejected": total_rejected
-            }
+            },
+            "active_admin_page": "discovery",
+            **admin_context,
         }
     )
 
@@ -511,13 +518,16 @@ async def discovery_tool_detail(
 
         enriched_matches.append(match_info)
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/discovery/tool_detail.html",
         {
             "request": request,
             "user": user,
             "tool": tool,
-            "matches": enriched_matches
+            "matches": enriched_matches,
+            "active_admin_page": "discovery",
+            **admin_context,
         }
     )
 
@@ -629,6 +639,7 @@ async def discovery_matches_list(
             "matched_tool": matched_tool
         })
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/discovery/matches.html",
         {
@@ -641,7 +652,9 @@ async def discovery_matches_list(
             "counts": {
                 "unresolved": total_unresolved,
                 "resolved": total_resolved
-            }
+            },
+            "active_admin_page": "discovery",
+            **admin_context,
         }
     )
 
@@ -686,6 +699,7 @@ async def discovery_runs_list(
         desc(DiscoveryRun.started_at)
     ).offset((page - 1) * per_page).limit(per_page).all()
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/discovery/runs.html",
         {
@@ -694,6 +708,8 @@ async def discovery_runs_list(
             "runs": runs,
             "page": page,
             "total_pages": total_pages,
-            "total": total
+            "total": total,
+            "active_admin_page": "discovery",
+            **admin_context,
         }
     )

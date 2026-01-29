@@ -3,7 +3,7 @@ import os
 import shutil
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Request, UploadFile, File, Form, Depends, HTTPException
+from fastapi import APIRouter, Request, UploadFile, File, Form, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -17,12 +17,75 @@ from app.models.review import ToolReview, ReviewVote, ReviewFlag
 from app.models.discovery import DiscoveredTool
 from app.services.ingestion import ingest_document, reindex_document, ingest_from_kit
 from app.templates_engine import templates
+from app.products.admin_context import (
+    get_admin_context_dict,
+    set_admin_context_cookies,
+    validate_admin_context,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 # Data directory for uploads (persistent filesystem)
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+
+
+# =============================================================================
+# MASTER ADMIN & CONTEXT SWITCHING
+# =============================================================================
+
+@router.get("/master", response_class=HTMLResponse)
+async def master_dashboard(
+    request: Request,
+    user: User = Depends(require_admin),
+):
+    """
+    Master admin dashboard showing all products and editions.
+    This is the global overview for managing all apps.
+    """
+    # Get admin context (includes all products and current selection)
+    context = get_admin_context_dict(request)
+
+    return templates.TemplateResponse(
+        "admin/master.html",
+        {
+            "request": request,
+            "user": user,
+            "active_admin_page": "master",
+            **context,
+        }
+    )
+
+
+@router.get("/context/switch", response_class=HTMLResponse)
+async def switch_context(
+    request: Request,
+    product: str = Query(..., description="Product ID to switch to"),
+    edition: Optional[str] = Query(None, description="Edition version to switch to"),
+    user: User = Depends(require_admin),
+):
+    """
+    Switch the admin context to a different product/edition.
+    Sets cookies and redirects back to the referring page or master dashboard.
+    """
+    # Validate the context
+    is_valid, error = validate_admin_context(product, edition)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Get redirect URL (referer or master dashboard)
+    referer = request.headers.get("referer", "/admin/master")
+    # Don't redirect back to the switch endpoint
+    if "/context/switch" in referer:
+        referer = "/admin/master"
+
+    # Create response with redirect
+    response = RedirectResponse(url=referer, status_code=303)
+
+    # Set context cookies
+    set_admin_context_cookies(response, product, edition)
+
+    return response
 
 
 @router.get("", response_class=HTMLResponse)
@@ -34,7 +97,11 @@ async def admin_dashboard(
 ):
     """
     Admin dashboard homepage with overview stats.
+    Stats are shown for the current admin context (product/edition).
     """
+    # Get admin context
+    admin_context = get_admin_context_dict(request)
+
     # Get overview stats
     user_count = db.query(func.count(User.id)).scalar()
     admin_count = db.query(func.count(User.id)).filter(User.is_admin == True).scalar()
@@ -76,7 +143,13 @@ async def admin_dashboard(
 
     return templates.TemplateResponse(
         "admin/dashboard.html",
-        {"request": request, "user": user, "stats": stats}
+        {
+            "request": request,
+            "user": user,
+            "stats": stats,
+            "active_admin_page": "dashboard",
+            **admin_context,
+        }
     )
 
 
@@ -93,11 +166,18 @@ async def list_users(
     """
     List all users with admin status.
     """
+    admin_context = get_admin_context_dict(request)
     users = db.query(User).order_by(User.created_at.desc()).all()
 
     return templates.TemplateResponse(
         "admin/users.html",
-        {"request": request, "user": user, "users": users}
+        {
+            "request": request,
+            "user": user,
+            "users": users,
+            "active_admin_page": "users",
+            **admin_context,
+        }
     )
 
 
@@ -220,6 +300,7 @@ async def user_detail(
         "app_feedback": app_feedback_count
     }
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/user_detail.html",
         {
@@ -227,7 +308,9 @@ async def user_detail(
             "user": admin_user,
             "target_user": target_user,
             "activity_summary": activity_summary,
-            "timeline": timeline
+            "timeline": timeline,
+            "active_admin_page": "users",
+            **admin_context,
         }
     )
 
@@ -491,13 +574,16 @@ Keep it concise and actionable."""
     except Exception as e:
         insights = f"Error generating insights: {str(e)}"
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/user_insights.html",
         {
             "request": request,
             "user": admin_user,
             "target_user": target_user,
-            "insights": insights
+            "insights": insights,
+            "active_admin_page": "users",
+            **admin_context,
         }
     )
 
@@ -577,6 +663,7 @@ async def list_feedback(
     unresolved_count = db.query(func.count(AppFeedback.id)).filter(AppFeedback.is_resolved == False).scalar()
     resolved_count = db.query(func.count(AppFeedback.id)).filter(AppFeedback.is_resolved == True).scalar()
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/feedback.html",
         {
@@ -588,7 +675,9 @@ async def list_feedback(
                 "all": total_count,
                 "unresolved": unresolved_count,
                 "resolved": resolved_count
-            }
+            },
+            "active_admin_page": "feedback",
+            **admin_context,
         }
     )
 
@@ -673,9 +762,16 @@ async def list_documents(
             "is_active": doc.is_active
         })
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/documents.html",
-        {"request": request, "user": user, "documents": docs_with_counts}
+        {
+            "request": request,
+            "user": user,
+            "documents": docs_with_counts,
+            "active_admin_page": "documents",
+            **admin_context,
+        }
     )
 
 
@@ -687,9 +783,15 @@ async def upload_document_page(
     """
     Document upload page.
     """
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/upload.html",
-        {"request": request, "user": user}
+        {
+            "request": request,
+            "user": user,
+            "active_admin_page": "documents",
+            **admin_context,
+        }
     )
 
 
@@ -959,9 +1061,16 @@ async def analytics_dashboard(
         "recent_activities": recent_activities
     }
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/analytics.html",
-        {"request": request, "user": user, "analytics": analytics}
+        {
+            "request": request,
+            "user": user,
+            "analytics": analytics,
+            "active_admin_page": "analytics",
+            **admin_context,
+        }
     )
 
 
@@ -1046,6 +1155,7 @@ async def list_reviews(
     ).scalar()
     hidden_count = db.query(func.count(ToolReview.id)).filter(ToolReview.is_hidden == True).scalar()
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/reviews.html",
         {
@@ -1057,7 +1167,9 @@ async def list_reviews(
                 "all": total_count,
                 "flagged": flagged_count,
                 "hidden": hidden_count
-            }
+            },
+            "active_admin_page": "reviews",
+            **admin_context,
         }
     )
 
