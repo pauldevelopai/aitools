@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models.auth import User
 from app.models.toolkit import StrategyPlan, UserActivity
-from app.dependencies import require_auth_page
+from app.dependencies import require_auth_page, get_current_user
 from app.services.strategy import generate_strategy_plan, export_plan_to_markdown
 from app.middleware.csrf import CSRFProtectionMiddleware
 from app.templates_engine import templates
@@ -17,19 +17,35 @@ from app.products.guards import require_feature
 router = APIRouter(
     prefix="/strategy",
     tags=["strategy"],
-    dependencies=[Depends(require_feature("strategy"))]  # All strategy routes require strategy feature
 )
 
 
 @router.get("", response_class=HTMLResponse)
 async def strategy_wizard(
     request: Request,
-    user: User = Depends(require_auth_page),
+    user: Optional[User] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Strategy page - shows profile status and generates from profile.
+    Shows login prompt for anonymous users.
     """
+    # If not logged in, show login prompt
+    if not user:
+        return templates.TemplateResponse(
+            "strategy/wizard.html",
+            {
+                "request": request,
+                "user": None,
+                "csrf_token": "",
+                "activity_count": 0,
+                "previous_strategies": [],
+                "requires_login": True,
+                "feature_name": "AI Strategy Builder",
+                "feature_description": "Create a personalized AI adoption strategy based on your role, risk tolerance, and use cases.",
+            }
+        )
+
     csrf_token = CSRFProtectionMiddleware.generate_token()
 
     # Count user activities
@@ -49,7 +65,8 @@ async def strategy_wizard(
             "user": user,
             "csrf_token": csrf_token,
             "activity_count": activity_count,
-            "previous_strategies": previous_strategies
+            "previous_strategies": previous_strategies,
+            "requires_login": False,
         }
     )
     CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)

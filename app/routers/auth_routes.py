@@ -11,9 +11,27 @@ from app.services.auth import create_user, authenticate_user, create_session, de
 from app.settings import settings
 from app.middleware.csrf import CSRFProtectionMiddleware
 from app.templates_engine import templates
+from app.products.registry import ProductRegistry, EditionRegistry
 
 
 router = APIRouter(tags=["auth"])
+
+
+def get_available_products():
+    """Get all available products with their editions for login page."""
+    all_products = ProductRegistry.list_all()
+    products_with_editions = []
+
+    for p in all_products:
+        editions = EditionRegistry.list_for_product(p.id)
+        # Only include products that have at least one edition
+        if editions:
+            products_with_editions.append({
+                "product": p,
+                "editions": editions,
+            })
+
+    return products_with_editions
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -29,9 +47,18 @@ async def login_page(
         return RedirectResponse(url=next or "/", status_code=302)
 
     csrf_token = CSRFProtectionMiddleware.generate_token()
+    available_products = get_available_products()
+
     template_response = templates.TemplateResponse(
         "auth/login.html",
-        {"request": request, "csrf_token": csrf_token, "user": None, "next": next or ""}
+        {
+            "request": request,
+            "csrf_token": csrf_token,
+            "user": None,
+            "next": next or "",
+            "available_products": available_products,
+            "selected_product": "ai_toolkit",  # Default selection
+        }
     )
     CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)
     return template_response
@@ -42,20 +69,42 @@ async def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    product: Optional[str] = Form(None),
     next: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """Process login form."""
     user = authenticate_user(db, username, password)
 
+    available_products = get_available_products()
+
     if not user:
         csrf_token = CSRFProtectionMiddleware.generate_token()
         template_response = templates.TemplateResponse(
             "auth/login.html",
-            {"request": request, "error": "Invalid username or password", "csrf_token": csrf_token, "user": None, "next": next or ""}
+            {
+                "request": request,
+                "error": "Invalid username or password",
+                "csrf_token": csrf_token,
+                "user": None,
+                "next": next or "",
+                "available_products": available_products,
+                "selected_product": product or "ai_toolkit",
+            }
         )
         CSRFProtectionMiddleware.set_csrf_cookie(template_response, csrf_token)
         return template_response
+
+    # Get the form data to extract edition selection
+    form_data = await request.form()
+    edition_key = f"edition_{product}" if product else "edition_ai_toolkit"
+    edition = form_data.get(edition_key)
+
+    # Update user's product/edition preference
+    if product:
+        user.selected_product = product
+        user.selected_edition = edition
+        db.commit()
 
     # Validate redirect URL (must be relative, not protocol-relative)
     redirect_url = "/"

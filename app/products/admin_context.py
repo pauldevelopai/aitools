@@ -34,6 +34,10 @@ def get_admin_context(request: Request) -> Tuple[Optional[Product], Optional[Edi
 
     Returns:
         Tuple of (Product, Edition) or (None, None) if not set
+
+    Note:
+        Always defaults to the ACTIVE edition unless a specific edition
+        cookie is set. This prevents accidentally landing on old editions.
     """
     # Try to get from session
     session = getattr(request.state, "session", {}) if hasattr(request, "state") else {}
@@ -52,14 +56,20 @@ def get_admin_context(request: Request) -> Tuple[Optional[Product], Optional[Edi
     # Get product
     product = ProductRegistry.get(product_id) if product_id else None
 
-    # Get edition (use active edition if none specified)
+    # Get edition - ALWAYS prefer active edition unless cookie explicitly set
     edition = None
     if product:
+        active_edition = EditionRegistry.get_active(product.id)
+
         if edition_version:
+            # Only use the cookie version if it matches a valid edition
             edition = EditionRegistry.get(product.id, edition_version)
-        if not edition:
-            # Fall back to active edition
-            edition = EditionRegistry.get_active(product.id)
+            # If cookie has an old/invalid edition, use active instead
+            if not edition:
+                edition = active_edition
+        else:
+            # No cookie set - use active edition
+            edition = active_edition
 
     return product, edition
 
@@ -114,10 +124,7 @@ def _build_context_label(product: Optional[Product], edition: Optional[Edition])
     label = product.name
 
     if edition:
-        label += f" ({edition.version.upper()}"
-        if edition.is_sealed:
-            label += " - sealed"
-        label += ")"
+        label += f" ({edition.version.upper()})"
 
     return label
 
@@ -126,8 +133,6 @@ def _get_context_class(edition: Optional[Edition]) -> str:
     """Get CSS class for context indicator based on edition state."""
     if not edition:
         return "bg-gray-500"
-    if edition.is_sealed:
-        return "bg-amber-500"
     if edition.is_active:
         return "bg-green-500"
     return "bg-blue-500"

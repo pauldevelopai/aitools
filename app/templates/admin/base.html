@@ -31,9 +31,6 @@
                 <div class="flex items-center space-x-3">
                     <span class="font-bold text-sm uppercase tracking-wide">ADMIN:</span>
                     <span class="font-semibold text-lg">{{ admin_context_label|default('No Context') }}</span>
-                    {% if admin_edition_sealed %}
-                    <span class="px-2 py-0.5 text-xs font-medium bg-white bg-opacity-20 rounded">READ-ONLY</span>
-                    {% endif %}
                 </div>
 
                 <!-- Context Switcher -->
@@ -81,14 +78,9 @@
                                     >
                                         <div class="flex items-center justify-between">
                                             <span>{{ edition.display_name }}</span>
-                                            <div class="flex items-center space-x-1">
-                                                {% if edition.is_active %}
-                                                <span class="w-2 h-2 rounded-full bg-green-500" title="Active"></span>
-                                                {% endif %}
-                                                {% if edition.is_sealed %}
-                                                <span class="text-xs text-amber-600">(sealed)</span>
-                                                {% endif %}
-                                            </div>
+                                            {% if edition.is_active %}
+                                            <span class="w-2 h-2 rounded-full bg-green-500" title="Active"></span>
+                                            {% endif %}
                                         </div>
                                     </a>
                                     {% endfor %}
@@ -142,7 +134,7 @@
         </div>
     </nav>
 
-    <!-- Admin Navigation -->
+    <!-- Admin Navigation - All tabs always visible for consistency -->
     <div class="bg-white border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex space-x-1 py-2 overflow-x-auto">
@@ -156,74 +148,50 @@
                           {% if active_admin_page == 'dashboard' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Dashboard
                 </a>
-                {% if feature_admin_users|default(true) %}
                 <a href="/admin/users"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'users' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Users
                 </a>
-                {% endif %}
-                {% if feature_admin_ingestion|default(true) %}
                 <a href="/admin/documents"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'documents' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Documents
                 </a>
-                {% endif %}
-                {% if feature_admin_analytics|default(true) %}
                 <a href="/admin/analytics"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'analytics' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Analytics
                 </a>
-                {% endif %}
-                {% if feature_admin_feedback|default(true) %}
                 <a href="/admin/feedback"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'feedback' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Feedback
                 </a>
-                {% endif %}
-                {% if feature_reviews|default(true) %}
                 <a href="/admin/reviews"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'reviews' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Reviews
                 </a>
-                {% endif %}
-                {% if feature_admin_discovery|default(true) %}
                 <a href="/admin/discovery"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'discovery' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Discovery
                 </a>
-                {% endif %}
-                {% if feature_admin_playbooks|default(true) %}
+                <a href="/admin/approved-tools"
+                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
+                          {% if active_admin_page == 'approved_tools' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                    Approved Tools
+                </a>
                 <a href="/admin/playbooks"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'playbooks' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Playbooks
                 </a>
-                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Sealed Edition Warning -->
-    {% if admin_edition_sealed %}
-    <div class="bg-amber-50 border-b border-amber-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div class="flex items-center">
-                <svg class="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-                <span class="text-sm text-amber-800">
-                    <strong>Sealed Edition:</strong> This edition is archived and read-only. Changes cannot be saved.
-                </span>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}For You - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">For You</h1>
+        <p class="text-gray-600">
+            Personalized tool recommendations based on your profile and activity.
+        </p>
+    </div>
+
+    <!-- Login Prompt for Anonymous Users -->
+    {% if requires_login %}
+    {% include "components/login_prompt.html" %}
+    {% else %}
+
+    <!-- User Context Summary -->
+    {% if user_context %}
+    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
+        <h3 class="text-sm font-semibold text-indigo-900 mb-2">Your Profile Settings</h3>
+        <div class="flex flex-wrap gap-4 text-sm">
+            {% if user_context.experience_level %}
+            <div>
+                <span class="text-indigo-600">Experience:</span>
+                <span class="font-medium text-indigo-900 capitalize">{{ user_context.experience_level }}</span>
+            </div>
+            {% endif %}
+            {% if user_context.budget %}
+            <div>
+                <span class="text-indigo-600">Budget:</span>
+                <span class="font-medium text-indigo-900 capitalize">{{ user_context.budget }}</span>
+            </div>
+            {% endif %}
+            {% if user_context.data_sensitivity %}
+            <div>
+                <span class="text-indigo-600">Data Sensitivity:</span>
+                <span class="font-medium text-indigo-900 capitalize">{{ user_context.data_sensitivity }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% if user_context.constraints %}
+        <div class="mt-2 text-xs text-indigo-600">
+            CDI limits: Cost &le; {{ user_context.constraints.max_cost }},
+            Difficulty &le; {{ user_context.constraints.max_difficulty }},
+            Invasiveness &le; {{ user_context.constraints.max_invasiveness }}
+        </div>
+        {% endif %}
+        <div class="mt-3">
+            <a href="/profile" class="text-sm text-indigo-700 hover:text-indigo-900 font-medium">
+                Update your profile to improve recommendations &rarr;
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Use Case Filter -->
+    <div class="mb-6">
+        <form method="GET" action="/for-you" class="flex items-center gap-3">
+            <label for="use_case" class="text-sm font-medium text-gray-700">Filter by use case:</label>
+            <select name="use_case" id="use_case" onchange="this.form.submit()"
+                    class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">All recommendations</option>
+                {% for cluster in clusters %}
+                <option value="{{ cluster.slug }}" {% if selected_use_case == cluster.slug %}selected{% endif %}>
+                    {{ cluster.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <!-- Recommendations -->
+    {% if show_suggested and suggested_tools %}
+    <div class="space-y-4">
+        {% for rec in suggested_tools %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <!-- Tool Header -->
+                    <div class="flex items-center gap-3 mb-2">
+                        <a href="/tools/{{ rec.tool_slug }}"
+                           class="text-xl font-semibold text-gray-900 hover:text-indigo-600">
+                            {{ rec.tool_name }}
+                        </a>
+                        <span class="text-sm px-3 py-1 rounded-full
+                            {% if rec.fit_score >= 80 %}bg-green-100 text-green-700
+                            {% elif rec.fit_score >= 60 %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {{ rec.fit_score | round(0) }}% fit
+                        </span>
+                        {% if 'sovereign-alternative' in rec.tags %}
+                        <span class="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">Sovereign</span>
+                        {% endif %}
+                        {% if 'free' in rec.tags %}
+                        <span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Free</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Explanation -->
+                    <p class="text-gray-600 mb-4">{{ rec.explanation }}</p>
+
+                    <!-- Score Breakdown -->
+                    {% if rec.score_breakdown %}
+                    <div class="flex flex-wrap gap-4 text-xs text-gray-500 mb-4">
+                        <span>Base: {{ rec.score_breakdown.base_score | round(0) }}</span>
+                        {% if rec.score_breakdown.profile_bonus > 0 %}
+                        <span class="text-green-600">+{{ rec.score_breakdown.profile_bonus | round(0) }} profile match</span>
+                        {% endif %}
+                        {% if rec.score_breakdown.activity_bonus > 0 %}
+                        <span class="text-blue-600">+{{ rec.score_breakdown.activity_bonus | round(0) }} activity</span>
+                        {% endif %}
+                        {% if rec.score_breakdown.review_bonus > 0 %}
+                        <span class="text-purple-600">+{{ rec.score_breakdown.review_bonus | round(0) }} reviews</span>
+                        {% endif %}
+                        {% if rec.score_breakdown.penalty > 0 %}
+                        <span class="text-red-600">-{{ rec.score_breakdown.penalty | round(0) }} constraints</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Citations -->
+                    {% if rec.citations %}
+                    <div class="space-y-2 mb-4">
+                        {% for citation in rec.citations[:2] %}
+                        <div class="text-sm bg-gray-50 rounded p-3 border-l-2 border-indigo-300">
+                            {% if citation.type == 'review' %}
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-yellow-500">
+                                    {% for i in range(citation.rating or 0) %}&#9733;{% endfor %}{% for i in range(5 - (citation.rating or 0)) %}<span class="text-gray-300">&#9733;</span>{% endfor %}
+                                </span>
+                                {% if citation.reviewer_type %}
+                                <span class="text-xs text-gray-500">({{ citation.reviewer_type }})</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            <p class="text-gray-700 italic">"{{ citation.text | truncate(150) }}"</p>
+                            {% if citation.source %}
+                            <p class="text-xs text-gray-500 mt-1">{{ citation.source }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-4">
+                        <a href="/tools/{{ rec.tool_slug }}"
+                           class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                            View tool details &rarr;
+                        </a>
+                        <a href="/clusters/{{ rec.cluster_slug }}"
+                           class="text-xs text-gray-400 hover:text-gray-600">
+                            {{ rec.cluster_name }}
+                        </a>
+                    </div>
+                </div>
+
+                <!-- CDI Scores -->
+                <div class="ml-6 flex gap-2">
+                    {% if rec.cdi_scores %}
+                    <div class="text-center px-3 py-2 rounded-lg
+                        {% if rec.cdi_scores.cost <= 3 %}bg-green-50 text-green-700
+                        {% elif rec.cdi_scores.cost <= 6 %}bg-yellow-50 text-yellow-700
+                        {% else %}bg-red-50 text-red-700{% endif %}">
+                        <div class="text-xs uppercase font-medium">Cost</div>
+                        <div class="text-2xl font-bold">{{ rec.cdi_scores.cost }}</div>
+                    </div>
+                    <div class="text-center px-3 py-2 rounded-lg
+                        {% if rec.cdi_scores.difficulty <= 3 %}bg-green-50 text-green-700
+                        {% elif rec.cdi_scores.difficulty <= 6 %}bg-yellow-50 text-yellow-700
+                        {% else %}bg-red-50 text-red-700{% endif %}">
+                        <div class="text-xs uppercase font-medium">Difficulty</div>
+                        <div class="text-2xl font-bold">{{ rec.cdi_scores.difficulty }}</div>
+                    </div>
+                    <div class="text-center px-3 py-2 rounded-lg
+                        {% if rec.cdi_scores.invasiveness <= 3 %}bg-green-50 text-green-700
+                        {% elif rec.cdi_scores.invasiveness <= 6 %}bg-yellow-50 text-yellow-700
+                        {% else %}bg-red-50 text-red-700{% endif %}">
+                        <div class="text-xs uppercase font-medium">Invasiveness</div>
+                        <div class="text-2xl font-bold">{{ rec.cdi_scores.invasiveness }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- No Recommendations -->
+    <div class="bg-white rounded-lg shadow p-12 text-center">
+        <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">No recommendations yet</h3>
+        <p class="text-gray-600 mb-6">
+            We need more information to give you personalized recommendations.
+        </p>
+        <div class="flex justify-center gap-4">
+            <a href="/profile" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-medium">
+                Complete Your Profile
+            </a>
+            <a href="/tools" class="bg-white text-gray-700 border-2 border-gray-300 px-6 py-3 rounded-lg hover:bg-gray-50 transition font-medium">
+                Browse All Tools
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Scoring Explanation -->
+    {% if show_suggested %}
+    <div class="mt-8">
+        {% include "components/scoring_explanation.html" %}
+    </div>
+    {% endif %}
+
+    {% endif %}{# end requires_login else #}
+</div>
+{% endblock %}

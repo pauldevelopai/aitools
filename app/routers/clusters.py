@@ -3,11 +3,15 @@ import re
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
 
+from app.db import get_db
 from app.models.auth import User
 from app.dependencies import get_current_user
 from app.services.kit_loader import (
-    get_all_clusters, get_cluster, get_cluster_tools
+    get_all_clusters, get_cluster, get_cluster_tools,
+    get_all_clusters_with_approved, get_approved_tools_from_db,
+    ADMIN_APPROVED_CLUSTER_SLUG, get_admin_approved_cluster
 )
 from app.templates_engine import templates
 
@@ -122,22 +126,37 @@ router = APIRouter(prefix="/clusters", tags=["clusters"])
 async def clusters_index(
     request: Request,
     user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """List all tool clusters."""
-    clusters = get_all_clusters()
+    """List all tool clusters including admin-approved tools."""
+    clusters = get_all_clusters_with_approved(db)
 
     # Enrich each cluster with its tool count and tools
     enriched = []
     for c in clusters:
-        tools = get_cluster_tools(c["slug"])
-        enriched.append({
-            **c,
-            "tools": tools,
-            "tool_count": len(tools),
-            "avg_cost": round(sum(t["cdi_scores"]["cost"] for t in tools) / len(tools), 1) if tools else 0,
-            "avg_difficulty": round(sum(t["cdi_scores"]["difficulty"] for t in tools) / len(tools), 1) if tools else 0,
-            "avg_invasiveness": round(sum(t["cdi_scores"]["invasiveness"] for t in tools) / len(tools), 1) if tools else 0,
-        })
+        if c["slug"] == ADMIN_APPROVED_CLUSTER_SLUG:
+            # Admin-approved cluster - tools come from database
+            tools = get_approved_tools_from_db(db)
+            enriched.append({
+                **c,
+                "tools": tools,
+                "tool_count": len(tools),
+                "avg_cost": 5,  # Default neutral scores
+                "avg_difficulty": 5,
+                "avg_invasiveness": 5,
+                "is_admin_approved": True,
+            })
+        else:
+            # Standard kit cluster
+            tools = get_cluster_tools(c["slug"])
+            enriched.append({
+                **c,
+                "tools": tools,
+                "tool_count": len(tools),
+                "avg_cost": round(sum(t["cdi_scores"]["cost"] for t in tools) / len(tools), 1) if tools else 0,
+                "avg_difficulty": round(sum(t["cdi_scores"]["difficulty"] for t in tools) / len(tools), 1) if tools else 0,
+                "avg_invasiveness": round(sum(t["cdi_scores"]["invasiveness"] for t in tools) / len(tools), 1) if tools else 0,
+            })
 
     return templates.TemplateResponse(
         "clusters/index.html",
@@ -154,8 +173,30 @@ async def cluster_detail(
     request: Request,
     slug: str,
     user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Show cluster detail with its tools."""
+    # Handle admin-approved cluster separately
+    if slug == ADMIN_APPROVED_CLUSTER_SLUG:
+        cluster = get_admin_approved_cluster(db)
+        if not cluster:
+            raise HTTPException(status_code=404, detail="No approved tools yet")
+
+        tools = get_approved_tools_from_db(db)
+
+        return templates.TemplateResponse(
+            "clusters/detail.html",
+            {
+                "request": request,
+                "user": user,
+                "cluster": cluster,
+                "tools": tools,
+                "wts_blocks": [],  # No where_to_start for admin-approved
+                "is_admin_approved": True,
+            }
+        )
+
+    # Standard kit cluster
     cluster = get_cluster(slug)
     if not cluster:
         raise HTTPException(status_code=404, detail="Cluster not found")

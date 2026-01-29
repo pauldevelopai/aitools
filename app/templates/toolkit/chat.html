@@ -9,6 +9,11 @@
         <p class="mt-1 text-sm text-gray-600">Your activity across {{ product_name }}.</p>
     </div>
 
+    <!-- Login Prompt for Anonymous Users -->
+    {% if requires_login %}
+    {% include "components/login_prompt.html" %}
+    {% else %}
+
     <!-- Filter tabs -->
     <div class="mb-6 flex flex-wrap gap-2">
         <a href="/toolkit"
@@ -217,5 +222,7 @@
             </div>
         {% endif %}
     </div>
+
+    {% endif %}{# end requires_login else #}
 </div>
 {% endblock %}

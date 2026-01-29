@@ -247,3 +247,134 @@ def clear_cache():
     get_all_clusters.cache_clear()
     get_all_foundations.cache_clear()
     get_all_sources.cache_clear()
+
+
+# =============================================================================
+# ADMIN-APPROVED TOOLS (from database)
+# =============================================================================
+
+ADMIN_APPROVED_CLUSTER_SLUG = "admin-approved"
+ADMIN_APPROVED_CLUSTER = {
+    "number": 8,  # Cluster 8 - part of the main clusters
+    "slug": ADMIN_APPROVED_CLUSTER_SLUG,
+    "name": "Admin Approved",
+    "description": "Tools reviewed and approved by administrators. These tools have been vetted and added to the toolkit collection.",
+    "icon": "check-badge",
+    "color": "#10B981",  # Green
+    "tool_count": 0,  # Will be updated dynamically
+}
+
+
+def get_approved_tools_from_db(db) -> List[Dict[str, Any]]:
+    """
+    Get admin-approved tools from the discovered_tools database table.
+    Converts them to the same format as kit tools.
+
+    Args:
+        db: SQLAlchemy database session
+
+    Returns:
+        List of tool dictionaries in kit format
+    """
+    from app.models.discovery import DiscoveredTool
+
+    approved = db.query(DiscoveredTool).filter(
+        DiscoveredTool.status == "approved"
+    ).order_by(DiscoveredTool.name).all()
+
+    tools = []
+    for i, tool in enumerate(approved):
+        tools.append({
+            "number": 1000 + i,  # High number to sort after kit tools
+            "slug": tool.slug,
+            "name": tool.name,
+            "tagline": tool.description[:100] if tool.description else "",
+            "description": tool.description or "",
+            "purpose": tool.description or "",
+            "url": tool.url,
+            "cluster_slug": ADMIN_APPROVED_CLUSTER_SLUG,
+            "cluster_name": "Admin Approved",
+            "categories": tool.categories or [],
+            "tags": ["admin-approved"] + (tool.categories or []),
+            "cdi_scores": {
+                "cost": 5,  # Default neutral scores
+                "difficulty": 5,
+                "invasiveness": 5
+            },
+            "time_dividend": {
+                "time_saved": None,
+                "reinvestment": None
+            },
+            "cross_references": {
+                "use_cases": tool.categories or [],
+                "similar_tools": [],
+                "sovereign_alternative": None,
+                "sovereign_alternative_for": []
+            },
+            "comments": None,
+            "journalism_relevance": None,
+            "is_admin_approved": True,
+            "approved_at": tool.reviewed_at.isoformat() if tool.reviewed_at else None,
+            "source_type": tool.source_type,
+            "source_name": tool.source_name,
+        })
+
+    return tools
+
+
+def get_admin_approved_cluster(db) -> Optional[Dict[str, Any]]:
+    """
+    Get the admin-approved cluster with updated tool count.
+
+    Args:
+        db: SQLAlchemy database session
+
+    Returns:
+        Cluster dictionary or None if no approved tools
+    """
+    from app.models.discovery import DiscoveredTool
+
+    count = db.query(DiscoveredTool).filter(
+        DiscoveredTool.status == "approved"
+    ).count()
+
+    if count == 0:
+        return None
+
+    cluster = ADMIN_APPROVED_CLUSTER.copy()
+    cluster["tool_count"] = count
+    return cluster
+
+
+def get_all_clusters_with_approved(db) -> List[Dict[str, Any]]:
+    """
+    Get all clusters including the admin-approved cluster if it has tools.
+
+    Args:
+        db: SQLAlchemy database session
+
+    Returns:
+        List of all clusters
+    """
+    clusters = list(get_all_clusters())  # Copy to avoid modifying cached list
+
+    approved_cluster = get_admin_approved_cluster(db)
+    if approved_cluster:
+        clusters.append(approved_cluster)
+
+    return clusters
+
+
+def get_all_tools_with_approved(db) -> List[Dict[str, Any]]:
+    """
+    Get all tools including admin-approved tools.
+
+    Args:
+        db: SQLAlchemy database session
+
+    Returns:
+        List of all tools (kit + approved)
+    """
+    tools = list(get_all_tools())  # Copy to avoid modifying cached list
+    tools.extend(get_approved_tools_from_db(db))
+    return tools

@@ -7,6 +7,11 @@
 
     <h1 class="text-3xl font-bold text-gray-900 mb-6">AI Implementation Strategy</h1>
 
+    <!-- Login Prompt for Anonymous Users -->
+    {% if requires_login %}
+    {% include "components/login_prompt.html" %}
+    {% else %}
+
     <!-- Profile Status -->
     {% set profile_complete = user.role and user.organisation_type and user.risk_level and user.data_sensitivity and user.budget and user.deployment_pref %}
 
@@ -118,5 +123,6 @@
     </div>
     {% endif %}
 
+    {% endif %}{# end requires_login else #}
 </div>
 {% endblock %}

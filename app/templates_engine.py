@@ -204,6 +204,7 @@ class ProductAwareTemplates(Jinja2Templates):
             # Learning content
             "/foundations": features.foundations_enabled,
             # Personalization
+            "/for-you": features.recommendations_enabled,
             "/strategy": features.strategy_enabled,
             # Content
             "/browse": features.browse_enabled,

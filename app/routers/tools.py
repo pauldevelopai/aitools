@@ -10,7 +10,9 @@ from app.models.toolkit import UserActivity
 from app.dependencies import get_current_user
 from app.services.kit_loader import (
     get_all_tools, get_tool, get_all_clusters,
-    get_cluster_tools, search_tools
+    get_cluster_tools, search_tools,
+    get_all_tools_with_approved, get_all_clusters_with_approved,
+    get_approved_tools_from_db, ADMIN_APPROVED_CLUSTER_SLUG
 )
 from app.templates_engine import templates
 
@@ -123,11 +125,12 @@ async def tool_finder(
 async def cdi_explorer(
     request: Request,
     user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Interactive CDI score explorer — scatter chart, sliders, comparisons."""
     import json as json_mod
-    all_tools_list = get_all_tools()
-    clusters = get_all_clusters()
+    all_tools_list = get_all_tools_with_approved(db)
+    clusters = get_all_clusters_with_approved(db)
 
     # Prepare tools data for client-side JS
     tools_json = json_mod.dumps([
@@ -142,6 +145,7 @@ async def cdi_explorer(
             "total": t["cdi_scores"]["cost"] + t["cdi_scores"]["difficulty"] + t["cdi_scores"]["invasiveness"],
             "purpose": t.get("purpose", ""),
             "tags": t.get("tags", []),
+            "is_admin_approved": t.get("is_admin_approved", False),
         }
         for t in all_tools_list
     ])
@@ -169,8 +173,8 @@ async def tools_index(
     user: Optional[User] = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all tools with optional filtering."""
-    clusters = get_all_clusters()
+    """List all tools with optional filtering (includes admin-approved tools)."""
+    clusters = get_all_clusters_with_approved(db)
 
     # Parse optional int params (empty strings from form become None)
     cost_val = int(max_cost) if max_cost and max_cost.isdigit() else None
@@ -178,6 +182,7 @@ async def tools_index(
     inv_val = int(max_invasiveness) if max_invasiveness and max_invasiveness.isdigit() else None
     cluster_val = cluster if cluster else None
 
+    # Get kit tools
     tools = search_tools(
         query=q or "",
         cluster_slug=cluster_val,
@@ -185,6 +190,30 @@ async def tools_index(
         max_difficulty=diff_val,
         max_invasiveness=inv_val,
     )
+
+    # Include admin-approved tools in search
+    approved_tools = get_approved_tools_from_db(db)
+    if cluster_val == ADMIN_APPROVED_CLUSTER_SLUG:
+        # Filter to only approved tools
+        tools = approved_tools
+    elif not cluster_val:
+        # No cluster filter - include all approved tools
+        # Apply same search/filter criteria
+        if q:
+            q_lower = q.lower()
+            approved_tools = [
+                t for t in approved_tools
+                if q_lower in t.get("name", "").lower()
+                or q_lower in t.get("description", "").lower()
+                or any(q_lower in tag.lower() for tag in t.get("tags", []))
+            ]
+        if cost_val is not None:
+            approved_tools = [t for t in approved_tools if t["cdi_scores"]["cost"] <= cost_val]
+        if diff_val is not None:
+            approved_tools = [t for t in approved_tools if t["cdi_scores"]["difficulty"] <= diff_val]
+        if inv_val is not None:
+            approved_tools = [t for t in approved_tools if t["cdi_scores"]["invasiveness"] <= inv_val]
+        tools = tools + approved_tools
 
     # Log activity if user is authenticated and a search/filter was used
     if user and (q or cluster_val or cost_val is not None or diff_val is not None or inv_val is not None):
@@ -206,6 +235,8 @@ async def tools_index(
         db.add(activity)
         db.commit()
 
+    all_tools_count = len(get_all_tools()) + len(get_approved_tools_from_db(db))
+
     return templates.TemplateResponse(
         "tools/index.html",
         {
@@ -218,7 +249,7 @@ async def tools_index(
             "max_cost": cost_val,
             "max_difficulty": diff_val,
             "max_invasiveness": inv_val,
-            "total_tools": len(get_all_tools()),
+            "total_tools": all_tools_count,
         }
     )
 
@@ -232,14 +263,27 @@ async def tool_detail(
 ):
     """Show individual tool detail page with cross-references."""
     tool = get_tool(slug)
+
+    # If not in kit, check admin-approved tools
+    if not tool:
+        approved_tools = get_approved_tools_from_db(db)
+        tool = next((t for t in approved_tools if t["slug"] == slug), None)
+
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
 
     # Get related tools from same cluster
-    related = [
-        t for t in get_cluster_tools(tool.get("cluster_slug", ""))
-        if t["slug"] != slug
-    ]
+    if tool.get("cluster_slug") == ADMIN_APPROVED_CLUSTER_SLUG:
+        # For admin-approved tools, show other approved tools
+        related = [
+            t for t in get_approved_tools_from_db(db)
+            if t["slug"] != slug
+        ][:5]  # Limit to 5
+    else:
+        related = [
+            t for t in get_cluster_tools(tool.get("cluster_slug", ""))
+            if t["slug"] != slug
+        ]
 
     # Resolve cross-references
     cross_refs = tool.get("cross_references", {})

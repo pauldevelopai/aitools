@@ -7,6 +7,8 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 
 from app.routers import health, admin, rag, auth_routes, toolkit, browse, strategy, tools, clusters, foundations, sources, profile, feedback, reviews, discovery, playbook, recommendations
+from app.routers.recommendations import page_router as recommendations_pages
+from app.routers.discovery import approved_router as approved_tools_router
 from app.dependencies import get_current_user
 from app.db import get_db
 from app.models.auth import User
@@ -117,8 +119,10 @@ app.include_router(profile.router)
 app.include_router(feedback.router)
 app.include_router(reviews.router)
 app.include_router(discovery.router)
+app.include_router(approved_tools_router)  # Approved tools staging area
 app.include_router(playbook.router)
 app.include_router(recommendations.router)
+app.include_router(recommendations_pages)  # For You page at /for-you
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -142,18 +146,6 @@ async def home(
 
     stats = get_kit_stats()
 
-    # Get personalized recommendations for logged-in users
-    suggested_tools = []
-    show_suggested = False
-    if user:
-        try:
-            recs = get_suggested_for_location(db, user, "home")
-            # Convert Pydantic models to dicts for Jinja2
-            suggested_tools = [r.model_dump() if hasattr(r, 'model_dump') else r for r in recs]
-            show_suggested = len(suggested_tools) > 0
-        except Exception:
-            pass  # Fail gracefully if recommendations unavailable
-
     return templates.TemplateResponse(
         "index.html",
         {
@@ -162,9 +154,77 @@ async def home(
             "title": "Grounded",
             "clusters": enriched_clusters,
             "stats": stats,
-            "suggested_tools": suggested_tools,
-            "suggested_title": "Suggested for You",
-            "show_suggested": show_suggested,
-            "suggested_location": "home",
+        }
+    )
+
+
+# =============================================================================
+# PLACEHOLDER PRODUCT LANDING PAGES
+# =============================================================================
+
+@app.get("/audio", response_class=HTMLResponse)
+async def audio_landing(
+    request: Request,
+    user: Optional[User] = Depends(get_current_user),
+):
+    """Landing page for AI Audio (placeholder product)."""
+    from app.products.registry import ProductRegistry
+
+    product = ProductRegistry.get("ai_audio")
+    if not product:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    return templates.TemplateResponse(
+        "placeholder.html",
+        {
+            "request": request,
+            "user": user,
+            "product_name": product.name,
+            "product_description": product.description,
+            "brand_logo_text": product.branding.logo_text,
+            "brand_primary_color": product.branding.primary_color,
+            "brand_secondary_color": product.branding.secondary_color,
+            "placeholder_features": [
+                "AI-powered audio transcription and editing",
+                "Voice cloning and text-to-speech tools",
+                "Podcast production assistants",
+                "Audio enhancement and noise reduction",
+                "Multi-language dubbing tools",
+            ],
+        }
+    )
+
+
+@app.get("/letter-plus", response_class=HTMLResponse)
+async def letter_plus_landing(
+    request: Request,
+    user: Optional[User] = Depends(get_current_user),
+):
+    """Landing page for Letter+ (placeholder product)."""
+    from app.products.registry import ProductRegistry
+
+    product = ProductRegistry.get("letter_plus")
+    if not product:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    return templates.TemplateResponse(
+        "placeholder.html",
+        {
+            "request": request,
+            "user": user,
+            "product_name": product.name,
+            "product_description": product.description,
+            "brand_logo_text": product.branding.logo_text,
+            "brand_primary_color": product.branding.primary_color,
+            "brand_secondary_color": product.branding.secondary_color,
+            "placeholder_features": [
+                "AI newsletter writing assistant",
+                "Subscriber engagement analytics",
+                "Automated content curation",
+                "A/B testing for subject lines",
+                "Multi-platform distribution",
+            ],
         }
     )

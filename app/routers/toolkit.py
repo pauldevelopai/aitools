@@ -8,7 +8,7 @@ from sqlalchemy import UUID
 from app.db import get_db
 from app.models.auth import User
 from app.models.toolkit import ChatLog, Feedback, StrategyPlan, UserActivity
-from app.dependencies import require_auth_page
+from app.dependencies import require_auth_page, get_current_user
 from app.services.rag import rag_answer
 from app.templates_engine import templates
 
@@ -20,10 +20,24 @@ router = APIRouter(prefix="/toolkit", tags=["toolkit"])
 async def toolkit_page(
     request: Request,
     filter_type: Optional[str] = None,
-    user: User = Depends(require_auth_page),
+    user: Optional[User] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Activity history page (requires authentication)."""
+    """Activity history page - shows login prompt for anonymous users."""
+    # If not logged in, show login prompt
+    if not user:
+        return templates.TemplateResponse(
+            "toolkit/chat.html",
+            {
+                "request": request,
+                "user": None,
+                "timeline": [],
+                "filter_type": filter_type,
+                "requires_login": True,
+                "feature_name": "Activity History",
+                "feature_description": "Track your AI tool searches, chat history, and strategy plans all in one place.",
+            }
+        )
 
     # Build unified timeline from all activity sources
     timeline = []

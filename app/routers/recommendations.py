@@ -1,6 +1,7 @@
-"""Personalized recommendations API endpoints."""
+"""Personalized recommendations API endpoints and pages."""
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -12,15 +13,91 @@ from app.services.recommendation import (
     get_suggested_for_location,
     build_user_context,
 )
-from app.services.kit_loader import get_tool
+from app.services.kit_loader import get_tool, get_all_clusters
 from app.schemas.recommendation import (
     RecommendationsResponse,
     ToolGuidanceResponse,
     SuggestedBlockResponse,
 )
 from app.products.guards import require_feature
+from app.templates_engine import templates
 
 
+# HTML page router (no prefix - mounted at root)
+page_router = APIRouter(tags=["recommendations-pages"])
+
+
+@page_router.get("/for-you", response_class=HTMLResponse)
+async def for_you_page(
+    request: Request,
+    use_case: Optional[str] = Query(None, description="Filter by use case"),
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dedicated page for personalized tool suggestions."""
+    # If not logged in, show login prompt
+    if not user:
+        return templates.TemplateResponse(
+            "recommendations/for_you.html",
+            {
+                "request": request,
+                "user": None,
+                "suggested_tools": [],
+                "show_suggested": False,
+                "requires_login": True,
+                "feature_name": "Personalized Recommendations",
+                "feature_description": "Get AI tool recommendations tailored to your experience level, budget, and use cases.",
+                "clusters": get_all_clusters(),
+                "selected_use_case": use_case,
+            }
+        )
+
+    # Get recommendations for logged-in user
+    recommendations = get_recommendations(
+        db=db,
+        user=user,
+        use_case=use_case,
+        limit=12,
+    )
+
+    # Convert to dicts for template
+    suggested_tools = [r.model_dump() if hasattr(r, 'model_dump') else r for r in recommendations]
+
+    # Build user context summary
+    context = build_user_context(db, user)
+    context_summary = {
+        "budget": context.budget,
+        "experience_level": context.ai_experience_level,
+        "data_sensitivity": context.data_sensitivity,
+        "use_cases": context.use_cases[:5] if context.use_cases else [],
+        "constraints": {
+            "max_cost": context.max_cost,
+            "max_difficulty": context.max_difficulty,
+            "max_invasiveness": context.max_invasiveness,
+        },
+    }
+
+    # Get clusters for use case filtering
+    clusters = get_all_clusters()
+
+    return templates.TemplateResponse(
+        "recommendations/for_you.html",
+        {
+            "request": request,
+            "user": user,
+            "suggested_tools": suggested_tools,
+            "show_suggested": len(suggested_tools) > 0,
+            "suggested_title": "Recommended for You",
+            "suggested_location": "for_you",
+            "user_context": context_summary,
+            "clusters": clusters,
+            "selected_use_case": use_case,
+            "requires_login": False,
+        }
+    )
+
+
+# API router (with /api/recommendations prefix)
 router = APIRouter(
     prefix="/api/recommendations",
     tags=["recommendations"],

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Sign In - {{ product_name }}{% endblock %}
+{% block title %}Sign In{% endblock %}
 
 {% block content %}
 <div class="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
         <div>
             <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                Sign in to {{ product_name }}
+                Sign in
             </h2>
             <p class="mt-2 text-center text-sm text-gray-600">
                 Or
@@ -25,6 +25,43 @@
             <div class="rounded-md bg-red-50 p-4">
                 <div class="text-sm text-red-700">
                     {{ error }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Product Selection -->
+            {% if available_products %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Application</label>
+                <div class="grid grid-cols-1 gap-3">
+                    {% for item in available_products %}
+                    <div class="relative flex items-center p-4 bg-white border border-gray-200 rounded-lg
+                                {% if available_products|length == 1 %}border-blue-500 ring-2 ring-blue-200{% endif %}">
+                        <input type="hidden" name="product" value="{{ item.product.id }}">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-semibold text-gray-900">{{ item.product.name }}</span>
+                                {% if item.editions|length > 1 %}
+                                <select name="edition_{{ item.product.id }}"
+                                        class="text-xs border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                    {% for edition in item.editions %}
+                                    <option value="{{ edition.version }}"
+                                            {% if edition.is_active %}selected{% endif %}>
+                                        {{ edition.display_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% else %}
+                                {% for edition in item.editions %}
+                                <input type="hidden" name="edition_{{ item.product.id }}" value="{{ edition.version }}">
+                                <span class="text-xs text-gray-500">{{ edition.display_name }}</span>
+                                {% endfor %}
+                                {% endif %}
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">{{ item.product.description|truncate(100) }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
@@ -65,4 +102,5 @@
         </form>
     </div>
 </div>
+
 {% endblock %}

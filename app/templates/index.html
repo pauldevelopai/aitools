@@ -16,6 +16,11 @@
         </p>
         {% endif %}
         <div class="flex justify-center gap-4 flex-wrap">
+            {% if user and feature_recommendations|default(true) %}
+            <a href="/for-you" class="bg-brand-accent text-white px-6 py-3 rounded-lg hover:opacity-90 transition font-medium">
+                For You
+            </a>
+            {% endif %}
             {% if feature_rag|default(true) %}
             <a href="/tools/finder" class="bg-brand-primary text-white px-6 py-3 rounded-lg hover:bg-brand-secondary transition font-medium">
                 Find the Right Tool
@@ -31,11 +36,6 @@
             {% endif %}
         </div>
     </div>
-
-    <!-- Personalized Suggestions (logged-in users) -->
-    {% if feature_recommendations|default(true) %}
-    {% include "components/suggested_block.html" %}
-    {% endif %}
 
     <!-- Feature Cards -->
     {% if stats %}

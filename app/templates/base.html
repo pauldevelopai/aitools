@@ -81,10 +81,8 @@
                         <a href="/" class="text-lg font-bold text-brand-primary whitespace-nowrap">
                             {{ brand_logo_text|default('Application') }}
                         </a>
-                        {% if edition_label and not edition_sealed %}
+                        {% if edition_label %}
                         <span class="ml-2 px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">{{ edition_label }}</span>
-                        {% elif edition_sealed %}
-                        <span class="ml-2 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded" title="This edition is archived">{{ edition_label }} (Archived)</span>
                         {% endif %}
                     </div>
                     <!-- Desktop nav -->

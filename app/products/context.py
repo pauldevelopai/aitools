@@ -6,7 +6,7 @@ context throughout the application. It includes FastAPI dependencies and
 helper functions for feature flag checking.
 """
 
-from typing import Optional
+from typing import Optional, Any
 from fastapi import Request
 
 from app.products.config import Product, Edition, FeatureFlags
@@ -21,16 +21,23 @@ from app.products.registry import (
 DEFAULT_PRODUCT_ID = "ai_toolkit"
 
 
+def _get_user_from_request(request: Optional[Request]) -> Optional[Any]:
+    """Try to get user from request state (set by auth middleware)."""
+    if request is None:
+        return None
+    try:
+        return getattr(request.state, "user", None)
+    except Exception:
+        return None
+
+
 def get_current_product(request: Optional[Request] = None) -> Product:
     """
-    Get the current product based on request context.
+    Get the current product based on user preference or default.
 
-    For now, this returns AI Toolkit as the default product.
-    In the future, this could be determined by:
-    - Subdomain (toolkit.example.com vs audio.example.com)
-    - URL path prefix (/toolkit/* vs /audio/*)
-    - Request header
-    - User preference
+    Priority:
+    1. User's selected_product preference (if logged in)
+    2. Default product (ai_toolkit)
 
     Args:
         request: Optional FastAPI request object
@@ -38,9 +45,18 @@ def get_current_product(request: Optional[Request] = None) -> Product:
     Returns:
         Current Product instance
     """
-    # Future: Implement product detection logic based on request
-    # For now, return the default product
-    product = ProductRegistry.get(DEFAULT_PRODUCT_ID)
+    product_id = DEFAULT_PRODUCT_ID
+
+    # Try to get user's preference
+    user = _get_user_from_request(request)
+    if user and hasattr(user, "selected_product") and user.selected_product:
+        product_id = user.selected_product
+
+    product = ProductRegistry.get(product_id)
+    if product is None:
+        # Fall back to default if user's selected product doesn't exist
+        product = ProductRegistry.get(DEFAULT_PRODUCT_ID)
+
     if product is None:
         raise RuntimeError(
             f"Default product '{DEFAULT_PRODUCT_ID}' not registered. "
@@ -51,7 +67,11 @@ def get_current_product(request: Optional[Request] = None) -> Product:
 
 def get_current_edition(request: Optional[Request] = None) -> Edition:
     """
-    Get the current active edition for the current product.
+    Get the current edition based on user preference or active edition.
+
+    Priority:
+    1. User's selected_edition preference (if logged in and valid)
+    2. Active edition for the product
 
     Args:
         request: Optional FastAPI request object
@@ -60,6 +80,15 @@ def get_current_edition(request: Optional[Request] = None) -> Edition:
         Current Edition instance
     """
     product = get_current_product(request)
+
+    # Try to get user's edition preference
+    user = _get_user_from_request(request)
+    if user and hasattr(user, "selected_edition") and user.selected_edition:
+        edition = EditionRegistry.get(product.id, user.selected_edition)
+        if edition:
+            return edition
+
+    # Fall back to active edition
     edition = get_active_edition(product.id)
     if edition is None:
         raise RuntimeError(

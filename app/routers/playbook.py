@@ -23,6 +23,7 @@ from app.services.playbook.pipeline import (
 from app.settings import settings
 from app.templates_engine import templates
 from app.products.guards import require_feature
+from app.products.admin_context import get_admin_context_dict
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,7 @@ async def playbooks_list_page(
 
     total_pages = (total + per_page - 1) // per_page
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/playbooks/index.html",
         {
@@ -94,6 +96,8 @@ async def playbooks_list_page(
             "page": page,
             "total_pages": total_pages,
             "total": total,
+            **admin_context,
+            "active_admin_page": "playbooks",
         }
     )
 
@@ -122,6 +126,7 @@ async def playbook_for_tool_page(
             PlaybookSource.playbook_id == playbook.id
         ).order_by(PlaybookSource.is_primary.desc(), PlaybookSource.created_at).all()
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/playbooks/tool_detail.html",
         {
@@ -130,9 +135,221 @@ async def playbook_for_tool_page(
             "tool": tool,
             "playbook": playbook,
             "sources": sources,
+            **admin_context,
+            "active_admin_page": "playbooks",
         }
     )
 
+
+# ============================================================================
+# KIT TOOLS PLAYBOOK ENDPOINTS
+# NOTE: These MUST be defined BEFORE the generic /{playbook_id} routes
+# to avoid FastAPI matching "kit-tools" as a playbook_id parameter
+# ============================================================================
+
+@router.get("/kit-tools", response_class=HTMLResponse)
+async def kit_tools_playbooks_page(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin page: List all curated kit tools and their playbook status."""
+    from app.services.kit_loader import get_all_tools
+
+    all_tools = get_all_tools()
+
+    # Get playbooks for kit tools
+    kit_playbooks = db.query(ToolPlaybook).filter(
+        ToolPlaybook.kit_tool_slug.isnot(None)
+    ).all()
+
+    playbook_map = {p.kit_tool_slug: p for p in kit_playbooks}
+
+    # Enrich tools with playbook info
+    tools_with_status = []
+    for tool in all_tools:
+        playbook = playbook_map.get(tool["slug"])
+        tools_with_status.append({
+            "tool": tool,
+            "playbook": playbook,
+            "has_playbook": playbook is not None,
+            "playbook_status": playbook.status if playbook else None,
+        })
+
+    # Count stats
+    total = len(all_tools)
+    with_playbook = len([t for t in tools_with_status if t["has_playbook"]])
+    published = len([t for t in tools_with_status if t["playbook_status"] == "published"])
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/playbooks/kit_tools.html",
+        {
+            "request": request,
+            "user": user,
+            "tools": tools_with_status,
+            "total": total,
+            "with_playbook": with_playbook,
+            "published": published,
+            **admin_context,
+            "active_admin_page": "playbooks",
+        }
+    )
+
+
+@router.get("/kit-tools/{slug}", response_class=HTMLResponse)
+async def kit_tool_playbook_page(
+    request: Request,
+    slug: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin page: View/create playbook for a curated kit tool."""
+    from app.services.kit_loader import get_tool
+
+    tool = get_tool(slug)
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+
+    # Check for existing playbook
+    playbook = db.query(ToolPlaybook).filter(
+        ToolPlaybook.kit_tool_slug == slug
+    ).first()
+
+    sources = []
+    if playbook:
+        sources = db.query(PlaybookSource).filter(
+            PlaybookSource.playbook_id == playbook.id
+        ).order_by(PlaybookSource.is_primary.desc(), PlaybookSource.created_at).all()
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/playbooks/kit_tool_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "tool": tool,
+            "playbook": playbook,
+            "sources": sources,
+            **admin_context,
+            "active_admin_page": "playbooks",
+        }
+    )
+
+
+@router.post("/kit-tools/{slug}/create")
+async def create_kit_tool_playbook(
+    slug: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Create a new playbook for a curated kit tool."""
+    from app.services.kit_loader import get_tool
+
+    tool = get_tool(slug)
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+
+    # Check if playbook already exists
+    existing = db.query(ToolPlaybook).filter(
+        ToolPlaybook.kit_tool_slug == slug
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Playbook already exists for this tool")
+
+    # Create new playbook
+    playbook = ToolPlaybook(
+        kit_tool_slug=slug,
+        status="draft",
+        source_count=0,
+    )
+    db.add(playbook)
+    db.commit()
+    db.refresh(playbook)
+
+    return RedirectResponse(
+        url=f"/admin/playbooks/kit-tools/{slug}",
+        status_code=303
+    )
+
+
+@router.post("/kit-tools/{slug}/update")
+async def update_kit_tool_playbook(
+    slug: str,
+    best_use_cases: Optional[str] = Form(None),
+    implementation_steps: Optional[str] = Form(None),
+    common_mistakes: Optional[str] = Form(None),
+    privacy_notes: Optional[str] = Form(None),
+    replaces_improves: Optional[str] = Form(None),
+    pricing_summary: Optional[str] = Form(None),
+    integration_notes: Optional[str] = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Update kit tool playbook content."""
+    playbook = db.query(ToolPlaybook).filter(
+        ToolPlaybook.kit_tool_slug == slug
+    ).first()
+
+    if not playbook:
+        raise HTTPException(status_code=404, detail="Playbook not found")
+
+    # Update fields
+    if best_use_cases is not None:
+        playbook.best_use_cases = best_use_cases or None
+    if implementation_steps is not None:
+        playbook.implementation_steps = implementation_steps or None
+    if common_mistakes is not None:
+        playbook.common_mistakes = common_mistakes or None
+    if privacy_notes is not None:
+        playbook.privacy_notes = privacy_notes or None
+    if replaces_improves is not None:
+        playbook.replaces_improves = replaces_improves or None
+    if pricing_summary is not None:
+        playbook.pricing_summary = pricing_summary or None
+    if integration_notes is not None:
+        playbook.integration_notes = integration_notes or None
+
+    playbook.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/admin/playbooks/kit-tools/{slug}",
+        status_code=303
+    )
+
+
+@router.post("/kit-tools/{slug}/publish")
+async def publish_kit_tool_playbook(
+    slug: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Publish a kit tool playbook."""
+    playbook = db.query(ToolPlaybook).filter(
+        ToolPlaybook.kit_tool_slug == slug
+    ).first()
+
+    if not playbook:
+        raise HTTPException(status_code=404, detail="Playbook not found")
+
+    playbook.status = "published"
+    playbook.reviewed_by = user.id
+    playbook.reviewed_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/admin/playbooks/kit-tools/{slug}",
+        status_code=303
+    )
+
+
+# ============================================================================
+# PLAYBOOK DETAIL ROUTES (generic path parameter - must come AFTER specific routes)
+# ============================================================================
 
 @router.get("/{playbook_id}", response_class=HTMLResponse)
 async def playbook_detail_page(
@@ -147,6 +364,7 @@ async def playbook_detail_page(
     if not data:
         raise HTTPException(status_code=404, detail="Playbook not found")
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/playbooks/detail.html",
         {
@@ -155,6 +373,8 @@ async def playbook_detail_page(
             "playbook": data["playbook"],
             "sources": data["sources"],
             "tool": data["tool"],
+            **admin_context,
+            "active_admin_page": "playbooks",
         }
     )
 
@@ -172,6 +392,7 @@ async def playbook_edit_page(
     if not data:
         raise HTTPException(status_code=404, detail="Playbook not found")
 
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/playbooks/edit.html",
         {
@@ -180,6 +401,8 @@ async def playbook_edit_page(
             "playbook": data["playbook"],
             "sources": data["sources"],
             "tool": data["tool"],
+            **admin_context,
+            "active_admin_page": "playbooks",
         }
     )
 
@@ -460,201 +683,3 @@ async def get_playbook_api(
         "generated_at": playbook.generated_at.isoformat() if playbook.generated_at else None,
         "reviewed_at": playbook.reviewed_at.isoformat() if playbook.reviewed_at else None,
     }
-
-
-# ============================================================================
-# KIT TOOLS PLAYBOOK ENDPOINTS
-# ============================================================================
-
-@router.get("/kit-tools", response_class=HTMLResponse)
-async def kit_tools_playbooks_page(
-    request: Request,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """Admin page: List all curated kit tools and their playbook status."""
-    from app.services.kit_loader import get_all_tools
-
-    all_tools = get_all_tools()
-
-    # Get playbooks for kit tools
-    kit_playbooks = db.query(ToolPlaybook).filter(
-        ToolPlaybook.kit_tool_slug.isnot(None)
-    ).all()
-
-    playbook_map = {p.kit_tool_slug: p for p in kit_playbooks}
-
-    # Enrich tools with playbook info
-    tools_with_status = []
-    for tool in all_tools:
-        playbook = playbook_map.get(tool["slug"])
-        tools_with_status.append({
-            "tool": tool,
-            "playbook": playbook,
-            "has_playbook": playbook is not None,
-            "playbook_status": playbook.status if playbook else None,
-        })
-
-    # Count stats
-    total = len(all_tools)
-    with_playbook = len([t for t in tools_with_status if t["has_playbook"]])
-    published = len([t for t in tools_with_status if t["playbook_status"] == "published"])
-
-    return templates.TemplateResponse(
-        "admin/playbooks/kit_tools.html",
-        {
-            "request": request,
-            "user": user,
-            "tools": tools_with_status,
-            "total": total,
-            "with_playbook": with_playbook,
-            "published": published,
-        }
-    )
-
-
-@router.get("/kit-tools/{slug}", response_class=HTMLResponse)
-async def kit_tool_playbook_page(
-    request: Request,
-    slug: str,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """Admin page: View/create playbook for a curated kit tool."""
-    from app.services.kit_loader import get_tool
-
-    tool = get_tool(slug)
-    if not tool:
-        raise HTTPException(status_code=404, detail="Tool not found")
-
-    # Check for existing playbook
-    playbook = db.query(ToolPlaybook).filter(
-        ToolPlaybook.kit_tool_slug == slug
-    ).first()
-
-    sources = []
-    if playbook:
-        sources = db.query(PlaybookSource).filter(
-            PlaybookSource.playbook_id == playbook.id
-        ).order_by(PlaybookSource.is_primary.desc(), PlaybookSource.created_at).all()
-
-    return templates.TemplateResponse(
-        "admin/playbooks/kit_tool_detail.html",
-        {
-            "request": request,
-            "user": user,
-            "tool": tool,
-            "playbook": playbook,
-            "sources": sources,
-        }
-    )
-
-
-@router.post("/kit-tools/{slug}/create")
-async def create_kit_tool_playbook(
-    slug: str,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """Create a new playbook for a curated kit tool."""
-    from app.services.kit_loader import get_tool
-
-    tool = get_tool(slug)
-    if not tool:
-        raise HTTPException(status_code=404, detail="Tool not found")
-
-    # Check if playbook already exists
-    existing = db.query(ToolPlaybook).filter(
-        ToolPlaybook.kit_tool_slug == slug
-    ).first()
-
-    if existing:
-        raise HTTPException(status_code=400, detail="Playbook already exists for this tool")
-
-    # Create new playbook
-    playbook = ToolPlaybook(
-        kit_tool_slug=slug,
-        status="draft",
-        source_count=0,
-    )
-    db.add(playbook)
-    db.commit()
-    db.refresh(playbook)
-
-    return RedirectResponse(
-        url=f"/admin/playbooks/kit-tools/{slug}",
-        status_code=303
-    )
-
-
-@router.post("/kit-tools/{slug}/update")
-async def update_kit_tool_playbook(
-    slug: str,
-    best_use_cases: Optional[str] = Form(None),
-    implementation_steps: Optional[str] = Form(None),
-    common_mistakes: Optional[str] = Form(None),
-    privacy_notes: Optional[str] = Form(None),
-    replaces_improves: Optional[str] = Form(None),
-    pricing_summary: Optional[str] = Form(None),
-    integration_notes: Optional[str] = Form(None),
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """Update kit tool playbook content."""
-    playbook = db.query(ToolPlaybook).filter(
-        ToolPlaybook.kit_tool_slug == slug
-    ).first()
-
-    if not playbook:
-        raise HTTPException(status_code=404, detail="Playbook not found")
-
-    # Update fields
-    if best_use_cases is not None:
-        playbook.best_use_cases = best_use_cases or None
-    if implementation_steps is not None:
-        playbook.implementation_steps = implementation_steps or None
-    if common_mistakes is not None:
-        playbook.common_mistakes = common_mistakes or None
-    if privacy_notes is not None:
-        playbook.privacy_notes = privacy_notes or None
-    if replaces_improves is not None:
-        playbook.replaces_improves = replaces_improves or None
-    if pricing_summary is not None:
-        playbook.pricing_summary = pricing_summary or None
-    if integration_notes is not None:
-        playbook.integration_notes = integration_notes or None
-
-    playbook.updated_at = datetime.now(timezone.utc)
-
-    db.commit()
-
-    return RedirectResponse(
-        url=f"/admin/playbooks/kit-tools/{slug}",
-        status_code=303
-    )
-
-
-@router.post("/kit-tools/{slug}/publish")
-async def publish_kit_tool_playbook(
-    slug: str,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """Publish a kit tool playbook."""
-    playbook = db.query(ToolPlaybook).filter(
-        ToolPlaybook.kit_tool_slug == slug
-    ).first()
-
-    if not playbook:
-        raise HTTPException(status_code=404, detail="Playbook not found")
-
-    playbook.status = "published"
-    playbook.reviewed_by = user.id
-    playbook.reviewed_at = datetime.now(timezone.utc)
-
-    db.commit()
-
-    return RedirectResponse(
-        url=f"/admin/playbooks/kit-tools/{slug}",
-        status_code=303
-    )

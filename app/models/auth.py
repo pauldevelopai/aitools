@@ -43,6 +43,10 @@ class User(Base):
     organisation_website = Column(String, nullable=True)
     organisation_notes = Column(Text, nullable=True)
 
+    # Product/Edition preference
+    selected_product = Column(String, nullable=True, default="ai_toolkit")
+    selected_edition = Column(String, nullable=True)  # None means use active edition
+
 
 class Session(Base):
     """User session for cookie-based auth."""

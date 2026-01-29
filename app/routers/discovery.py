@@ -376,8 +376,8 @@ async def discovery_dashboard(
             "user": user,
             "stats": stats,
             "recent_runs": recent_runs,
-            "active_admin_page": "discovery",
             **admin_context,
+            "active_admin_page": "discovery",
         }
     )
 
@@ -462,8 +462,8 @@ async def discovery_tools_list(
                 "approved": total_approved,
                 "rejected": total_rejected
             },
-            "active_admin_page": "discovery",
             **admin_context,
+            "active_admin_page": "discovery",
         }
     )
 
@@ -526,8 +526,8 @@ async def discovery_tool_detail(
             "user": user,
             "tool": tool,
             "matches": enriched_matches,
-            "active_admin_page": "discovery",
             **admin_context,
+            "active_admin_page": "discovery",
         }
     )
 
@@ -653,8 +653,8 @@ async def discovery_matches_list(
                 "unresolved": total_unresolved,
                 "resolved": total_resolved
             },
-            "active_admin_page": "discovery",
             **admin_context,
+            "active_admin_page": "discovery",
         }
     )
 
@@ -709,7 +709,98 @@ async def discovery_runs_list(
             "page": page,
             "total_pages": total_pages,
             "total": total,
-            "active_admin_page": "discovery",
             **admin_context,
+            "active_admin_page": "discovery",
         }
     )
+
+
+# Approved tools page - separate router to be at /admin/approved-tools
+approved_router = APIRouter(
+    prefix="/admin/approved-tools",
+    tags=["approved-tools"],
+)
+
+
+@approved_router.get("", response_class=HTMLResponse)
+@approved_router.get("/", response_class=HTMLResponse)
+async def approved_tools_list(
+    request: Request,
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """List approved tools ready for addition to the kit."""
+    per_page = 50
+
+    query = db.query(DiscoveredTool).filter(DiscoveredTool.status == "approved")
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (DiscoveredTool.name.ilike(search_term)) |
+            (DiscoveredTool.description.ilike(search_term))
+        )
+
+    total = query.count()
+    total_pages = (total + per_page - 1) // per_page
+
+    tools = query.order_by(
+        desc(DiscoveredTool.reviewed_at)
+    ).offset((page - 1) * per_page).limit(per_page).all()
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/approved_tools.html",
+        {
+            "request": request,
+            "user": user,
+            "tools": tools,
+            "search": search,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            **admin_context,
+            "active_admin_page": "approved_tools",
+        }
+    )
+
+
+@approved_router.post("/{tool_id}/add-to-kit")
+async def add_to_kit(
+    tool_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Mark a tool as added to the kit."""
+    tool = db.query(DiscoveredTool).filter(DiscoveredTool.id == tool_id).first()
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+
+    tool.status = "in_kit"
+    tool.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return RedirectResponse(url="/admin/approved-tools", status_code=303)
+
+
+@approved_router.post("/{tool_id}/remove")
+async def remove_approved_tool(
+    tool_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Remove approval from a tool (send back to pending review)."""
+    tool = db.query(DiscoveredTool).filter(DiscoveredTool.id == tool_id).first()
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+
+    tool.status = "pending_review"
+    tool.reviewed_at = None
+    tool.reviewed_by = None
+    tool.review_notes = f"Approval removed by admin on {datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
+    tool.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return RedirectResponse(url="/admin/approved-tools", status_code=303)

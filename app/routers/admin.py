@@ -51,8 +51,8 @@ async def master_dashboard(
         {
             "request": request,
             "user": user,
-            "active_admin_page": "master",
             **context,
+            "active_admin_page": "master",
         }
     )
 
@@ -98,7 +98,20 @@ async def admin_dashboard(
     """
     Admin dashboard homepage with overview stats.
     Stats are shown for the current admin context (product/edition).
+
+    Note: If no edition cookie is set OR if the cookie is set to a non-active edition,
+    we explicitly set it to the active edition to prevent accidentally landing on an old edition.
     """
+    from app.products.admin_context import ADMIN_EDITION_KEY
+    from app.products.registry import EditionRegistry
+
+    current_cookie = request.cookies.get(ADMIN_EDITION_KEY)
+    active_edition = EditionRegistry.get_active("ai_toolkit")
+    active_version = active_edition.version if active_edition else "v2"
+
+    # Set cookie if: no cookie, or cookie is set to non-active edition
+    needs_edition_cookie = (not current_cookie) or (current_cookie != active_version)
+
     # Get admin context
     admin_context = get_admin_context_dict(request)
 
@@ -141,16 +154,26 @@ async def admin_dashboard(
         "pending_discovery": pending_discovery_count
     }
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "admin/dashboard.html",
         {
             "request": request,
             "user": user,
             "stats": stats,
-            "active_admin_page": "dashboard",
             **admin_context,
+            "active_admin_page": "dashboard",
         }
     )
+
+    # Set edition cookie to active edition if not already set
+    if needs_edition_cookie and admin_context.get("admin_edition_version"):
+        set_admin_context_cookies(
+            response,
+            admin_context.get("admin_product_id", "ai_toolkit"),
+            admin_context.get("admin_edition_version")
+        )
+
+    return response
 
 
 # ============================================================================
@@ -175,8 +198,8 @@ async def list_users(
             "request": request,
             "user": user,
             "users": users,
-            "active_admin_page": "users",
             **admin_context,
+            "active_admin_page": "users",
         }
     )
 
@@ -309,8 +332,8 @@ async def user_detail(
             "target_user": target_user,
             "activity_summary": activity_summary,
             "timeline": timeline,
-            "active_admin_page": "users",
             **admin_context,
+            "active_admin_page": "users",
         }
     )
 
@@ -582,8 +605,8 @@ Keep it concise and actionable."""
             "user": admin_user,
             "target_user": target_user,
             "insights": insights,
-            "active_admin_page": "users",
             **admin_context,
+            "active_admin_page": "users",
         }
     )
 
@@ -676,8 +699,8 @@ async def list_feedback(
                 "unresolved": unresolved_count,
                 "resolved": resolved_count
             },
-            "active_admin_page": "feedback",
             **admin_context,
+            "active_admin_page": "feedback",
         }
     )
 
@@ -769,8 +792,8 @@ async def list_documents(
             "request": request,
             "user": user,
             "documents": docs_with_counts,
-            "active_admin_page": "documents",
             **admin_context,
+            "active_admin_page": "documents",
         }
     )
 
@@ -789,8 +812,8 @@ async def upload_document_page(
         {
             "request": request,
             "user": user,
-            "active_admin_page": "documents",
             **admin_context,
+            "active_admin_page": "documents",
         }
     )
 
@@ -1068,8 +1091,8 @@ async def analytics_dashboard(
             "request": request,
             "user": user,
             "analytics": analytics,
-            "active_admin_page": "analytics",
             **admin_context,
+            "active_admin_page": "analytics",
         }
     )
 
@@ -1168,8 +1191,8 @@ async def list_reviews(
                 "flagged": flagged_count,
                 "hidden": hidden_count
             },
-            "active_admin_page": "reviews",
             **admin_context,
+            "active_admin_page": "reviews",
         }
     )
 
