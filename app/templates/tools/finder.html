@@ -34,6 +34,9 @@
         </div>
     </div>
 
+    <!-- Personalized Picks (logged-in users with selected need) -->
+    {% include "components/suggested_block.html" %}
+
     <!-- Results -->
     {% if selected_need and recommended %}
     <div class="mb-4">

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tool.name }} - Discovery - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-lg font-bold text-blue-600 whitespace-nowrap">AI Toolkit</a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="hidden lg:flex lg:items-center lg:ml-4 flex-shrink-0">
+                        <span class="text-sm text-gray-700 mr-3">{{ user.display_name or user.email }}</span>
+                        <a href="/admin" class="text-sm font-medium text-blue-600 mr-3">Admin</a>
+                        <form action="/auth/logout" method="POST" style="display: inline;">
+                            <button type="submit" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+
+        <!-- Admin Navigation -->
+        <div class="bg-white rounded-lg shadow mb-6 p-4">
+            <nav class="flex flex-wrap gap-2">
+                <a href="/admin" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Dashboard</a>
+                <a href="/admin/users" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Users</a>
+                <a href="/admin/documents" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Documents</a>
+                <a href="/admin/analytics" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Analytics</a>
+                <a href="/admin/feedback" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Feedback</a>
+                <a href="/admin/reviews" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Reviews</a>
+                <a href="/admin/discovery" class="px-4 py-2 bg-blue-600 text-white rounded-md">Discovery</a>
+                <a href="/admin/playbooks" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Playbooks</a>
+            </nav>
+        </div>
+
+        <!-- Breadcrumb -->
+        <div class="mb-4">
+            <a href="/admin/discovery" class="text-blue-600 hover:underline">Discovery</a>
+            <span class="text-gray-400 mx-2">/</span>
+            <a href="/admin/discovery/tools" class="text-blue-600 hover:underline">Tools</a>
+            <span class="text-gray-400 mx-2">/</span>
+            <span class="text-gray-600">{{ tool.name }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Main Info -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- Tool Header -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">{{ tool.name }}</h1>
+                            <a href="{{ tool.url }}" target="_blank" class="text-blue-600 hover:underline text-sm mt-1 block">
+                                {{ tool.url }}
+                            </a>
+                        </div>
+                        <div>
+                            {% if tool.status == 'pending_review' %}
+                            <span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 font-medium">Pending Review</span>
+                            {% elif tool.status == 'approved' %}
+                            <span class="px-3 py-1 rounded-full bg-green-100 text-green-800 font-medium">Approved</span>
+                            {% elif tool.status == 'rejected' %}
+                            <span class="px-3 py-1 rounded-full bg-red-100 text-red-800 font-medium">Rejected</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if tool.description %}
+                    <div class="mt-4">
+                        <h3 class="text-sm font-medium text-gray-700">Description</h3>
+                        <p class="text-gray-600 mt-1">{{ tool.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if tool.categories %}
+                    <div class="mt-4">
+                        <h3 class="text-sm font-medium text-gray-700">Categories</h3>
+                        <div class="flex flex-wrap gap-2 mt-1">
+                            {% for cat in tool.categories %}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded">{{ cat }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if tool.tags %}
+                    <div class="mt-4">
+                        <h3 class="text-sm font-medium text-gray-700">Tags</h3>
+                        <div class="flex flex-wrap gap-2 mt-1">
+                            {% for tag in tool.tags %}
+                            <span class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Discovery Metadata -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Discovery Information</h2>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-500">Source:</span>
+                            <span class="text-gray-900 ml-2">{{ tool.source_name }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Source Type:</span>
+                            <span class="text-gray-900 ml-2 capitalize">{{ tool.source_type.replace('_', ' ') }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Source URL:</span>
+                            <a href="{{ tool.source_url }}" target="_blank" class="text-blue-600 hover:underline ml-2">View Source</a>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Domain:</span>
+                            <span class="text-gray-900 ml-2">{{ tool.url_domain }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Discovered:</span>
+                            <span class="text-gray-900 ml-2">{{ tool.discovered_at.strftime('%Y-%m-%d %H:%M') if tool.discovered_at else '-' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Last Seen:</span>
+                            <span class="text-gray-900 ml-2">{{ tool.last_seen_at.strftime('%Y-%m-%d %H:%M') if tool.last_seen_at else '-' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Confidence:</span>
+                            <span class="text-gray-900 ml-2">{{ (tool.confidence_score * 100)|int }}%</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Slug:</span>
+                            <span class="text-gray-900 ml-2 font-mono text-xs">{{ tool.slug }}</span>
+                        </div>
+                    </div>
+
+                    {% if tool.extra_data %}
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Extra Data</h3>
+                        <pre class="bg-gray-50 p-3 rounded text-xs overflow-x-auto">{{ tool.extra_data | tojson(indent=2) }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Potential Matches -->
+                {% if matches %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Potential Matches ({{ matches|length }})</h2>
+                    <div class="space-y-4">
+                        {% for item in matches %}
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-700">{{ item.match.match_type.replace('_', ' ') }}</span>
+                                        <span class="text-sm text-gray-600">{{ (item.match.match_score * 100)|int }}% confidence</span>
+                                    </div>
+                                    <div class="mt-2">
+                                        {% if item.matched_tool_name %}
+                                        <span class="font-medium text-gray-900">{{ item.matched_tool_name }}</span>
+                                        {% if item.matched_tool_url %}
+                                        <a href="{{ item.matched_tool_url }}" target="_blank" class="text-blue-600 text-sm ml-2">(visit)</a>
+                                        {% endif %}
+                                        {% elif item.match.matched_kit_slug %}
+                                        <span class="font-medium text-gray-900">Kit: {{ item.match.matched_kit_slug }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if item.match.match_details %}
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {% for key, value in item.match.match_details.items() %}
+                                        {{ key }}: {{ value }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% if item.match.is_duplicate is none %}
+                                <form action="/admin/discovery/matches/{{ item.match.id }}/resolve" method="POST" class="flex gap-2">
+                                    <input type="hidden" name="is_duplicate" value="true">
+                                    <button type="submit" class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">Mark Duplicate</button>
+                                </form>
+                                <form action="/admin/discovery/matches/{{ item.match.id }}/resolve" method="POST" class="flex gap-2 ml-2">
+                                    <input type="hidden" name="is_duplicate" value="false">
+                                    <button type="submit" class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200">Not Duplicate</button>
+                                </form>
+                                {% else %}
+                                <span class="text-xs text-gray-500">
+                                    {% if item.match.is_duplicate %}Marked as duplicate{% else %}Marked as not duplicate{% endif %}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+
+                <!-- Review Actions -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Review Actions</h2>
+
+                    {% if tool.status == 'pending_review' %}
+                    <div class="space-y-3">
+                        <form action="/admin/discovery/tools/{{ tool.id }}/approve" method="POST">
+                            <textarea name="notes" placeholder="Optional notes..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-2" rows="2"></textarea>
+                            <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                                Approve Tool
+                            </button>
+                        </form>
+                        <form action="/admin/discovery/tools/{{ tool.id }}/reject" method="POST">
+                            <textarea name="notes" placeholder="Reason for rejection..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-2" rows="2"></textarea>
+                            <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                Reject Tool
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="text-sm text-gray-600">
+                        <p>Reviewed: {{ tool.reviewed_at.strftime('%Y-%m-%d %H:%M') if tool.reviewed_at else 'N/A' }}</p>
+                        {% if tool.review_notes %}
+                        <p class="mt-2"><strong>Notes:</strong> {{ tool.review_notes }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Allow changing status -->
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        {% if tool.status == 'rejected' %}
+                        <form action="/admin/discovery/tools/{{ tool.id }}/approve" method="POST">
+                            <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                                Change to Approved
+                            </button>
+                        </form>
+                        {% elif tool.status == 'approved' %}
+                        <form action="/admin/discovery/tools/{{ tool.id }}/reject" method="POST">
+                            <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                Change to Rejected
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Newsroom Playbook -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Newsroom Playbook</h2>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Generate implementation guidance for newsrooms from the tool's website and documentation.
+                    </p>
+                    <a href="/admin/playbooks/tool/{{ tool.id }}" class="block w-full px-4 py-2 bg-purple-600 text-white text-center rounded-md hover:bg-purple-700">
+                        View / Generate Playbook
+                    </a>
+                </div>
+
+                <!-- Edit Tool -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Edit Tool</h2>
+                    <form action="/admin/discovery/tools/{{ tool.id }}/edit" method="POST" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Name</label>
+                            <input type="text" name="name" value="{{ tool.name }}" required
+                                   class="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">URL</label>
+                            <input type="url" name="url" value="{{ tool.url }}" required
+                                   class="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">{{ tool.description or '' }}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Categories (comma-separated)</label>
+                            <input type="text" name="categories" value="{{ tool.categories|join(', ') if tool.categories else '' }}"
+                                   class="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        </div>
+                        <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Save Changes
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Additional URLs -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Additional URLs</h2>
+                    <div class="space-y-2 text-sm">
+                        <div>
+                            <span class="text-gray-500">Docs URL:</span>
+                            {% if tool.docs_url %}
+                            <a href="{{ tool.docs_url }}" target="_blank" class="text-blue-600 hover:underline ml-1">{{ tool.docs_url[:30] }}...</a>
+                            {% else %}
+                            <span class="text-gray-400 ml-1">Not available</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Pricing URL:</span>
+                            {% if tool.pricing_url %}
+                            <a href="{{ tool.pricing_url }}" target="_blank" class="text-blue-600 hover:underline ml-1">{{ tool.pricing_url[:30] }}...</a>
+                            {% else %}
+                            <span class="text-gray-400 ml-1">Not available</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

@@ -56,6 +56,21 @@ class Settings(BaseSettings):
     # Admin (dev/staging only - should use proper admin creation in prod)
     ADMIN_PASSWORD: Optional[str] = None
 
+    # Discovery Pipeline Configuration
+    DISCOVERY_ENABLED: bool = True
+    DISCOVERY_API_KEY: Optional[str] = None  # For cron authentication
+
+    # GitHub Discovery
+    GITHUB_TOKEN: Optional[str] = None  # For higher rate limits
+    GITHUB_MIN_STARS: int = 100
+
+    # Product Hunt Discovery
+    PRODUCTHUNT_API_KEY: Optional[str] = None
+    PRODUCTHUNT_API_SECRET: Optional[str] = None
+
+    # Discovery Rate Limits
+    DISCOVERY_RATE_LIMIT_DELAY: float = 2.0  # seconds between requests
+
     class Config:
         env_file = ".env"
         case_sensitive = True

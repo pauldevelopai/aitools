@@ -15,6 +15,7 @@ from app.models.auth import User
 from app.services.auth import hash_password
 from app.models.toolkit import ToolkitDocument, ToolkitChunk, ChatLog, Feedback, UserActivity, AppFeedback
 from app.models.review import ToolReview, ReviewVote, ReviewFlag
+from app.models.discovery import DiscoveredTool
 from app.services.ingestion import ingest_document, reindex_document, ingest_from_kit
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -53,6 +54,12 @@ async def admin_dashboard(
         ReviewFlag.is_resolved == False
     ).scalar()
 
+    # Discovery stats
+    discovered_tools_count = db.query(func.count(DiscoveredTool.id)).scalar() or 0
+    pending_discovery_count = db.query(func.count(DiscoveredTool.id)).filter(
+        DiscoveredTool.status == "pending_review"
+    ).scalar() or 0
+
     stats = {
         "users": user_count,
         "admins": admin_count,
@@ -63,7 +70,9 @@ async def admin_dashboard(
         "app_feedbacks": app_feedback_count,
         "app_feedbacks_unresolved": app_feedback_unresolved,
         "reviews": review_count,
-        "flagged_reviews": flagged_reviews_count
+        "flagged_reviews": flagged_reviews_count,
+        "discovered_tools": discovered_tools_count,
+        "pending_discovery": pending_discovery_count
     }
 
     return templates.TemplateResponse(

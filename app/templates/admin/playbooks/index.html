@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsroom Playbooks - Admin - The AI Editorial Toolkit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-lg font-bold text-blue-600 whitespace-nowrap">AI Toolkit</a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="hidden lg:flex lg:items-center lg:ml-4 flex-shrink-0">
+                        <span class="text-sm text-gray-700 mr-3">{{ user.display_name or user.email }}</span>
+                        <a href="/admin" class="text-sm font-medium text-blue-600 mr-3">Admin</a>
+                        <form action="/auth/logout" method="POST" style="display: inline;">
+                            <button type="submit" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+
+        <!-- Admin Navigation -->
+        <div class="bg-white rounded-lg shadow mb-6 p-4">
+            <nav class="flex flex-wrap gap-2">
+                <a href="/admin" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Dashboard</a>
+                <a href="/admin/users" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Users</a>
+                <a href="/admin/documents" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Documents</a>
+                <a href="/admin/analytics" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Analytics</a>
+                <a href="/admin/feedback" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Feedback</a>
+                <a href="/admin/reviews" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Reviews</a>
+                <a href="/admin/discovery" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Discovery</a>
+                <a href="/admin/playbooks" class="px-4 py-2 bg-blue-600 text-white rounded-md">Playbooks</a>
+            </nav>
+        </div>
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Newsroom Playbooks</h1>
+                <p class="text-gray-600 mt-1">Implementation guides extracted from real sources</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/admin/playbooks/kit-tools" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium">
+                    Curated Kit Tools
+                </a>
+                <span class="text-sm text-gray-600">{{ total }} discovered tool playbooks</span>
+            </div>
+        </div>
+
+        <!-- Status Tabs -->
+        <div class="bg-white rounded-lg shadow mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex">
+                    <a href="/admin/playbooks"
+                       class="{% if not current_status %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm">
+                        All ({{ status_counts.all }})
+                    </a>
+                    <a href="/admin/playbooks?status=draft"
+                       class="{% if current_status == 'draft' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm">
+                        Draft ({{ status_counts.draft }})
+                    </a>
+                    <a href="/admin/playbooks?status=published"
+                       class="{% if current_status == 'published' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm">
+                        Published ({{ status_counts.published }})
+                    </a>
+                    <a href="/admin/playbooks?status=archived"
+                       class="{% if current_status == 'archived' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm">
+                        Archived ({{ status_counts.archived }})
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Search -->
+            <div class="p-4 border-b border-gray-200">
+                <form method="GET" class="flex gap-4">
+                    {% if current_status %}
+                    <input type="hidden" name="status" value="{{ current_status }}">
+                    {% endif %}
+                    <input type="text" name="search" value="{{ search or '' }}" placeholder="Search tool name..."
+                           class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Search</button>
+                    {% if search %}
+                    <a href="/admin/playbooks{% if current_status %}?status={{ current_status }}{% endif %}" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Playbooks List -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tool</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sources</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generated</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for playbook in playbooks %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    {% if playbook.discovered_tool %}
+                                    <a href="/admin/playbooks/{{ playbook.id }}" class="text-blue-600 font-medium hover:underline">
+                                        {{ playbook.discovered_tool.name }}
+                                    </a>
+                                    <a href="{{ playbook.discovered_tool.url }}" target="_blank" class="text-xs text-gray-500 hover:text-gray-700 truncate max-w-xs">
+                                        {{ playbook.discovered_tool.url_domain }}
+                                    </a>
+                                    {% else %}
+                                    <span class="font-medium">{{ playbook.kit_tool_slug or 'Unknown' }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-1">
+                                    {% if playbook.best_use_cases %}
+                                    <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">Use Cases</span>
+                                    {% endif %}
+                                    {% if playbook.implementation_steps %}
+                                    <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">Steps</span>
+                                    {% endif %}
+                                    {% if playbook.privacy_notes %}
+                                    <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">Privacy</span>
+                                    {% endif %}
+                                    {% if playbook.common_mistakes %}
+                                    <span class="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded">Risks</span>
+                                    {% endif %}
+                                    {% if not playbook.best_use_cases and not playbook.implementation_steps %}
+                                    <span class="text-xs text-gray-400">No content yet</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="text-sm text-gray-900">{{ playbook.source_count }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if playbook.status == 'draft' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">draft</span>
+                                {% elif playbook.status == 'generating' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">generating</span>
+                                {% elif playbook.status == 'published' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">published</span>
+                                {% elif playbook.status == 'archived' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">archived</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {{ playbook.generated_at.strftime('%Y-%m-%d') if playbook.generated_at else '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <a href="/admin/playbooks/{{ playbook.id }}" class="text-blue-600 hover:text-blue-800">View</a>
+                                <a href="/admin/playbooks/{{ playbook.id }}/edit" class="ml-2 text-gray-600 hover:text-gray-800">Edit</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                                No playbooks found. Generate playbooks from the <a href="/admin/discovery/tools" class="text-blue-600 hover:underline">discovered tools</a> page.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    Page {{ page }} of {{ total_pages }}
+                </div>
+                <div class="flex gap-2">
+                    {% if page > 1 %}
+                    <a href="?page={{ page - 1 }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search %}&search={{ search }}{% endif %}"
+                       class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">Previous</a>
+                    {% endif %}
+                    {% if page < total_pages %}
+                    <a href="?page={{ page + 1 }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search %}&search={{ search }}{% endif %}"
+                       class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

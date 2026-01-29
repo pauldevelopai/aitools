@@ -58,6 +58,10 @@ async def require_auth(
     return user
 
 
+# Alias for API endpoints
+require_user = require_auth
+
+
 async def require_auth_page(
     request: Request,
     session_token: Optional[str] = Cookie(None, alias=settings.SESSION_COOKIE_NAME),

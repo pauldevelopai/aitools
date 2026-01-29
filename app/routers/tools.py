@@ -87,6 +87,21 @@ async def tool_finder(
         db.add(activity)
         db.commit()
 
+    # Get personalized picks for logged-in users
+    personalized_picks = []
+    show_personalized = False
+    if user and need and need in needs_map:
+        try:
+            from app.services.recommendation import get_recommendations
+            # Get recommendations filtered by the selected use case
+            use_case = needs_map[need]["use_cases"][0] if needs_map[need]["use_cases"] else None
+            recs = get_recommendations(db, user, use_case=use_case, limit=3)
+            # Convert Pydantic models to dicts for Jinja2
+            personalized_picks = [r.model_dump() if hasattr(r, 'model_dump') else r for r in recs]
+            show_personalized = len(personalized_picks) > 0
+        except Exception:
+            pass  # Fail gracefully
+
     return templates.TemplateResponse(
         "tools/finder.html",
         {
@@ -97,6 +112,10 @@ async def tool_finder(
             "selected_need_info": selected_need,
             "recommended": recommended,
             "clusters": clusters,
+            "suggested_tools": personalized_picks,
+            "suggested_title": "Personalized Picks",
+            "show_suggested": show_personalized,
+            "suggested_location": "finder",
         }
     )
 
@@ -210,6 +229,7 @@ async def tool_detail(
     request: Request,
     slug: str,
     user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Show individual tool detail page with cross-references."""
     tool = get_tool(slug)
@@ -245,6 +265,45 @@ async def tool_detail(
         if t:
             similar_tools.append(t)
 
+    # Get personalized guidance for logged-in users
+    tool_guidance = None
+    if user:
+        try:
+            from app.services.recommendation import get_tool_guidance
+            result = get_tool_guidance(db, user, slug)
+            if result:
+                score, explanation, guidance, citations = result
+                # Convert to dict for Jinja2 template
+                tool_guidance = {
+                    "fit_score": score,
+                    "explanation": explanation,
+                    "guidance": guidance.model_dump() if hasattr(guidance, 'model_dump') else guidance,
+                    "citations": [c.model_dump() if hasattr(c, 'model_dump') else c for c in citations],
+                }
+        except Exception:
+            pass  # Fail gracefully
+
+    # Get playbook for this tool (if published)
+    playbook = None
+    try:
+        from app.models.playbook import ToolPlaybook
+        playbook = db.query(ToolPlaybook).filter(
+            ToolPlaybook.kit_tool_slug == slug,
+            ToolPlaybook.status == "published"
+        ).first()
+    except Exception:
+        pass  # Fail gracefully
+
+    # Log tool view activity
+    if user:
+        activity = UserActivity(
+            user_id=user.id,
+            activity_type="tool_view",
+            details={"tool_slug": slug, "tool_name": tool.get("name")},
+        )
+        db.add(activity)
+        db.commit()
+
     return templates.TemplateResponse(
         "tools/detail.html",
         {
@@ -255,5 +314,7 @@ async def tool_detail(
             "sovereign_alt": sovereign_alt,
             "sovereign_for_tools": sovereign_for_tools,
             "similar_tools": similar_tools,
+            "tool_guidance": tool_guidance,
+            "playbook": playbook,
         }
     )

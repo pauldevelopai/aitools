@@ -7,8 +7,9 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.routers import health, admin, rag, auth_routes, toolkit, browse, strategy, tools, clusters, foundations, sources, profile, feedback, reviews
+from app.routers import health, admin, rag, auth_routes, toolkit, browse, strategy, tools, clusters, foundations, sources, profile, feedback, reviews, discovery, playbook, recommendations
 from app.dependencies import get_current_user
+from app.db import get_db
 from app.models.auth import User
 from app.settings import settings
 from app.startup import run_startup_validation
@@ -83,12 +84,20 @@ app.include_router(sources.router)
 app.include_router(profile.router)
 app.include_router(feedback.router)
 app.include_router(reviews.router)
+app.include_router(discovery.router)
+app.include_router(playbook.router)
+app.include_router(recommendations.router)
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, user: Optional[User] = Depends(get_current_user)):
+async def home(
+    request: Request,
+    user: Optional[User] = Depends(get_current_user),
+    db=Depends(get_db),
+):
     """Homepage."""
     from app.services.kit_loader import get_all_clusters, get_cluster_tools, get_kit_stats
+    from app.services.recommendation import get_suggested_for_location
 
     clusters_data = get_all_clusters()
     enriched_clusters = []
@@ -101,6 +110,18 @@ async def home(request: Request, user: Optional[User] = Depends(get_current_user
 
     stats = get_kit_stats()
 
+    # Get personalized recommendations for logged-in users
+    suggested_tools = []
+    show_suggested = False
+    if user:
+        try:
+            recs = get_suggested_for_location(db, user, "home")
+            # Convert Pydantic models to dicts for Jinja2
+            suggested_tools = [r.model_dump() if hasattr(r, 'model_dump') else r for r in recs]
+            show_suggested = len(suggested_tools) > 0
+        except Exception:
+            pass  # Fail gracefully if recommendations unavailable
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -109,5 +130,9 @@ async def home(request: Request, user: Optional[User] = Depends(get_current_user
             "title": "Grounded",
             "clusters": enriched_clusters,
             "stats": stats,
+            "suggested_tools": suggested_tools,
+            "suggested_title": "Suggested for You",
+            "show_suggested": show_suggested,
+            "suggested_location": "home",
         }
     )

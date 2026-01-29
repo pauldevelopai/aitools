@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Discovery - Admin - The AI Editorial Toolkit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-lg font-bold text-blue-600 whitespace-nowrap">AI Toolkit</a>
+                    </div>
+                    <div class="hidden lg:ml-4 lg:flex lg:space-x-4">
+                        <a href="/tools" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-blue-600">Tools</a>
+                        <a href="/tools/finder" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-blue-600">Tool Finder</a>
+                        <a href="/clusters" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-blue-600">Clusters</a>
+                        <a href="/browse" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-blue-600">Browse</a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="hidden lg:flex lg:items-center lg:ml-4 flex-shrink-0">
+                        <span class="text-sm text-gray-700 mr-3">{{ user.display_name or user.email }}</span>
+                        <a href="/profile" class="text-sm font-medium text-gray-900 hover:text-blue-600 mr-3">Profile</a>
+                        <a href="/admin" class="text-sm font-medium text-blue-600 mr-3">Admin</a>
+                        <form action="/auth/logout" method="POST" style="display: inline;">
+                            <button type="submit" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+
+        <!-- Admin Navigation -->
+        <div class="bg-white rounded-lg shadow mb-6 p-4">
+            <nav class="flex flex-wrap gap-2">
+                <a href="/admin" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Dashboard</a>
+                <a href="/admin/users" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Users</a>
+                <a href="/admin/documents" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Documents</a>
+                <a href="/admin/analytics" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Analytics</a>
+                <a href="/admin/feedback" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Feedback</a>
+                <a href="/admin/reviews" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Reviews</a>
+                <a href="/admin/discovery" class="px-4 py-2 bg-blue-600 text-white rounded-md">Discovery</a>
+                <a href="/admin/playbooks" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Playbooks</a>
+            </nav>
+        </div>
+
+        <!-- Page Title -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Tool Discovery</h1>
+                <p class="text-gray-600 mt-1">Automated discovery of AI tools from credible sources</p>
+            </div>
+            <div class="flex gap-2">
+                <form id="runDiscoveryForm" action="/admin/discovery/run" method="POST" class="inline">
+                    <select name="sources" id="sourceSelect" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        <option value="">All Sources</option>
+                        <option value="github">GitHub Only</option>
+                        <option value="producthunt">Product Hunt Only</option>
+                        <option value="awesome_list">Awesome Lists Only</option>
+                        <option value="directory">Directories Only</option>
+                    </select>
+                    <button type="submit" class="ml-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" onclick="return confirm('Run discovery now?');">
+                        Run Discovery
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <p class="text-sm font-medium text-gray-600">Total Discovered</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.total_discovered }}</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <p class="text-sm font-medium text-gray-600">Pending Review</p>
+                <p class="text-3xl font-bold text-orange-600 mt-2">{{ stats.pending_review }}</p>
+                <a href="/admin/discovery/tools?status=pending_review" class="text-sm text-blue-600 hover:underline">Review now</a>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <p class="text-sm font-medium text-gray-600">Approved</p>
+                <p class="text-3xl font-bold text-green-600 mt-2">{{ stats.approved }}</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <p class="text-sm font-medium text-gray-600">Rejected</p>
+                <p class="text-3xl font-bold text-red-600 mt-2">{{ stats.rejected }}</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <p class="text-sm font-medium text-gray-600">New This Week</p>
+                <p class="text-3xl font-bold text-blue-600 mt-2">{{ stats.new_this_week }}</p>
+            </div>
+        </div>
+
+        <!-- Source Breakdown & Quick Links -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Source Breakdown -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">By Source</h2>
+                <div class="space-y-3">
+                    {% for source, count in stats.source_breakdown.items() %}
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 capitalize">{{ source.replace('_', ' ') }}</span>
+                        <span class="font-semibold text-gray-900">{{ count }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if not stats.source_breakdown %}
+                    <p class="text-gray-500 text-sm">No tools discovered yet</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Links</h2>
+                <div class="space-y-3">
+                    <a href="/admin/discovery/tools" class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50">
+                        <span class="text-gray-700">All Discovered Tools</span>
+                        <span class="text-blue-600">View</span>
+                    </a>
+                    <a href="/admin/discovery/tools?status=pending_review" class="flex items-center justify-between p-3 rounded-lg border border-orange-200 bg-orange-50 hover:border-orange-500">
+                        <span class="text-orange-700">Pending Review ({{ stats.pending_review }})</span>
+                        <span class="text-orange-600">Review</span>
+                    </a>
+                    <a href="/admin/discovery/matches" class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50">
+                        <span class="text-gray-700">Potential Duplicates</span>
+                        <span class="text-blue-600">Review</span>
+                    </a>
+                    <a href="/admin/discovery/runs" class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50">
+                        <span class="text-gray-700">Discovery Runs</span>
+                        <span class="text-blue-600">View</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Runs -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Recent Discovery Runs</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Found</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Triggered By</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for run in recent_runs %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if run.status == 'completed' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">completed</span>
+                                {% elif run.status == 'running' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">running</span>
+                                {% elif run.status == 'failed' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">failed</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {{ run.source_type or 'all' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ run.tools_found }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">{{ run.tools_new }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">{{ run.tools_updated }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ run.triggered_by or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                No discovery runs yet. Click "Run Discovery" to start.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Handle form submission with fetch for better UX
+        document.getElementById('runDiscoveryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const sources = document.getElementById('sourceSelect').value;
+            const button = this.querySelector('button[type="submit"]');
+            const originalText = button.textContent;
+
+            button.textContent = 'Running...';
+            button.disabled = true;
+
+            try {
+                const url = sources ? `/admin/discovery/run?sources=${sources}` : '/admin/discovery/run';
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`Discovery completed!\nFound: ${data.tools_found}\nNew: ${data.tools_new}\nUpdated: ${data.tools_updated}`);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error running discovery: ' + error.message);
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
