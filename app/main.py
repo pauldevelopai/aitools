@@ -13,6 +13,7 @@ from app.db import get_db
 from app.models.auth import User
 from app.settings import settings
 from app.startup import run_startup_validation
+from app.products.definitions import register_all_products
 from app.middleware import (
     RequestLoggingMiddleware,
     RateLimitMiddleware,
@@ -38,6 +39,10 @@ async def lifespan(app: FastAPI):
     try:
         # Run comprehensive startup validation
         run_startup_validation()
+
+        # Register all products and editions
+        register_all_products()
+        logger.info("Products and editions registered successfully")
 
     except Exception as e:
         logger.error(f"Startup validation failed: {e}")
