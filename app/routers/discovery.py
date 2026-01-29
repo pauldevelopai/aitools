@@ -21,10 +21,15 @@ from app.services.discovery.pipeline import (
 )
 from app.settings import settings
 from app.templates_engine import templates
+from app.products.guards import require_feature
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/discovery", tags=["discovery"])
+router = APIRouter(
+    prefix="/admin/discovery",
+    tags=["discovery"],
+    dependencies=[Depends(require_feature("admin_discovery"))]  # Requires admin discovery feature
+)
 
 
 # ============================================================================

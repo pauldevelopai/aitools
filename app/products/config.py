@@ -71,75 +71,160 @@ class FeatureFlags:
     Each flag controls a specific feature that can be enabled or disabled
     per edition. This allows different editions to have different capabilities.
 
-    Attributes:
-        rag_enabled: RAG (Retrieval Augmented Generation) chat
-        discovery_enabled: Tool discovery pipeline
-        clusters_enabled: Tool clustering feature
-        strategy_enabled: Strategy builder
-        foundations_enabled: Learning foundations/materials
-        playbooks_enabled: Tool playbooks/guides
-        recommendations_enabled: Personalized recommendations
-        reviews_enabled: User reviews system
-        browse_enabled: Document browsing
-        sources_enabled: Citation sources
-        admin_dashboard: Admin dashboard access
+    Feature flags are organized into categories:
+    - Core: Fundamental platform features
+    - Tools: Tool-related functionality
+    - Learning: Educational content and materials
+    - Personalization: User-specific features
+    - Content: Content access and browsing
+    - Administration: Admin-only features
+
+    IMPORTANT: When adding new flags, also update:
+    - clone() method
+    - to_dict() method
+    - is_enabled() method
+    - Toolkit edition definitions if applicable
     """
-    # Core features
+
+    # ==========================================================================
+    # CORE FEATURES
+    # ==========================================================================
+    # RAG (Retrieval Augmented Generation) chat functionality
     rag_enabled: bool = True
+    # Tool discovery pipeline for finding new tools
     discovery_enabled: bool = True
 
-    # Tool organization
+    # ==========================================================================
+    # TOOL FEATURES
+    # ==========================================================================
+    # Tool clustering and categorization
     clusters_enabled: bool = True
-    strategy_enabled: bool = True
+    # Tool finder / recommendation wizard
+    tool_finder_enabled: bool = True
+    # CDI (Cost/Difficulty/Invasiveness) scoring display
+    cdi_scores_enabled: bool = True
+    # Advanced tool filtering and search
+    advanced_search_enabled: bool = True
 
-    # Learning content
+    # ==========================================================================
+    # LEARNING CONTENT
+    # ==========================================================================
+    # Learning foundations/materials
     foundations_enabled: bool = True
+    # Tool playbooks/guides
     playbooks_enabled: bool = True
 
-    # Personalization
+    # ==========================================================================
+    # PERSONALIZATION
+    # ==========================================================================
+    # Strategy builder for implementation planning
+    strategy_enabled: bool = True
+    # Personalized tool recommendations
     recommendations_enabled: bool = True
+    # User reviews and ratings system
     reviews_enabled: bool = True
+    # Review voting (helpful/not helpful)
+    review_voting_enabled: bool = True
+    # Activity history tracking
+    activity_history_enabled: bool = True
 
-    # Content access
+    # ==========================================================================
+    # CONTENT ACCESS
+    # ==========================================================================
+    # Document browsing
     browse_enabled: bool = True
+    # Citation sources
     sources_enabled: bool = True
 
-    # Administration
-    admin_dashboard: bool = True
+    # ==========================================================================
+    # ADMINISTRATION
+    # ==========================================================================
+    # Admin dashboard access
+    admin_dashboard_enabled: bool = True
+    # Admin document ingestion
+    admin_ingestion_enabled: bool = True
+    # Admin user management
+    admin_users_enabled: bool = True
+    # Admin analytics
+    admin_analytics_enabled: bool = True
+    # Admin feedback review
+    admin_feedback_enabled: bool = True
+    # Admin playbook management
+    admin_playbooks_enabled: bool = True
+    # Admin discovery management
+    admin_discovery_enabled: bool = True
+
+    def is_enabled(self, feature_name: str) -> bool:
+        """
+        Check if a feature is enabled by name.
+
+        Args:
+            feature_name: Name of the feature flag (e.g., "rag_enabled", "reviews")
+                         Can omit the "_enabled" suffix.
+
+        Returns:
+            True if feature is enabled, False otherwise
+
+        Raises:
+            AttributeError: If feature_name is not a valid feature flag
+        """
+        # Normalize feature name - add _enabled suffix if not present
+        if not feature_name.endswith("_enabled"):
+            feature_name = f"{feature_name}_enabled"
+
+        if not hasattr(self, feature_name):
+            raise AttributeError(f"Unknown feature flag: {feature_name}")
+
+        return getattr(self, feature_name)
 
     def clone(self, **overrides) -> "FeatureFlags":
         """Create a copy with optional overrides."""
-        current = {
-            "rag_enabled": self.rag_enabled,
-            "discovery_enabled": self.discovery_enabled,
-            "clusters_enabled": self.clusters_enabled,
-            "strategy_enabled": self.strategy_enabled,
-            "foundations_enabled": self.foundations_enabled,
-            "playbooks_enabled": self.playbooks_enabled,
-            "recommendations_enabled": self.recommendations_enabled,
-            "reviews_enabled": self.reviews_enabled,
-            "browse_enabled": self.browse_enabled,
-            "sources_enabled": self.sources_enabled,
-            "admin_dashboard": self.admin_dashboard,
-        }
+        current = self.to_dict()
         current.update(overrides)
         return FeatureFlags(**current)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
+            # Core
             "rag_enabled": self.rag_enabled,
             "discovery_enabled": self.discovery_enabled,
+            # Tools
             "clusters_enabled": self.clusters_enabled,
-            "strategy_enabled": self.strategy_enabled,
+            "tool_finder_enabled": self.tool_finder_enabled,
+            "cdi_scores_enabled": self.cdi_scores_enabled,
+            "advanced_search_enabled": self.advanced_search_enabled,
+            # Learning
             "foundations_enabled": self.foundations_enabled,
             "playbooks_enabled": self.playbooks_enabled,
+            # Personalization
+            "strategy_enabled": self.strategy_enabled,
             "recommendations_enabled": self.recommendations_enabled,
             "reviews_enabled": self.reviews_enabled,
+            "review_voting_enabled": self.review_voting_enabled,
+            "activity_history_enabled": self.activity_history_enabled,
+            # Content
             "browse_enabled": self.browse_enabled,
             "sources_enabled": self.sources_enabled,
-            "admin_dashboard": self.admin_dashboard,
+            # Administration
+            "admin_dashboard_enabled": self.admin_dashboard_enabled,
+            "admin_ingestion_enabled": self.admin_ingestion_enabled,
+            "admin_users_enabled": self.admin_users_enabled,
+            "admin_analytics_enabled": self.admin_analytics_enabled,
+            "admin_feedback_enabled": self.admin_feedback_enabled,
+            "admin_playbooks_enabled": self.admin_playbooks_enabled,
+            "admin_discovery_enabled": self.admin_discovery_enabled,
         }
+
+    @classmethod
+    def all_disabled(cls) -> "FeatureFlags":
+        """Create a FeatureFlags instance with all features disabled."""
+        return cls(**{k: False for k in cls().to_dict().keys()})
+
+    @classmethod
+    def all_enabled(cls) -> "FeatureFlags":
+        """Create a FeatureFlags instance with all features enabled."""
+        return cls(**{k: True for k in cls().to_dict().keys()})
 
 
 @dataclass

@@ -15,9 +15,14 @@ from app.schemas.review import (
     ToolRatingStats, ReviewAuthor
 )
 from app.services.kit_loader import get_tool
+from app.products.guards import require_feature
 
 
-router = APIRouter(prefix="/api/reviews", tags=["reviews"])
+router = APIRouter(
+    prefix="/api/reviews",
+    tags=["reviews"],
+    dependencies=[Depends(require_feature("reviews"))]  # All review routes require reviews feature
+)
 
 
 def get_review_response(

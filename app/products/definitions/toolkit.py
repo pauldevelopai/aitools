@@ -105,20 +105,56 @@ AI_TOOLKIT_PRODUCT = Product(
 # This edition represents the state of the toolkit at a specific point in time.
 # It is sealed and serves as a historical reference. The git reference points
 # to the commit where V1 was finalized.
+#
+# IMPORTANT: V1 is SEALED. Do not add new features to this edition.
+# Any new features should only be added to V2 or later editions.
 
 TOOLKIT_V1_FEATURES = FeatureFlags(
-    # Core features available in V1
+    # =========================================================================
+    # CORE FEATURES - V1 had basic RAG, no discovery
+    # =========================================================================
     rag_enabled=True,
-    discovery_enabled=False,  # Discovery was not in V1
+    discovery_enabled=False,  # Discovery pipeline was not in V1
+
+    # =========================================================================
+    # TOOL FEATURES - V1 had basic tool browsing
+    # =========================================================================
     clusters_enabled=True,
-    strategy_enabled=False,   # Strategy was not in V1
+    tool_finder_enabled=False,  # Tool finder wizard was not in V1
+    cdi_scores_enabled=True,    # CDI scores were in V1
+    advanced_search_enabled=False,  # Advanced search was not in V1
+
+    # =========================================================================
+    # LEARNING CONTENT - V1 had foundations, no playbooks
+    # =========================================================================
     foundations_enabled=True,
     playbooks_enabled=False,  # Playbooks were not in V1
+
+    # =========================================================================
+    # PERSONALIZATION - V1 had no personalization features
+    # =========================================================================
+    strategy_enabled=False,       # Strategy builder was not in V1
     recommendations_enabled=False,  # Recommendations were not in V1
-    reviews_enabled=False,    # Reviews were not in V1
+    reviews_enabled=False,        # Reviews were not in V1
+    review_voting_enabled=False,  # Review voting was not in V1
+    activity_history_enabled=False,  # Activity history was not in V1
+
+    # =========================================================================
+    # CONTENT ACCESS - V1 had browse and sources
+    # =========================================================================
     browse_enabled=True,
     sources_enabled=True,
-    admin_dashboard=True,
+
+    # =========================================================================
+    # ADMINISTRATION - V1 had basic admin only
+    # =========================================================================
+    admin_dashboard_enabled=True,
+    admin_ingestion_enabled=True,
+    admin_users_enabled=True,
+    admin_analytics_enabled=False,  # Analytics were not in V1
+    admin_feedback_enabled=False,   # Feedback management was not in V1
+    admin_playbooks_enabled=False,  # Playbook management was not in V1
+    admin_discovery_enabled=False,  # Discovery management was not in V1
 )
 
 TOOLKIT_V1_EDITION = Edition(
@@ -135,7 +171,8 @@ TOOLKIT_V1_EDITION = Edition(
     description=(
         "Initial version of AI Toolkit with core RAG functionality, "
         "cluster organization, foundations, and document browsing. "
-        "This version predates the discovery pipeline and strategy features."
+        "This version predates the discovery pipeline, strategy builder, "
+        "personalized recommendations, and user reviews."
     ),
 )
 
@@ -143,22 +180,55 @@ TOOLKIT_V1_EDITION = Edition(
 # -----------------------------------------------------------------------------
 # TOOLKIT V2 - Current Active Edition
 # -----------------------------------------------------------------------------
-# This is the current working version with all features enabled.
+# This is the current working version with ALL features enabled.
 # It is not sealed and continues to receive updates.
 
 TOOLKIT_V2_FEATURES = FeatureFlags(
-    # All features enabled in V2
+    # =========================================================================
+    # CORE FEATURES - All enabled
+    # =========================================================================
     rag_enabled=True,
     discovery_enabled=True,
+
+    # =========================================================================
+    # TOOL FEATURES - All enabled
+    # =========================================================================
     clusters_enabled=True,
-    strategy_enabled=True,
+    tool_finder_enabled=True,
+    cdi_scores_enabled=True,
+    advanced_search_enabled=True,
+
+    # =========================================================================
+    # LEARNING CONTENT - All enabled
+    # =========================================================================
     foundations_enabled=True,
     playbooks_enabled=True,
+
+    # =========================================================================
+    # PERSONALIZATION - All enabled
+    # =========================================================================
+    strategy_enabled=True,
     recommendations_enabled=True,
     reviews_enabled=True,
+    review_voting_enabled=True,
+    activity_history_enabled=True,
+
+    # =========================================================================
+    # CONTENT ACCESS - All enabled
+    # =========================================================================
     browse_enabled=True,
     sources_enabled=True,
-    admin_dashboard=True,
+
+    # =========================================================================
+    # ADMINISTRATION - All enabled
+    # =========================================================================
+    admin_dashboard_enabled=True,
+    admin_ingestion_enabled=True,
+    admin_users_enabled=True,
+    admin_analytics_enabled=True,
+    admin_feedback_enabled=True,
+    admin_playbooks_enabled=True,
+    admin_discovery_enabled=True,
 )
 
 TOOLKIT_V2_EDITION = Edition(

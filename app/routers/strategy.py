@@ -11,9 +11,14 @@ from app.dependencies import require_auth_page
 from app.services.strategy import generate_strategy_plan, export_plan_to_markdown
 from app.middleware.csrf import CSRFProtectionMiddleware
 from app.templates_engine import templates
+from app.products.guards import require_feature
 
 
-router = APIRouter(prefix="/strategy", tags=["strategy"])
+router = APIRouter(
+    prefix="/strategy",
+    tags=["strategy"],
+    dependencies=[Depends(require_feature("strategy"))]  # All strategy routes require strategy feature
+)
 
 
 @router.get("", response_class=HTMLResponse)

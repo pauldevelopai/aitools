@@ -22,10 +22,15 @@ from app.services.playbook.pipeline import (
 )
 from app.settings import settings
 from app.templates_engine import templates
+from app.products.guards import require_feature
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/playbooks", tags=["playbooks"])
+router = APIRouter(
+    prefix="/admin/playbooks",
+    tags=["playbooks"],
+    dependencies=[Depends(require_feature("admin_playbooks"))]  # Requires admin playbooks feature
+)
 
 
 # ============================================================================

@@ -13,6 +13,7 @@ from app.models.auth import User
 from app.settings import settings
 from app.startup import run_startup_validation
 from app.products.definitions import register_all_products
+from app.products.guards import FeatureDisabledError, get_feature_disabled_context
 from app.templates_engine import templates
 from app.middleware import (
     RequestLoggingMiddleware,
@@ -70,6 +71,35 @@ app.add_middleware(CSRFProtectionMiddleware)
 
 # 3. Rate Limiting
 app.add_middleware(RateLimitMiddleware)
+
+
+# =============================================================================
+# EXCEPTION HANDLERS
+# =============================================================================
+
+@app.exception_handler(FeatureDisabledError)
+async def feature_disabled_handler(request: Request, exc: FeatureDisabledError):
+    """
+    Handle FeatureDisabledError by showing a friendly message.
+
+    This is triggered when a user tries to access a feature that is not
+    enabled in the current Product + Edition.
+    """
+    # Get the referer to use as redirect URL, or default to homepage
+    referer = request.headers.get("referer", "/")
+
+    context = get_feature_disabled_context(
+        request=request,
+        feature_name=exc.feature_name,
+        redirect_url=referer
+    )
+
+    return templates.TemplateResponse(
+        "feature_disabled.html",
+        context,
+        status_code=403
+    )
+
 
 # Include routers
 app.include_router(health.router)

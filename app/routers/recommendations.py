@@ -18,9 +18,14 @@ from app.schemas.recommendation import (
     ToolGuidanceResponse,
     SuggestedBlockResponse,
 )
+from app.products.guards import require_feature
 
 
-router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
+router = APIRouter(
+    prefix="/api/recommendations",
+    tags=["recommendations"],
+    dependencies=[Depends(require_feature("recommendations"))]  # All recommendation routes require feature
+)
 
 
 @router.get("/for-me", response_model=RecommendationsResponse)

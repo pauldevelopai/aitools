@@ -110,17 +110,34 @@ class ProductAwareTemplates(Jinja2Templates):
                 "nav_items": nav_items,
 
                 # Feature flags as booleans for easy template access
+                # Core
                 "feature_rag": features.rag_enabled,
                 "feature_discovery": features.discovery_enabled,
+                # Tools
                 "feature_clusters": features.clusters_enabled,
-                "feature_strategy": features.strategy_enabled,
+                "feature_tool_finder": features.tool_finder_enabled,
+                "feature_cdi_scores": features.cdi_scores_enabled,
+                "feature_advanced_search": features.advanced_search_enabled,
+                # Learning
                 "feature_foundations": features.foundations_enabled,
                 "feature_playbooks": features.playbooks_enabled,
+                # Personalization
+                "feature_strategy": features.strategy_enabled,
                 "feature_recommendations": features.recommendations_enabled,
                 "feature_reviews": features.reviews_enabled,
+                "feature_review_voting": features.review_voting_enabled,
+                "feature_activity_history": features.activity_history_enabled,
+                # Content
                 "feature_browse": features.browse_enabled,
                 "feature_sources": features.sources_enabled,
-                "feature_admin": features.admin_dashboard,
+                # Admin
+                "feature_admin": features.admin_dashboard_enabled,
+                "feature_admin_ingestion": features.admin_ingestion_enabled,
+                "feature_admin_users": features.admin_users_enabled,
+                "feature_admin_analytics": features.admin_analytics_enabled,
+                "feature_admin_feedback": features.admin_feedback_enabled,
+                "feature_admin_playbooks": features.admin_playbooks_enabled,
+                "feature_admin_discovery": features.admin_discovery_enabled,
             })
 
         except Exception:
@@ -177,20 +194,32 @@ class ProductAwareTemplates(Jinja2Templates):
         Maps routes to their corresponding feature flags.
         """
         route_to_feature = {
+            # Core features
             "/toolkit": features.rag_enabled,
-            "/browse": features.browse_enabled,
+            "/toolkit/history": features.activity_history_enabled,
+            # Tool features
+            "/tools/finder": features.tool_finder_enabled,
+            "/tools/cdi": features.cdi_scores_enabled,
             "/clusters": features.clusters_enabled,
-            "/strategy": features.strategy_enabled,
+            # Learning content
             "/foundations": features.foundations_enabled,
+            # Personalization
+            "/strategy": features.strategy_enabled,
+            # Content
+            "/browse": features.browse_enabled,
             "/sources": features.sources_enabled,
-            "/admin": features.admin_dashboard,
-            # Playbooks and recommendations are typically part of tools
+            # Admin
+            "/admin": features.admin_dashboard_enabled,
         }
 
-        # Check if route matches a feature-gated path
-        for route_prefix, enabled in route_to_feature.items():
-            if nav.route.startswith(route_prefix) and not enabled:
-                return False
+        # Check if route matches a feature-gated path (most specific first)
+        # Sort by length descending to match more specific routes first
+        for route_prefix in sorted(route_to_feature.keys(), key=len, reverse=True):
+            if nav.route.startswith(route_prefix):
+                if not route_to_feature[route_prefix]:
+                    return False
+                # Found a matching prefix that is enabled, allow it
+                break
 
         return True
 

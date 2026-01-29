@@ -140,7 +140,7 @@ class TestFeatureFlags:
         flags = FeatureFlags()
         assert flags.rag_enabled is True
         assert flags.discovery_enabled is True
-        assert flags.admin_dashboard is True
+        assert flags.admin_dashboard_enabled is True
 
     def test_custom_flags(self):
         """Test custom feature flag values."""
@@ -167,7 +167,33 @@ class TestFeatureFlags:
 
         assert d["rag_enabled"] is True
         assert d["discovery_enabled"] is False
-        assert "admin_dashboard" in d
+        assert "admin_dashboard_enabled" in d
+
+    def test_is_enabled_method(self):
+        """Test the is_enabled method with various inputs."""
+        flags = FeatureFlags(reviews_enabled=True, strategy_enabled=False)
+
+        # With _enabled suffix
+        assert flags.is_enabled("reviews_enabled") is True
+        assert flags.is_enabled("strategy_enabled") is False
+
+        # Without _enabled suffix
+        assert flags.is_enabled("reviews") is True
+        assert flags.is_enabled("strategy") is False
+
+    def test_all_disabled(self):
+        """Test creating flags with all features disabled."""
+        flags = FeatureFlags.all_disabled()
+        assert flags.rag_enabled is False
+        assert flags.reviews_enabled is False
+        assert flags.admin_dashboard_enabled is False
+
+    def test_all_enabled(self):
+        """Test creating flags with all features enabled."""
+        flags = FeatureFlags.all_enabled()
+        assert flags.rag_enabled is True
+        assert flags.reviews_enabled is True
+        assert flags.admin_dashboard_enabled is True
 
 
 class TestProductRegistry:
@@ -431,10 +457,10 @@ class TestToolkitProducts:
             source_version="v2",
             new_version="v3",
             display_name="Toolkit V3",
-            feature_overrides={"admin_dashboard": False},
+            feature_overrides={"admin_dashboard_enabled": False},
         )
 
         assert v3.version == "v3"
         assert v3.feature_flags.rag_enabled is True  # Inherited
-        assert v3.feature_flags.admin_dashboard is False  # Overridden
+        assert v3.feature_flags.admin_dashboard_enabled is False  # Overridden
         assert EditionRegistry.get_active("ai_toolkit") == v3
