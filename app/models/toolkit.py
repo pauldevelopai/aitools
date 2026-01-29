@@ -19,6 +19,7 @@ class ToolkitDocument(Base):
     upload_date = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     chunk_count = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_ingested = Column(Boolean, default=False, nullable=False, index=True)  # Whether chunks/embeddings created
 
 
 class ToolkitChunk(Base):

@@ -19,6 +19,138 @@ from app.services.discovery.dedup import (
 logger = logging.getLogger(__name__)
 
 
+# ============================================================================
+# QUALITY FILTERING CONFIGURATION
+# ============================================================================
+
+# Minimum GitHub stars required for GitHub-sourced tools
+MIN_GITHUB_STARS = 50
+
+# Journalism-relevant keywords (tools must match at least one)
+JOURNALISM_KEYWORDS = [
+    "journalism", "journalist", "newsroom", "news", "reporter", "editor",
+    "transcription", "transcript", "verification", "fact-check", "factcheck",
+    "investigation", "investigative", "source", "interview", "audio",
+    "video", "media", "broadcast", "publish", "story", "article",
+    "research", "data", "visualization", "chart", "graph", "map",
+    "social media", "analytics", "monitoring", "archive", "scrape",
+    "text-to-speech", "speech-to-text", "translation", "subtitle",
+    "caption", "ai writing", "summarize", "summarization", "nlp",
+    "document", "pdf", "ocr", "image", "photo", "deepfake",
+]
+
+# Spam/irrelevant keywords (auto-reject if found)
+SPAM_KEYWORDS = [
+    "crypto", "cryptocurrency", "nft", "blockchain", "defi",
+    "casino", "gambling", "betting", "poker",
+    "adult", "xxx", "porn", "nsfw",
+    "mlm", "pyramid", "get rich",
+    "tiktok followers", "instagram followers", "youtube subscribers",
+]
+
+# Minimum description length
+MIN_DESCRIPTION_LENGTH = 50
+
+# Minimum confidence threshold for quality pass
+MIN_CONFIDENCE_THRESHOLD = 0.6
+
+
+def validate_tool_quality(raw_tool: RawToolData, source_type: str) -> tuple[bool, float, dict]:
+    """
+    Validate tool quality based on stricter criteria.
+
+    Args:
+        raw_tool: Raw tool data from source
+        source_type: Type of source (github, producthunt, etc.)
+
+    Returns:
+        Tuple of (passes_quality, adjusted_score, quality_flags)
+    """
+    quality_flags = {}
+    score_adjustments = 0.0
+    base_score = 0.5
+
+    # Extract relevant data
+    description = (raw_tool.description or "").lower()
+    name = (raw_tool.name or "").lower()
+    url = (raw_tool.url or "").lower()
+    extra_data = raw_tool.extra_data or {}
+
+    # 1. Check for spam keywords - auto-reject
+    for spam_word in SPAM_KEYWORDS:
+        if spam_word in description or spam_word in name:
+            quality_flags["spam_detected"] = spam_word
+            return False, 0.0, quality_flags
+
+    # 2. GitHub stars check for GitHub sources
+    if source_type == "github":
+        stars = extra_data.get("stars", 0)
+        if stars < MIN_GITHUB_STARS:
+            quality_flags["low_github_stars"] = stars
+            score_adjustments -= 0.3
+        elif stars >= 100:
+            score_adjustments += 0.1
+        elif stars >= 500:
+            score_adjustments += 0.2
+
+    # 3. Documentation check
+    has_docs = bool(raw_tool.docs_url)
+    if not has_docs:
+        quality_flags["no_documentation"] = True
+        score_adjustments -= 0.1
+    else:
+        score_adjustments += 0.1
+
+    # 4. Journalism keyword relevance
+    combined_text = f"{name} {description}"
+    matched_keywords = [kw for kw in JOURNALISM_KEYWORDS if kw in combined_text]
+    if not matched_keywords:
+        quality_flags["no_journalism_keywords"] = True
+        score_adjustments -= 0.2
+    else:
+        quality_flags["journalism_keywords"] = matched_keywords[:5]  # Store up to 5
+        score_adjustments += min(0.2, len(matched_keywords) * 0.05)
+
+    # 5. Description quality
+    desc_length = len(raw_tool.description or "")
+    if desc_length < MIN_DESCRIPTION_LENGTH:
+        quality_flags["short_description"] = desc_length
+        score_adjustments -= 0.15
+    elif desc_length >= 200:
+        score_adjustments += 0.1
+
+    # Calculate final score
+    final_score = max(0.0, min(1.0, base_score + score_adjustments))
+
+    # Determine if passes quality threshold
+    passes_quality = final_score >= MIN_CONFIDENCE_THRESHOLD
+
+    # Additional check: GitHub tools need minimum stars regardless of score
+    if source_type == "github" and extra_data.get("stars", 0) < MIN_GITHUB_STARS:
+        passes_quality = False
+
+    return passes_quality, final_score, quality_flags
+
+
+def calculate_journalism_relevance(raw_tool: RawToolData) -> float:
+    """
+    Calculate journalism relevance score for a tool.
+
+    Returns:
+        Float between 0.0 and 1.0
+    """
+    combined_text = f"{raw_tool.name or ''} {raw_tool.description or ''}".lower()
+    matched_count = sum(1 for kw in JOURNALISM_KEYWORDS if kw in combined_text)
+
+    # Normalize: 0-3 keywords = 0.0-0.5, 4+ keywords = 0.5-1.0
+    if matched_count == 0:
+        return 0.0
+    elif matched_count <= 3:
+        return matched_count * 0.15
+    else:
+        return min(1.0, 0.45 + (matched_count - 3) * 0.1)
+
+
 def generate_slug(name: str, existing_slugs: set[str] | None = None) -> str:
     """
     Generate a URL-friendly slug from tool name.
@@ -234,8 +366,20 @@ def process_discovered_tool(
                 db.commit()
             return "updated"
 
+        # Run quality validation BEFORE deduplication
+        passes_quality, quality_score, quality_flags = validate_tool_quality(
+            raw_tool, source.source_type
+        )
+
+        if not passes_quality:
+            logger.debug(
+                f"Skipping low-quality tool: {raw_tool.name} "
+                f"(score: {quality_score:.2f}, flags: {quality_flags})"
+            )
+            return "skipped"
+
         # Run deduplication
-        is_duplicate, matches, confidence_score = deduplicate_tool(
+        is_duplicate, matches, dedup_confidence = deduplicate_tool(
             db=db,
             raw_tool=raw_tool,
             existing_tools=existing_tools,
@@ -251,16 +395,20 @@ def process_discovered_tool(
         slug = generate_slug(raw_tool.name, existing_slugs)
         existing_slugs.add(slug)
 
-        # Determine initial status based on confidence
-        if confidence_score < 0.5:
-            status = "pending_review"
-        elif confidence_score < 0.7:
-            status = "pending_review"
-        else:
-            # High confidence new tool, still needs review but can be auto-approved
-            status = "pending_review"
+        # Use quality score as confidence (higher = better quality)
+        confidence_score = quality_score
 
-        # Create tool record
+        # Calculate journalism relevance
+        journalism_relevance = calculate_journalism_relevance(raw_tool)
+
+        # Extract GitHub stars if available
+        extra_data = raw_tool.extra_data or {}
+        github_stars = extra_data.get("stars") if source.source_type == "github" else None
+
+        # Determine documentation status
+        has_documentation = bool(raw_tool.docs_url)
+
+        # Create tool record with enhanced fields
         tool = DiscoveredTool(
             name=raw_tool.name,
             slug=slug,
@@ -276,9 +424,14 @@ def process_discovered_tool(
             source_url=raw_tool.source_url,
             source_name=source.name,
             last_updated_signal=raw_tool.last_updated,
-            extra_data=raw_tool.extra_data or {},
-            status=status,
-            confidence_score=confidence_score
+            extra_data=extra_data,
+            status="pending_review",
+            confidence_score=confidence_score,
+            # New quality fields
+            has_documentation=has_documentation,
+            github_stars=github_stars,
+            journalism_relevance_score=journalism_relevance,
+            quality_flags=quality_flags,
         )
 
         if not dry_run:
@@ -355,9 +508,28 @@ def approve_tool(
     db: Session,
     tool_id: str,
     user_id: str,
-    notes: str | None = None
+    notes: str | None = None,
+    cdi_cost: int | None = None,
+    cdi_difficulty: int | None = None,
+    cdi_invasiveness: int | None = None,
 ) -> DiscoveredTool:
-    """Approve a discovered tool."""
+    """
+    Approve a discovered tool with optional CDI scores.
+
+    When approved, the tool becomes immediately visible on the public /tools page.
+
+    Args:
+        db: Database session
+        tool_id: ID of tool to approve
+        user_id: ID of approving user
+        notes: Optional review notes
+        cdi_cost: Cost score 0-10 (optional)
+        cdi_difficulty: Difficulty score 0-10 (optional)
+        cdi_invasiveness: Invasiveness score 0-10 (optional)
+
+    Returns:
+        Approved DiscoveredTool
+    """
     tool = db.query(DiscoveredTool).filter(DiscoveredTool.id == tool_id).first()
     if not tool:
         raise ValueError(f"Tool not found: {tool_id}")
@@ -367,8 +539,18 @@ def approve_tool(
     tool.reviewed_at = datetime.utcnow()
     tool.review_notes = notes
 
+    # Set CDI scores if provided (validate 0-10 range)
+    if cdi_cost is not None:
+        tool.cdi_cost = max(0, min(10, cdi_cost))
+    if cdi_difficulty is not None:
+        tool.cdi_difficulty = max(0, min(10, cdi_difficulty))
+    if cdi_invasiveness is not None:
+        tool.cdi_invasiveness = max(0, min(10, cdi_invasiveness))
+
     db.commit()
     db.refresh(tool)
+
+    logger.info(f"Tool approved: {tool.name} (ID: {tool_id})")
     return tool
 
 

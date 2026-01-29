@@ -1,6 +1,7 @@
 """Discovery routes for automated tool discovery pipeline."""
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Request, Depends, HTTPException, Header, Form, Query
@@ -11,7 +12,7 @@ from sqlalchemy import func, desc
 from app.db import get_db
 from app.dependencies import require_admin, get_current_user
 from app.models.auth import User
-from app.models import DiscoveredTool, DiscoveryRun, ToolMatch
+from app.models import DiscoveredTool, DiscoveryRun, ToolMatch, DiscoveredResource, UseCase
 from app.services.discovery.pipeline import (
     run_discovery_pipeline,
     approve_tool,
@@ -117,6 +118,38 @@ async def trigger_discovery_run(
     except Exception as e:
         logger.error(f"Discovery run failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/run-resources")
+async def trigger_resource_discovery(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Trigger resource discovery run.
+    TODO: Implement actual resource discovery pipeline.
+    """
+    # Placeholder - redirect back with message
+    return RedirectResponse(
+        url="/admin/discovery/resources",
+        status_code=303
+    )
+
+
+@router.post("/run-usecases")
+async def trigger_usecase_discovery(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Trigger use case discovery run.
+    TODO: Implement actual use case discovery pipeline.
+    """
+    # Placeholder - redirect back with message
+    return RedirectResponse(
+        url="/admin/discovery/use-cases",
+        status_code=303
+    )
 
 
 @router.get("/runs/{run_id}")
@@ -536,12 +569,20 @@ async def discovery_tool_detail(
 async def approve_tool_page(
     tool_id: str,
     notes: Optional[str] = Form(None),
+    cdi_cost: Optional[int] = Form(None),
+    cdi_difficulty: Optional[int] = Form(None),
+    cdi_invasiveness: Optional[int] = Form(None),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Approve a tool (page form submission)."""
+    """Approve a tool with optional CDI scores (page form submission)."""
     try:
-        approve_tool(db, tool_id, str(user.id), notes)
+        approve_tool(
+            db, tool_id, str(user.id), notes,
+            cdi_cost=cdi_cost,
+            cdi_difficulty=cdi_difficulty,
+            cdi_invasiveness=cdi_invasiveness
+        )
         return RedirectResponse(url=f"/admin/discovery/tools/{tool_id}", status_code=303)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -804,3 +845,395 @@ async def remove_approved_tool(
     db.commit()
 
     return RedirectResponse(url="/admin/approved-tools", status_code=303)
+
+
+# ============================================================================
+# RESOURCES ROUTES
+# ============================================================================
+
+def generate_resource_slug(title: str, existing_slugs: set[str] | None = None) -> str:
+    """Generate a URL-friendly slug from resource title."""
+    slug = re.sub(r'[^\w\s-]', '', title.lower())
+    slug = re.sub(r'[-\s]+', '-', slug).strip('-')
+    slug = slug[:80]  # Limit length
+
+    if existing_slugs:
+        base_slug = slug
+        counter = 1
+        while slug in existing_slugs:
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+    return slug
+
+
+@router.get("/resources", response_class=HTMLResponse)
+async def discovery_resources_list(
+    request: Request,
+    status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """List discovered resources."""
+    per_page = 50
+
+    query = db.query(DiscoveredResource)
+
+    if status:
+        query = query.filter(DiscoveredResource.status == status)
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (DiscoveredResource.title.ilike(search_term)) |
+            (DiscoveredResource.summary.ilike(search_term)) |
+            (DiscoveredResource.source.ilike(search_term))
+        )
+
+    # Get counts
+    total_all = db.query(func.count(DiscoveredResource.id)).scalar() or 0
+    total_pending = db.query(func.count(DiscoveredResource.id)).filter(
+        DiscoveredResource.status == "pending_review"
+    ).scalar() or 0
+    total_approved = db.query(func.count(DiscoveredResource.id)).filter(
+        DiscoveredResource.status == "approved"
+    ).scalar() or 0
+    total_rejected = db.query(func.count(DiscoveredResource.id)).filter(
+        DiscoveredResource.status == "rejected"
+    ).scalar() or 0
+
+    total = query.count()
+    total_pages = (total + per_page - 1) // per_page
+
+    resources = query.order_by(
+        desc(DiscoveredResource.discovered_at)
+    ).offset((page - 1) * per_page).limit(per_page).all()
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/discovery/resources.html",
+        {
+            "request": request,
+            "user": user,
+            "resources": resources,
+            "current_status": status,
+            "search": search,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "counts": {
+                "all": total_all,
+                "pending_review": total_pending,
+                "approved": total_approved,
+                "rejected": total_rejected
+            },
+            **admin_context,
+            "active_admin_page": "discovery",
+        }
+    )
+
+
+@router.get("/resources/{resource_id}", response_class=HTMLResponse)
+async def discovery_resource_detail(
+    resource_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Resource detail view."""
+    resource = db.query(DiscoveredResource).filter(DiscoveredResource.id == resource_id).first()
+
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/discovery/resource_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "resource": resource,
+            **admin_context,
+            "active_admin_page": "discovery",
+        }
+    )
+
+
+@router.post("/resources/{resource_id}/approve")
+async def approve_resource(
+    resource_id: str,
+    notes: Optional[str] = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Approve a discovered resource."""
+    resource = db.query(DiscoveredResource).filter(DiscoveredResource.id == resource_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    resource.status = "approved"
+    resource.reviewed_by = user.id
+    resource.reviewed_at = datetime.now(timezone.utc)
+    resource.review_notes = notes
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/discovery/resources/{resource_id}", status_code=303)
+
+
+@router.post("/resources/{resource_id}/reject")
+async def reject_resource(
+    resource_id: str,
+    notes: Optional[str] = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Reject a discovered resource."""
+    resource = db.query(DiscoveredResource).filter(DiscoveredResource.id == resource_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    resource.status = "rejected"
+    resource.reviewed_by = user.id
+    resource.reviewed_at = datetime.now(timezone.utc)
+    resource.review_notes = notes
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/discovery/resources/{resource_id}", status_code=303)
+
+
+@router.post("/api/resources")
+async def add_resource_manually(
+    title: str = Form(...),
+    url: str = Form(...),
+    summary: str = Form(""),
+    source: str = Form(""),
+    resource_type: str = Form("article"),
+    author: str = Form(""),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Manually add a discovered resource."""
+    from app.services.discovery.dedup import extract_domain
+
+    existing_slugs = {r.slug for r in db.query(DiscoveredResource.slug).all()}
+
+    resource = DiscoveredResource(
+        title=title,
+        slug=generate_resource_slug(title, existing_slugs),
+        url=url,
+        url_domain=extract_domain(url),
+        summary=summary,
+        source=source,
+        resource_type=resource_type,
+        author=author if author else None,
+        source_type="manual",
+        source_url=url,
+        status="pending_review",
+        confidence_score=1.0
+    )
+
+    db.add(resource)
+    db.commit()
+    db.refresh(resource)
+
+    return {"status": "success", "resource_id": str(resource.id), "slug": resource.slug}
+
+
+# ============================================================================
+# USE CASES ROUTES
+# ============================================================================
+
+def generate_usecase_slug(title: str, existing_slugs: set[str] | None = None) -> str:
+    """Generate a URL-friendly slug from use case title."""
+    slug = re.sub(r'[^\w\s-]', '', title.lower())
+    slug = re.sub(r'[-\s]+', '-', slug).strip('-')
+    slug = slug[:80]
+
+    if existing_slugs:
+        base_slug = slug
+        counter = 1
+        while slug in existing_slugs:
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+    return slug
+
+
+@router.get("/use-cases", response_class=HTMLResponse)
+async def discovery_usecases_list(
+    request: Request,
+    status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """List discovered use cases."""
+    per_page = 50
+
+    query = db.query(UseCase)
+
+    if status:
+        query = query.filter(UseCase.status == status)
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (UseCase.title.ilike(search_term)) |
+            (UseCase.summary.ilike(search_term)) |
+            (UseCase.organization.ilike(search_term))
+        )
+
+    # Get counts
+    total_all = db.query(func.count(UseCase.id)).scalar() or 0
+    total_pending = db.query(func.count(UseCase.id)).filter(
+        UseCase.status == "pending_review"
+    ).scalar() or 0
+    total_approved = db.query(func.count(UseCase.id)).filter(
+        UseCase.status == "approved"
+    ).scalar() or 0
+    total_rejected = db.query(func.count(UseCase.id)).filter(
+        UseCase.status == "rejected"
+    ).scalar() or 0
+
+    total = query.count()
+    total_pages = (total + per_page - 1) // per_page
+
+    usecases = query.order_by(
+        desc(UseCase.discovered_at)
+    ).offset((page - 1) * per_page).limit(per_page).all()
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/discovery/usecases.html",
+        {
+            "request": request,
+            "user": user,
+            "usecases": usecases,
+            "current_status": status,
+            "search": search,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "counts": {
+                "all": total_all,
+                "pending_review": total_pending,
+                "approved": total_approved,
+                "rejected": total_rejected
+            },
+            **admin_context,
+            "active_admin_page": "discovery",
+        }
+    )
+
+
+@router.get("/use-cases/{usecase_id}", response_class=HTMLResponse)
+async def discovery_usecase_detail(
+    usecase_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Use case detail view."""
+    usecase = db.query(UseCase).filter(UseCase.id == usecase_id).first()
+
+    if not usecase:
+        raise HTTPException(status_code=404, detail="Use case not found")
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/discovery/usecase_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "usecase": usecase,
+            **admin_context,
+            "active_admin_page": "discovery",
+        }
+    )
+
+
+@router.post("/use-cases/{usecase_id}/approve")
+async def approve_usecase(
+    usecase_id: str,
+    notes: Optional[str] = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Approve a discovered use case."""
+    usecase = db.query(UseCase).filter(UseCase.id == usecase_id).first()
+    if not usecase:
+        raise HTTPException(status_code=404, detail="Use case not found")
+
+    usecase.status = "approved"
+    usecase.reviewed_by = user.id
+    usecase.reviewed_at = datetime.now(timezone.utc)
+    usecase.review_notes = notes
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/discovery/use-cases/{usecase_id}", status_code=303)
+
+
+@router.post("/use-cases/{usecase_id}/reject")
+async def reject_usecase(
+    usecase_id: str,
+    notes: Optional[str] = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Reject a discovered use case."""
+    usecase = db.query(UseCase).filter(UseCase.id == usecase_id).first()
+    if not usecase:
+        raise HTTPException(status_code=404, detail="Use case not found")
+
+    usecase.status = "rejected"
+    usecase.reviewed_by = user.id
+    usecase.reviewed_at = datetime.now(timezone.utc)
+    usecase.review_notes = notes
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/discovery/use-cases/{usecase_id}", status_code=303)
+
+
+@router.post("/api/use-cases")
+async def add_usecase_manually(
+    title: str = Form(...),
+    organization: str = Form(""),
+    country: str = Form(""),
+    organization_type: str = Form(""),
+    summary: str = Form(""),
+    challenge: str = Form(""),
+    solution: str = Form(""),
+    outcome: str = Form(""),
+    lessons_learned: str = Form(""),
+    source_url: str = Form(""),
+    source_name: str = Form(""),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Manually add a use case."""
+    existing_slugs = {u.slug for u in db.query(UseCase.slug).all()}
+
+    usecase = UseCase(
+        title=title,
+        slug=generate_usecase_slug(title, existing_slugs),
+        organization=organization if organization else None,
+        country=country if country else None,
+        organization_type=organization_type if organization_type else None,
+        summary=summary if summary else None,
+        challenge=challenge if challenge else None,
+        solution=solution if solution else None,
+        outcome=outcome if outcome else None,
+        lessons_learned=lessons_learned if lessons_learned else None,
+        source_url=source_url if source_url else None,
+        source_name=source_name if source_name else None,
+        source_type="manual",
+        status="pending_review",
+        confidence_score=1.0
+    )
+
+    db.add(usecase)
+    db.commit()
+    db.refresh(usecase)
+
+    return {"status": "success", "usecase_id": str(usecase.id), "slug": usecase.slug}

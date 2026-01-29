@@ -192,7 +192,8 @@ def ingest_document(
         version_tag=version_tag,
         source_filename=source_filename,
         file_path=file_path,
-        chunk_count=len(chunks)
+        chunk_count=len(chunks),
+        is_ingested=True  # Mark as ingested since we're creating chunks
     )
     db.add(doc)
     db.flush()  # Get document ID
@@ -218,6 +219,144 @@ def ingest_document(
     if create_embeddings:
         from app.services.embeddings import create_embeddings_for_document
         create_embeddings_for_document(db, doc.id)
+
+    return doc
+
+
+def save_document_only(
+    db: Session,
+    file_path: str,
+    version_tag: str,
+    source_filename: str
+) -> ToolkitDocument:
+    """
+    Save a document record without ingesting (no chunking/embeddings).
+
+    Args:
+        db: Database session
+        file_path: Path to uploaded DOCX or PDF file
+        version_tag: Version identifier
+        source_filename: Original filename
+
+    Returns:
+        Created ToolkitDocument instance (not ingested)
+    """
+    # Check if version already exists
+    existing = db.query(ToolkitDocument).filter(
+        ToolkitDocument.version_tag == version_tag
+    ).first()
+    if existing:
+        raise ValueError(f"Version tag '{version_tag}' already exists")
+
+    # Create document record without chunks
+    doc = ToolkitDocument(
+        version_tag=version_tag,
+        source_filename=source_filename,
+        file_path=file_path,
+        chunk_count=0,
+        is_ingested=False
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    return doc
+
+
+def ingest_existing_document(
+    db: Session,
+    document_id: str,
+    create_embeddings: bool = True
+) -> ToolkitDocument:
+    """
+    Ingest an existing document that was uploaded but not yet processed.
+
+    Args:
+        db: Database session
+        document_id: ID of document to ingest
+        create_embeddings: Whether to create embeddings
+
+    Returns:
+        Updated ToolkitDocument instance
+    """
+    doc = db.query(ToolkitDocument).filter(ToolkitDocument.id == document_id).first()
+
+    if not doc:
+        raise ValueError(f"Document {document_id} not found")
+
+    if doc.is_ingested:
+        raise ValueError(f"Document {document_id} is already ingested")
+
+    if not os.path.exists(doc.file_path):
+        raise ValueError(f"Source file not found: {doc.file_path}")
+
+    # Parse document based on file type
+    if doc.file_path.lower().endswith('.pdf'):
+        content_blocks = parse_pdf(doc.file_path)
+    elif doc.file_path.lower().endswith('.docx'):
+        content_blocks = parse_docx(doc.file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {doc.file_path}")
+
+    # Create chunks
+    chunks = chunk_content(content_blocks)
+
+    # Update document
+    doc.chunk_count = len(chunks)
+    doc.is_ingested = True
+
+    # Create chunk records
+    chunk_objects = []
+    for chunk_data in chunks:
+        chunk = ToolkitChunk(
+            document_id=doc.id,
+            chunk_text=chunk_data['chunk_text'],
+            chunk_index=chunk_data['chunk_index'],
+            heading=chunk_data.get('heading'),
+            chunk_metadata=chunk_data.get('metadata'),
+            embedding=None
+        )
+        chunk_objects.append(chunk)
+
+    db.bulk_save_objects(chunk_objects)
+    db.commit()
+    db.refresh(doc)
+
+    # Create embeddings if requested
+    if create_embeddings:
+        from app.services.embeddings import create_embeddings_for_document
+        create_embeddings_for_document(db, doc.id)
+
+    return doc
+
+
+def uningest_document(db: Session, document_id: str) -> ToolkitDocument:
+    """
+    Remove ingestion from a document (delete chunks and embeddings).
+
+    The document record is kept but chunks are deleted.
+
+    Args:
+        db: Database session
+        document_id: ID of document to uningest
+
+    Returns:
+        Updated ToolkitDocument instance
+    """
+    doc = db.query(ToolkitDocument).filter(ToolkitDocument.id == document_id).first()
+
+    if not doc:
+        raise ValueError(f"Document {document_id} not found")
+
+    # Delete existing chunks
+    db.query(ToolkitChunk).filter(ToolkitChunk.document_id == document_id).delete()
+
+    # Update document
+    doc.chunk_count = 0
+    doc.is_ingested = False
+
+    db.commit()
+    db.refresh(doc)
 
     return doc
 
@@ -486,7 +625,8 @@ def ingest_from_kit(
         version_tag=version_tag,
         source_filename="toolkit.pdf",
         file_path=str(kit_dir / "toolkit.pdf"),
-        chunk_count=len(all_chunks)
+        chunk_count=len(all_chunks),
+        is_ingested=True
     )
     db.add(doc)
     db.flush()
@@ -579,7 +719,8 @@ def ingest_batch_pdfs(
                 version_tag=version_tag,
                 source_filename=pdf_path.name,
                 file_path=str(pdf_path),
-                chunk_count=len(chunks)
+                chunk_count=len(chunks),
+                is_ingested=True
             )
             db.add(doc)
             db.flush()
@@ -622,3 +763,158 @@ def ingest_batch_pdfs(
 
     logger.info(f"Batch PDF ingestion complete: {len(ingested_docs)} documents")
     return ingested_docs
+
+
+def ingest_approved_tools(
+    db: Session,
+    version_tag: str = "approved-tools-v1",
+    create_embeddings: bool = True
+) -> ToolkitDocument:
+    """
+    Ingest all approved tools from the discovery system into the RAG pipeline.
+
+    Queries tools with status='approved' and creates searchable chunks
+    from their descriptions, categories, and metadata.
+
+    Args:
+        db: Database session
+        version_tag: Version identifier for this ingestion
+        create_embeddings: Whether to create embeddings
+
+    Returns:
+        Created ToolkitDocument instance
+    """
+    from app.models.discovery import DiscoveredTool
+
+    # Query all approved tools
+    approved_tools = db.query(DiscoveredTool).filter(
+        DiscoveredTool.status == "approved"
+    ).all()
+
+    if not approved_tools:
+        raise ValueError("No approved tools found to ingest")
+
+    logger.info(f"Ingesting {len(approved_tools)} approved tools")
+
+    # Check if version already exists
+    existing = db.query(ToolkitDocument).filter(
+        ToolkitDocument.version_tag == version_tag
+    ).first()
+    if existing:
+        # Deactivate old version
+        existing.is_active = False
+        db.commit()
+        # Bump version tag
+        version_tag = f"{version_tag}-{uuid.uuid4().hex[:8]}"
+
+    # Build chunks from approved tools
+    all_chunks = []
+    chunk_index = 0
+
+    for tool in approved_tools:
+        # Build the full text for this tool
+        parts = [f"Tool: {tool.name}"]
+
+        if tool.description:
+            parts.append(tool.description)
+
+        if tool.ai_summary:
+            parts.append(f"AI Summary: {tool.ai_summary}")
+
+        if tool.categories:
+            parts.append(f"Categories: {', '.join(tool.categories)}")
+
+        if tool.tags:
+            parts.append(f"Tags: {', '.join(tool.tags)}")
+
+        if tool.url:
+            parts.append(f"URL: {tool.url}")
+
+        if tool.github_url:
+            parts.append(f"GitHub: {tool.github_url}")
+
+        if tool.docs_url:
+            parts.append(f"Documentation: {tool.docs_url}")
+
+        # Add CDI scores if available
+        cdi_parts = []
+        if tool.cdi_cost is not None:
+            cdi_parts.append(f"Cost: {tool.cdi_cost}/10")
+        if tool.cdi_difficulty is not None:
+            cdi_parts.append(f"Difficulty: {tool.cdi_difficulty}/10")
+        if tool.cdi_invasiveness is not None:
+            cdi_parts.append(f"Invasiveness: {tool.cdi_invasiveness}/10")
+        if cdi_parts:
+            parts.append(f"CDI Scores - {', '.join(cdi_parts)}")
+
+        # Add pricing info
+        if tool.pricing_model:
+            parts.append(f"Pricing: {tool.pricing_model}")
+
+        full_text = "\n\n".join(parts)
+
+        # Metadata for this tool's chunks
+        metadata = {
+            "type": "discovered_tool",
+            "tool_name": tool.name,
+            "tool_slug": tool.slug,
+            "source_type": tool.source_type,
+            "categories": tool.categories or [],
+            "tags": tool.tags or [],
+            "url": tool.url,
+            "github_url": tool.github_url,
+            "cdi_cost": tool.cdi_cost,
+            "cdi_difficulty": tool.cdi_difficulty,
+            "cdi_invasiveness": tool.cdi_invasiveness,
+        }
+
+        # Create chunks from tool text
+        tool_chunks = chunk_content(
+            [{"type": "paragraph", "text": full_text, "heading": tool.name}],
+            target_size=1000,
+            overlap=150
+        )
+
+        for tc in tool_chunks:
+            tc["metadata"] = {**tc.get("metadata", {}), **metadata}
+            tc["heading"] = tool.name
+            tc["chunk_index"] = chunk_index
+            chunk_index += 1
+            all_chunks.append(tc)
+
+    # Create document record
+    doc = ToolkitDocument(
+        version_tag=version_tag,
+        source_filename="approved_tools.json",
+        file_path="discovery://approved_tools",
+        chunk_count=len(all_chunks),
+        is_ingested=True
+    )
+    db.add(doc)
+    db.flush()
+
+    # Create chunk records
+    chunk_objects = []
+    for chunk_data in all_chunks:
+        chunk = ToolkitChunk(
+            document_id=doc.id,
+            chunk_text=chunk_data["chunk_text"],
+            chunk_index=chunk_data["chunk_index"],
+            heading=chunk_data.get("heading"),
+            chunk_metadata=chunk_data.get("metadata"),
+            embedding=None
+        )
+        chunk_objects.append(chunk)
+
+    db.bulk_save_objects(chunk_objects)
+    db.commit()
+    db.refresh(doc)
+
+    logger.info(f"Ingested {len(all_chunks)} chunks from {len(approved_tools)} approved tools (version: {version_tag})")
+
+    # Create embeddings if requested
+    if create_embeddings:
+        from app.services.embeddings import create_embeddings_for_document
+        create_embeddings_for_document(db, doc.id)
+
+    return doc

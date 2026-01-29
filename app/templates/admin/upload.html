@@ -18,8 +18,8 @@
     <!-- Upload Form -->
     <div class="bg-white rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Upload Editorial Toolkit Document</h2>
-            <p class="text-sm text-gray-600 mt-1">Upload a .docx file to ingest into the knowledge base</p>
+            <h2 class="text-lg font-semibold text-gray-900">Upload Document</h2>
+            <p class="text-sm text-gray-600 mt-1">Upload a document to the knowledge base</p>
         </div>
 
         <form action="/admin/documents/upload" method="POST" enctype="multipart/form-data" class="p-6">
@@ -56,7 +56,7 @@
                                 <input id="file"
                                        name="file"
                                        type="file"
-                                       accept=".docx"
+                                       accept=".docx,.pdf"
                                        required
                                        class="sr-only"
                                        onchange="displayFileName(this)">
@@ -64,16 +64,36 @@
                             <p class="pl-1">or drag and drop</p>
                         </div>
                         <p class="text-xs text-gray-500">
-                            .docx files only
+                            .docx or .pdf files
                         </p>
                         <p id="file-name" class="text-sm text-blue-600 font-medium mt-2"></p>
                     </div>
                 </div>
             </div>
 
-            <!-- Create Embeddings Checkbox -->
+            <!-- Ingest Now Checkbox -->
             <div class="mb-6">
                 <div class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <input id="ingest_now"
+                               name="ingest_now"
+                               type="checkbox"
+                               value="true"
+                               class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                               onchange="toggleEmbeddingsOption(this)">
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="ingest_now" class="font-medium text-gray-700">Ingest immediately</label>
+                        <p class="text-gray-500">
+                            Process document into chunks and make it searchable right away. If unchecked, the document will be saved but not ingested until you manually trigger it.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Embeddings Checkbox (only visible when ingest_now is checked) -->
+            <div id="embeddings-option" class="mb-6 hidden">
+                <div class="flex items-start ml-7">
                     <div class="flex items-center h-5">
                         <input id="create_embeddings"
                                name="create_embeddings"
@@ -96,8 +116,8 @@
                 <a href="/admin/documents" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Cancel
                 </a>
-                <button type="submit" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Upload & Ingest
+                <button type="submit" id="submit-btn" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Upload Only
                 </button>
             </div>
 
@@ -106,10 +126,11 @@
 
     <!-- Help Section -->
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 class="text-sm font-semibold text-blue-900 mb-2">Upload Process</h3>
+        <h3 class="text-sm font-semibold text-blue-900 mb-2">Upload Options</h3>
         <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
-            <li>Document will be parsed and chunked automatically</li>
-            <li>Chunks sized 800-1200 characters with 150 character overlap</li>
+            <li><strong>Upload Only:</strong> Save the document for later ingestion</li>
+            <li><strong>Ingest Immediately:</strong> Parse, chunk, and create embeddings right away</li>
+            <li>Document will be parsed and chunked automatically (800-1200 chars with 150 char overlap)</li>
             <li>Embeddings created using OpenAI's text-embedding-3-small model</li>
             <li>File will be stored in <code class="bg-blue-100 px-1 rounded">./data/uploads/</code></li>
             <li>Version tag must be unique across all documents</li>
@@ -126,6 +147,23 @@
             fileNameDisplay.textContent = 'Selected: ' + input.files[0].name;
         } else {
             fileNameDisplay.textContent = '';
+        }
+    }
+
+    function toggleEmbeddingsOption(checkbox) {
+        const embeddingsOption = document.getElementById('embeddings-option');
+        const submitBtn = document.getElementById('submit-btn');
+
+        if (checkbox.checked) {
+            embeddingsOption.classList.remove('hidden');
+            submitBtn.textContent = 'Upload & Ingest';
+            submitBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            submitBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+        } else {
+            embeddingsOption.classList.add('hidden');
+            submitBtn.textContent = 'Upload Only';
+            submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
         }
     }
 </script>

@@ -15,7 +15,10 @@ from app.services.auth import hash_password
 from app.models.toolkit import ToolkitDocument, ToolkitChunk, ChatLog, Feedback, UserActivity, AppFeedback
 from app.models.review import ToolReview, ReviewVote, ReviewFlag
 from app.models.discovery import DiscoveredTool
-from app.services.ingestion import ingest_document, reindex_document, ingest_from_kit
+from app.services.ingestion import (
+    ingest_document, reindex_document, ingest_from_kit,
+    save_document_only, ingest_existing_document, uningest_document
+)
 from app.templates_engine import templates
 from app.products.admin_context import (
     get_admin_context_dict,
@@ -782,7 +785,8 @@ async def list_documents(
             "file_path": doc.file_path,
             "upload_date": doc.upload_date,
             "chunk_count": count,
-            "is_active": doc.is_active
+            "is_active": doc.is_active,
+            "is_ingested": doc.is_ingested
         })
 
     admin_context = get_admin_context_dict(request)
@@ -822,12 +826,13 @@ async def upload_document_page(
 async def upload_document(
     file: UploadFile = File(...),
     version_tag: str = Form(...),
+    ingest_now: bool = Form(False),
     create_embeddings: bool = Form(True),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """
-    Upload and ingest a new document.
+    Upload a new document, optionally ingesting immediately.
     """
     # Validate file type
     if not (file.filename.endswith('.docx') or file.filename.endswith('.pdf')):
@@ -846,27 +851,36 @@ async def upload_document(
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # Ingest document
-        doc = ingest_document(
-            db=db,
-            file_path=file_path,
-            version_tag=version_tag,
-            source_filename=file.filename,
-            create_embeddings=create_embeddings
-        )
+        if ingest_now:
+            # Ingest document immediately
+            doc = ingest_document(
+                db=db,
+                file_path=file_path,
+                version_tag=version_tag,
+                source_filename=file.filename,
+                create_embeddings=create_embeddings
+            )
+        else:
+            # Just save document record without ingesting
+            doc = save_document_only(
+                db=db,
+                file_path=file_path,
+                version_tag=version_tag,
+                source_filename=file.filename
+            )
 
         return RedirectResponse(url="/admin/documents", status_code=303)
 
     except ValueError as e:
-        # Clean up file if ingestion fails
+        # Clean up file if save fails
         if os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # Clean up file if ingestion fails
+        # Clean up file if save fails
         if os.path.exists(file_path):
             os.remove(file_path)
-        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @router.post("/documents/{document_id}/reindex")
@@ -971,6 +985,97 @@ async def toggle_document_active(
     db.commit()
 
     return RedirectResponse(url="/admin/documents", status_code=303)
+
+
+@router.post("/documents/{document_id}/delete")
+async def delete_document(
+    document_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a document and all its chunks.
+    """
+    document = db.query(ToolkitDocument).filter(ToolkitDocument.id == document_id).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Delete all chunks first
+    db.query(ToolkitChunk).filter(ToolkitChunk.document_id == document_id).delete()
+
+    # Delete the document
+    db.delete(document)
+    db.commit()
+
+    return RedirectResponse(url="/admin/documents", status_code=303)
+
+
+@router.post("/documents/{document_id}/ingest")
+async def ingest_document_route(
+    document_id: str,
+    create_embeddings: bool = Form(True),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Ingest a pending document (create chunks and embeddings).
+    """
+    try:
+        doc = ingest_existing_document(
+            db=db,
+            document_id=document_id,
+            create_embeddings=create_embeddings
+        )
+        return RedirectResponse(url="/admin/documents", status_code=303)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+
+
+@router.post("/documents/{document_id}/uningest")
+async def uningest_document_route(
+    document_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Remove ingestion from a document (delete chunks but keep document).
+    """
+    try:
+        doc = uningest_document(db=db, document_id=document_id)
+        return RedirectResponse(url="/admin/documents", status_code=303)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Un-ingestion failed: {str(e)}")
+
+
+@router.post("/documents/ingest-approved-tools")
+async def ingest_approved_tools_route(
+    create_embeddings: bool = Form(True),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Ingest all approved tools from the discovery system.
+
+    Creates searchable content for each approved tool with their
+    descriptions, categories, and metadata.
+    """
+    try:
+        from app.services.ingestion import ingest_approved_tools
+
+        doc = ingest_approved_tools(
+            db=db,
+            create_embeddings=create_embeddings
+        )
+
+        return RedirectResponse(url="/admin/documents", status_code=303)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Approved tools ingestion failed: {str(e)}")
 
 
 # ============================================================================

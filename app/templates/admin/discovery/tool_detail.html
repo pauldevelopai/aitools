@@ -105,6 +105,64 @@
                         </div>
                     </div>
 
+                    <!-- Quality Metrics -->
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Quality Metrics</h3>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-500">Has Documentation:</span>
+                                <span class="ml-2 {% if tool.has_documentation %}text-green-600{% else %}text-red-600{% endif %}">
+                                    {{ 'Yes' if tool.has_documentation else 'No' }}
+                                </span>
+                            </div>
+                            {% if tool.github_stars is not none %}
+                            <div>
+                                <span class="text-gray-500">GitHub Stars:</span>
+                                <span class="text-gray-900 ml-2">{{ tool.github_stars }}</span>
+                            </div>
+                            {% endif %}
+                            {% if tool.journalism_relevance_score is not none %}
+                            <div>
+                                <span class="text-gray-500">Journalism Relevance:</span>
+                                <span class="text-gray-900 ml-2">{{ (tool.journalism_relevance_score * 100)|int }}%</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if tool.quality_flags %}
+                        <div class="mt-3">
+                            <span class="text-gray-500 text-sm">Quality Flags:</span>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                {% for key, value in tool.quality_flags.items() %}
+                                <span class="px-2 py-0.5 text-xs rounded {% if key == 'journalism_keywords' %}bg-green-100 text-green-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                                    {{ key }}: {{ value if value is not iterable or value is string else value|length }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- CDI Scores (if set) -->
+                    {% if tool.cdi_cost is not none or tool.cdi_difficulty is not none or tool.cdi_invasiveness is not none %}
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">CDI Scores</h3>
+                        <div class="grid grid-cols-3 gap-4 text-sm">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-600">{{ tool.cdi_cost if tool.cdi_cost is not none else '-' }}</div>
+                                <div class="text-xs text-gray-500">Cost</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-orange-600">{{ tool.cdi_difficulty if tool.cdi_difficulty is not none else '-' }}</div>
+                                <div class="text-xs text-gray-500">Difficulty</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-600">{{ tool.cdi_invasiveness if tool.cdi_invasiveness is not none else '-' }}</div>
+                                <div class="text-xs text-gray-500">Invasiveness</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     {% if tool.extra_data %}
                     <div class="mt-4 pt-4 border-t border-gray-200">
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Extra Data</h3>
@@ -177,6 +235,28 @@
                     {% if tool.status == 'pending_review' %}
                     <div class="space-y-3">
                         <form action="/admin/discovery/tools/{{ tool.id }}/approve" method="POST">
+                            <!-- CDI Scores Section -->
+                            <div class="bg-blue-50 rounded-lg p-4 mb-4">
+                                <h3 class="text-sm font-medium text-blue-900 mb-3">CDI Scores (optional)</h3>
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label class="block text-xs text-blue-700 mb-1">Cost (0-10)</label>
+                                        <input type="number" name="cdi_cost" min="0" max="10" value="{{ tool.cdi_cost or '' }}"
+                                               placeholder="0-10" class="w-full border border-blue-200 rounded px-2 py-1 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-blue-700 mb-1">Difficulty (0-10)</label>
+                                        <input type="number" name="cdi_difficulty" min="0" max="10" value="{{ tool.cdi_difficulty or '' }}"
+                                               placeholder="0-10" class="w-full border border-blue-200 rounded px-2 py-1 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-blue-700 mb-1">Invasiveness (0-10)</label>
+                                        <input type="number" name="cdi_invasiveness" min="0" max="10" value="{{ tool.cdi_invasiveness or '' }}"
+                                               placeholder="0-10" class="w-full border border-blue-200 rounded px-2 py-1 text-sm">
+                                    </div>
+                                </div>
+                                <p class="text-xs text-blue-600 mt-2">0 = lowest, 10 = highest</p>
+                            </div>
                             <textarea name="notes" placeholder="Optional notes..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-2" rows="2"></textarea>
                             <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
                                 Approve Tool

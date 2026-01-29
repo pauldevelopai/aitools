@@ -5,6 +5,8 @@ from app.models.toolkit import ToolkitDocument, ToolkitChunk
 from app.models.review import ToolReview, ReviewVote, ReviewFlag
 from app.models.discovery import DiscoveredTool, DiscoveryRun, ToolMatch
 from app.models.playbook import ToolPlaybook, PlaybookSource
+from app.models.resource import DiscoveredResource
+from app.models.usecase import UseCase
 
 __all__ = [
     "User",
@@ -19,4 +21,6 @@ __all__ = [
     "ToolMatch",
     "ToolPlaybook",
     "PlaybookSource",
+    "DiscoveredResource",
+    "UseCase",
 ]

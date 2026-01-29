@@ -44,6 +44,17 @@ class DiscoveredTool(Base):
     # Source-specific metadata
     extra_data = Column(JSONB, nullable=True, default=dict)  # GitHub stars, PH votes, etc.
 
+    # Quality assessment fields
+    has_documentation = Column(Boolean, nullable=True)  # Does tool have docs?
+    github_stars = Column(Integer, nullable=True)  # GitHub stars if applicable
+    journalism_relevance_score = Column(Float, nullable=True)  # 0.0-1.0 journalism relevance
+    quality_flags = Column(JSONB, nullable=True, default=dict)  # Quality issues/flags
+
+    # CDI scores (set on approval)
+    cdi_cost = Column(Integer, nullable=True)  # 0-10 cost score
+    cdi_difficulty = Column(Integer, nullable=True)  # 0-10 difficulty score
+    cdi_invasiveness = Column(Integer, nullable=True)  # 0-10 invasiveness score
+
     # Review workflow
     status = Column(String, nullable=False, default="pending_review", index=True)  # "pending_review", "approved", "rejected", "archived"
     confidence_score = Column(Float, nullable=False, default=0.5)  # 0.0-1.0, low confidence = needs review

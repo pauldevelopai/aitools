@@ -1,28 +1,42 @@
 {% extends "admin/base.html" %}
 
-{% block title %}Tool Discovery{% endblock %}
+{% block title %}Discovery{% endblock %}
 
 {% block content %}
         <!-- Page Title -->
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Tool Discovery</h1>
-                <p class="text-gray-600 mt-1">Automated discovery of AI tools from credible sources</p>
+                <h1 class="text-2xl font-bold text-gray-900">Discovery</h1>
+                <p class="text-gray-600 mt-1">Automated discovery of AI tools, resources, and use cases</p>
             </div>
-            <div class="flex gap-2">
-                <form id="runDiscoveryForm" action="/admin/discovery/run" method="POST" class="inline">
-                    <select name="sources" id="sourceSelect" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
-                        <option value="">All Sources</option>
-                        <option value="github">GitHub Only</option>
-                        <option value="producthunt">Product Hunt Only</option>
-                        <option value="awesome_list">Awesome Lists Only</option>
-                        <option value="directory">Directories Only</option>
-                    </select>
-                    <button type="submit" class="ml-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" onclick="return confirm('Run discovery now?');">
-                        Run Discovery
-                    </button>
-                </form>
-            </div>
+            <form id="runDiscoveryForm" action="/admin/discovery/run" method="POST" class="flex gap-2">
+                <select name="sources" id="sourceSelect" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <option value="">All Sources</option>
+                    <option value="github">GitHub Only</option>
+                    <option value="producthunt">Product Hunt Only</option>
+                    <option value="awesome_list">Awesome Lists Only</option>
+                    <option value="directory">Directories Only</option>
+                </select>
+                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm" onclick="return confirm('Run discovery now?');">
+                    Run Discovery
+                </button>
+            </form>
+        </div>
+
+        <!-- Discovery Type Tabs -->
+        <div class="mb-6">
+            <nav class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                <a href="/admin/discovery/tools" class="flex-1 text-center px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-white hover:text-gray-900">
+                    Tools
+                    <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-gray-200">{{ stats.total_discovered }}</span>
+                </a>
+                <a href="/admin/discovery/resources" class="flex-1 text-center px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-white hover:text-gray-900">
+                    Resources
+                </a>
+                <a href="/admin/discovery/use-cases" class="flex-1 text-center px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-white hover:text-gray-900">
+                    Use Cases
+                </a>
+            </nav>
         </div>
 
         <!-- Stats Overview -->
