@@ -81,5 +81,28 @@
     </div>
     {% endif %}
 
+    <!-- Introduction Section -->
+    <div class="mb-12 bg-white rounded-lg shadow p-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Why This Toolkit Exists</h2>
+        <div class="prose prose-gray max-w-none space-y-4">
+            <p class="text-gray-700 leading-relaxed">
+                We are at an inflection point in journalism education. By 2025, the challenge is no longer access to Artificial Intelligence, but the governance of it. Research indicates that over 42% of journalists are already using "Shadow AI" (unapproved tools used without editorial oversight) to write headlines, transcribe interviews, and generate code.
+            </p>
+            <p class="text-gray-700 leading-relaxed">
+                Your students are likely already using AI tools. The danger is that they are using them blindly. They could be feeding sensitive data into opaque models, risking source confidentiality and relying on "black box" algorithms. This toolkit is designed to help you elevate your teaching from simple "tool training" to critical AI literacy. It does not merely list software. Here our goal is to train journalists who are not just users of technology, but auditors of it.
+            </p>
+            <p class="text-gray-700 leading-relaxed">
+                Artificial Intelligence is already embedded in journalism, whether it is formally acknowledged or not. Students and early-career journalists are using AI systems to transcribe interviews, summarise documents, translate material, write code, generate visuals, and search for information. The question facing journalism education is therefore not whether AI should be introduced, but how it should be understood, governed and used responsibly.
+            </p>
+        </div>
+        {% if feature_foundations|default(true) %}
+        <div class="mt-6">
+            <a href="/foundations" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                Read the full foundations &rarr;
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
 </div>
 {% endblock %}

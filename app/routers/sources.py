@@ -14,13 +14,25 @@ from app.templates_engine import templates
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
+def infer_source_type(url: str) -> str:
+    """Infer source type from URL."""
+    url_lower = (url or "").lower()
+    if any(x in url_lower for x in ['.pdf', 'oecd.org', 'linuxfoundation.org', 'unesco.org', 'artificialintelligenceact.eu']):
+        return 'report'
+    elif any(x in url_lower for x in ['researchgate.net', 'arxiv.org', 'doi.org', 'academic', 'journal', 'springer', 'wiley']):
+        return 'study'
+    return 'article'
+
+
 @router.get("", response_class=HTMLResponse)
 async def sources_index(
     request: Request,
     batch: Optional[str] = Query(None),
     q: Optional[str] = None,
+    source_type: Optional[str] = Query(None),
     user: Optional[User] = Depends(get_current_user),
 ):
+    """List all grounded citation sources with optional batch/search/type filter."""
     # Convert batch to int if provided (handle empty string)
     batch_num = None
     if batch and batch.strip():
@@ -30,7 +42,7 @@ async def sources_index(
                 batch_num = None
         except ValueError:
             batch_num = None
-    """List all grounded citation sources with optional batch/search filter."""
+
     all_data = get_all_sources()
 
     if q:
@@ -41,6 +53,10 @@ async def sources_index(
     else:
         entries = all_data.get("entries", [])
 
+    # Filter by source type if specified
+    if source_type and source_type in ('article', 'report', 'study'):
+        entries = [e for e in entries if infer_source_type(e.get("url", "")) == source_type]
+
     return templates.TemplateResponse(
         "sources/index.html",
         {
@@ -50,6 +66,7 @@ async def sources_index(
             "batches": all_data.get("batches", []),
             "total_entries": all_data.get("total_entries", 0),
             "selected_batch": batch_num,
+            "source_type": source_type or "",
             "q": q or "",
         }
     )
