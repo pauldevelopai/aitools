@@ -18,10 +18,12 @@ openai==1.10.0
 
 # Text Processing
 markdown==3.5.2
+beautifulsoup4==4.14.3
 
 # Utilities
 pydantic==2.5.3
 pydantic-settings==2.1.0
+email-validator==2.3.0
 python-dotenv==1.0.0
 bcrypt==4.1.2
 python-multipart==0.0.6
