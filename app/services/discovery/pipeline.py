@@ -221,18 +221,52 @@ async def run_discovery_pipeline(
     Returns:
         DiscoveryRun record with stats
     """
-    # Create run record
+    # Create run record with progress tracking
+    run_config_with_progress = (config or {}).copy()
+    run_config_with_progress["progress"] = {
+        "current_source": None,
+        "current_source_index": 0,
+        "total_sources": 0,
+        "sources_completed": 0,
+        "current_tool": None,
+        "tools_in_current_source": 0,
+        "tools_processed_in_source": 0,
+    }
+
     run = DiscoveryRun(
         status="running",
         source_type=",".join(sources) if sources else None,
         triggered_by=triggered_by,
-        run_config=config or {}
+        run_config=run_config_with_progress
     )
 
     if not dry_run:
         db.add(run)
         db.commit()
         db.refresh(run)
+
+    def update_progress(source_name=None, source_index=0, total_sources=0,
+                        sources_completed=0, current_tool=None,
+                        tools_in_source=0, tools_processed=0):
+        """Update progress in run_config and commit."""
+        if dry_run:
+            return
+        run.run_config = run.run_config.copy() if run.run_config else {}
+        run.run_config["progress"] = {
+            "current_source": source_name,
+            "current_source_index": source_index,
+            "total_sources": total_sources,
+            "sources_completed": sources_completed,
+            "current_tool": current_tool,
+            "tools_in_current_source": tools_in_source,
+            "tools_processed_in_source": tools_processed,
+        }
+        # Also update the visible stats
+        run.tools_found = tools_found
+        run.tools_new = tools_new
+        run.tools_updated = tools_updated
+        run.tools_skipped = tools_skipped
+        db.commit()
 
     try:
         # Get sources to run
@@ -243,6 +277,15 @@ async def run_discovery_pipeline(
 
         if not discovery_sources:
             raise ValueError(f"No valid sources found for: {sources}")
+
+        total_sources = len(discovery_sources)
+
+        # Update initial progress
+        if not dry_run:
+            update_progress(
+                source_name="Initializing...",
+                total_sources=total_sources
+            )
 
         # Load existing tools and slugs for deduplication
         existing_tools = db.query(DiscoveredTool).filter(
@@ -258,19 +301,41 @@ async def run_discovery_pipeline(
         tools_new = 0
         tools_updated = 0
         tools_skipped = 0
+        sources_completed = 0
 
         # Run each source
-        for source in discovery_sources:
+        for source_index, source in enumerate(discovery_sources):
             logger.info(f"Running discovery source: {source.name}")
+
+            # Update progress: starting new source
+            update_progress(
+                source_name=source.name,
+                source_index=source_index + 1,
+                total_sources=total_sources,
+                sources_completed=sources_completed,
+                tools_in_source=0,
+                tools_processed=0
+            )
 
             try:
                 # Fetch tools from source
                 source_config = (config or {}).get(source.source_type, {})
                 raw_tools = await source.discover(source_config)
                 tools_found += len(raw_tools)
+                tools_in_source = len(raw_tools)
+
+                # Update progress with tool count
+                update_progress(
+                    source_name=source.name,
+                    source_index=source_index + 1,
+                    total_sources=total_sources,
+                    sources_completed=sources_completed,
+                    tools_in_source=tools_in_source,
+                    tools_processed=0
+                )
 
                 # Process each tool
-                for raw_tool in raw_tools:
+                for tool_index, raw_tool in enumerate(raw_tools):
                     result = process_discovered_tool(
                         db=db,
                         raw_tool=raw_tool,
@@ -288,17 +353,35 @@ async def run_discovery_pipeline(
                     elif result == "skipped":
                         tools_skipped += 1
 
+                    # Update progress every 5 tools or on last tool
+                    if (tool_index + 1) % 5 == 0 or tool_index == len(raw_tools) - 1:
+                        update_progress(
+                            source_name=source.name,
+                            source_index=source_index + 1,
+                            total_sources=total_sources,
+                            sources_completed=sources_completed,
+                            current_tool=raw_tool.name[:50] if raw_tool.name else None,
+                            tools_in_source=tools_in_source,
+                            tools_processed=tool_index + 1
+                        )
+
+                sources_completed += 1
+
             except Exception as e:
                 logger.error(f"Error running source {source.name}: {e}")
+                sources_completed += 1
                 continue
 
-        # Update run record
+        # Update run record - final stats
         run.status = "completed"
         run.completed_at = datetime.utcnow()
         run.tools_found = tools_found
         run.tools_new = tools_new
         run.tools_updated = tools_updated
         run.tools_skipped = tools_skipped
+        # Clear progress info
+        if run.run_config:
+            run.run_config = {k: v for k, v in run.run_config.items() if k != "progress"}
 
         if not dry_run:
             db.commit()

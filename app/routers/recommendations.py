@@ -101,7 +101,7 @@ async def for_you_page(
             "user": user,
             "suggested_tools": suggested_tools,
             "show_suggested": len(suggested_tools) > 0,
-            "suggested_title": "Recommended for You",
+            "suggested_title": "Personalized Picks",
             "suggested_location": "for_you",
             "user_context": context_summary,
             "clusters": clusters,

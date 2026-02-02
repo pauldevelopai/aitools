@@ -158,24 +158,45 @@ async def get_run_status(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get status of a discovery run."""
+    """Get status of a discovery run including real-time progress."""
     run = db.query(DiscoveryRun).filter(DiscoveryRun.id == run_id).first()
 
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+
+    # Extract progress info from run_config
+    progress = None
+    if run.run_config and "progress" in run.run_config:
+        progress = run.run_config["progress"]
+
+    # Calculate elapsed time
+    elapsed_seconds = None
+    if run.started_at:
+        end_time = run.completed_at or datetime.now(timezone.utc)
+        if run.started_at.tzinfo is None:
+            # If started_at is naive, assume UTC
+            from datetime import timezone as tz
+            started = run.started_at.replace(tzinfo=tz.utc)
+        else:
+            started = run.started_at
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=tz.utc)
+        elapsed_seconds = int((end_time - started).total_seconds())
 
     return {
         "id": str(run.id),
         "status": run.status,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "elapsed_seconds": elapsed_seconds,
         "source_type": run.source_type,
         "tools_found": run.tools_found,
         "tools_new": run.tools_new,
         "tools_updated": run.tools_updated,
         "tools_skipped": run.tools_skipped,
         "error_message": run.error_message,
-        "triggered_by": run.triggered_by
+        "triggered_by": run.triggered_by,
+        "progress": progress
     }
 
 
