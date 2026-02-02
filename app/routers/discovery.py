@@ -86,7 +86,14 @@ async def trigger_discovery_run(
 
     Query params:
         sources: Optional comma-separated source types (github, producthunt, awesome_list, directory)
+
+    Returns immediately with run_id. Client should poll /runs/{run_id} for progress.
     """
+    from app.services.discovery.pipeline import (
+        get_all_sources,
+        get_sources_by_type
+    )
+
     # Parse sources
     source_list = None
     if sources:
@@ -99,57 +106,304 @@ async def trigger_discovery_run(
         triggered_by = "cron"
 
     try:
-        # Run discovery asynchronously
-        run = await run_discovery_pipeline(
-            db=db,
-            sources=source_list,
-            triggered_by=triggered_by
-        )
+        # Check if there's already a running discovery
+        existing_running = db.query(DiscoveryRun).filter(
+            DiscoveryRun.status == "running"
+        ).first()
 
-        return {
-            "status": "success",
-            "run_id": str(run.id),
-            "tools_found": run.tools_found,
-            "tools_new": run.tools_new,
-            "tools_updated": run.tools_updated,
-            "tools_skipped": run.tools_skipped
+        if existing_running:
+            return {
+                "status": "already_running",
+                "run_id": str(existing_running.id),
+                "message": "A discovery is already running. Poll /admin/discovery/runs/{run_id} for progress."
+            }
+
+        # Validate sources exist before creating run
+        if source_list:
+            discovery_sources = get_sources_by_type(source_list)
+        else:
+            discovery_sources = get_all_sources()
+
+        if not discovery_sources:
+            raise HTTPException(status_code=400, detail=f"No valid sources found for: {source_list}")
+
+        total_sources = len(discovery_sources)
+
+        # Create run record IMMEDIATELY with status "running"
+        run_config_with_progress = {
+            "progress": {
+                "current_source": "Initializing...",
+                "current_source_index": 0,
+                "total_sources": total_sources,
+                "sources_completed": 0,
+                "current_tool": None,
+                "tools_in_current_source": 0,
+                "tools_processed_in_source": 0,
+            }
         }
 
+        run = DiscoveryRun(
+            status="running",
+            source_type=",".join(source_list) if source_list else None,
+            triggered_by=triggered_by,
+            run_config=run_config_with_progress
+        )
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+
+        run_id = str(run.id)
+
+        # Start the discovery pipeline in the background
+        async def run_pipeline_background(run_id: str, source_list: list[str] | None, triggered_by: str):
+            """Background task to run the discovery pipeline."""
+            from app.db import SessionLocal
+            background_db = SessionLocal()
+            try:
+                await run_discovery_pipeline(
+                    db=background_db,
+                    sources=source_list,
+                    triggered_by=triggered_by,
+                    existing_run_id=run_id  # Pass existing run ID
+                )
+            except Exception as e:
+                logger.error(f"Background discovery pipeline failed: {e}")
+                # Update the run record with failure
+                try:
+                    run_record = background_db.query(DiscoveryRun).filter(
+                        DiscoveryRun.id == run_id
+                    ).first()
+                    if run_record:
+                        run_record.status = "failed"
+                        run_record.error_message = str(e)
+                        run_record.completed_at = datetime.now(timezone.utc)
+                        background_db.commit()
+                except Exception as update_error:
+                    logger.error(f"Failed to update run record with error: {update_error}")
+            finally:
+                background_db.close()
+
+        # Create background task - don't await it
+        asyncio.create_task(run_pipeline_background(run_id, source_list, triggered_by))
+
+        # Return immediately with run_id for polling
+        return {
+            "status": "started",
+            "run_id": run_id,
+            "message": "Discovery started. Poll /admin/discovery/runs/{run_id} for progress."
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Discovery run failed: {e}")
+        logger.error(f"Discovery run failed to start: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/run-resources")
 async def trigger_resource_discovery(
+    sources: Optional[str] = Query(None, description="Comma-separated source types"),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """
     Trigger resource discovery run.
-    TODO: Implement actual resource discovery pipeline.
+    NOTE: Resource discovery pipeline not yet implemented.
+    Returns a placeholder response for UI compatibility.
     """
-    # Placeholder - redirect back with message
-    return RedirectResponse(
-        url="/admin/discovery/resources",
-        status_code=303
+    # Check if there's already a running discovery
+    existing_running = db.query(DiscoveryRun).filter(
+        DiscoveryRun.status == "running"
+    ).first()
+
+    if existing_running:
+        return {
+            "status": "already_running",
+            "run_id": str(existing_running.id),
+            "message": "A discovery is already running."
+        }
+
+    # Create a run record that immediately completes (placeholder)
+    run = DiscoveryRun(
+        status="completed",
+        source_type="resources",
+        triggered_by=str(user.id),
+        run_config={"type": "resources", "note": "Resource discovery not yet implemented"},
+        completed_at=datetime.now(timezone.utc),
+        tools_found=0,
+        tools_new=0,
+        tools_updated=0,
+        tools_skipped=0
     )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    return {
+        "status": "completed",
+        "run_id": str(run.id),
+        "message": "Resource discovery not yet implemented. This is a placeholder."
+    }
 
 
 @router.post("/run-usecases")
 async def trigger_usecase_discovery(
+    sources: Optional[str] = Query(None, description="Comma-separated source types"),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """
     Trigger use case discovery run.
-    TODO: Implement actual use case discovery pipeline.
+    NOTE: Use case discovery pipeline not yet implemented.
+    Returns a placeholder response for UI compatibility.
     """
-    # Placeholder - redirect back with message
-    return RedirectResponse(
-        url="/admin/discovery/use-cases",
-        status_code=303
+    # Check if there's already a running discovery
+    existing_running = db.query(DiscoveryRun).filter(
+        DiscoveryRun.status == "running"
+    ).first()
+
+    if existing_running:
+        return {
+            "status": "already_running",
+            "run_id": str(existing_running.id),
+            "message": "A discovery is already running."
+        }
+
+    # Create a run record that immediately completes (placeholder)
+    run = DiscoveryRun(
+        status="completed",
+        source_type="usecases",
+        triggered_by=str(user.id),
+        run_config={"type": "usecases", "note": "Use case discovery not yet implemented"},
+        completed_at=datetime.now(timezone.utc),
+        tools_found=0,
+        tools_new=0,
+        tools_updated=0,
+        tools_skipped=0
     )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    return {
+        "status": "completed",
+        "run_id": str(run.id),
+        "message": "Use case discovery not yet implemented. This is a placeholder."
+    }
+
+
+@router.post("/run-all")
+async def trigger_all_discovery(
+    sources: Optional[str] = Query(None, description="Comma-separated source types"),
+    user_or_key: Optional[User] = Depends(verify_api_key_or_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Trigger discovery for all content types (tools, resources, use cases).
+    Currently only tool discovery is implemented.
+    """
+    # For now, this just runs tool discovery
+    # When resource and use case discovery are implemented, this should run all of them
+    from app.services.discovery.pipeline import (
+        get_all_sources,
+        get_sources_by_type
+    )
+
+    source_list = None
+    if sources:
+        source_list = [s.strip() for s in sources.split(",") if s.strip()]
+
+    triggered_by = str(user_or_key.id) if user_or_key else "cron"
+
+    # Check if there's already a running discovery
+    existing_running = db.query(DiscoveryRun).filter(
+        DiscoveryRun.status == "running"
+    ).first()
+
+    if existing_running:
+        return {
+            "status": "already_running",
+            "run_id": str(existing_running.id),
+            "message": "A discovery is already running."
+        }
+
+    try:
+        if source_list:
+            discovery_sources = get_sources_by_type(source_list)
+        else:
+            discovery_sources = get_all_sources()
+
+        if not discovery_sources:
+            raise HTTPException(status_code=400, detail=f"No valid sources found")
+
+        total_sources = len(discovery_sources)
+
+        run_config_with_progress = {
+            "type": "all",
+            "progress": {
+                "current_source": "Initializing...",
+                "current_source_index": 0,
+                "total_sources": total_sources,
+                "sources_completed": 0,
+                "current_tool": None,
+                "tools_in_current_source": 0,
+                "tools_processed_in_source": 0,
+            }
+        }
+
+        run = DiscoveryRun(
+            status="running",
+            source_type=",".join(source_list) if source_list else "all",
+            triggered_by=triggered_by,
+            run_config=run_config_with_progress
+        )
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+
+        run_id = str(run.id)
+
+        async def run_all_background(run_id: str, source_list: list[str] | None, triggered_by: str):
+            from app.db import SessionLocal
+            background_db = SessionLocal()
+            try:
+                await run_discovery_pipeline(
+                    db=background_db,
+                    sources=source_list,
+                    triggered_by=triggered_by,
+                    existing_run_id=run_id
+                )
+                # NOTE: When resource and use case discovery are implemented,
+                # they should be called here as well
+            except Exception as e:
+                logger.error(f"Background all-discovery failed: {e}")
+                try:
+                    run_record = background_db.query(DiscoveryRun).filter(
+                        DiscoveryRun.id == run_id
+                    ).first()
+                    if run_record:
+                        run_record.status = "failed"
+                        run_record.error_message = str(e)
+                        run_record.completed_at = datetime.now(timezone.utc)
+                        background_db.commit()
+                except Exception as update_error:
+                    logger.error(f"Failed to update run record: {update_error}")
+            finally:
+                background_db.close()
+
+        asyncio.create_task(run_all_background(run_id, source_list, triggered_by))
+
+        return {
+            "status": "started",
+            "run_id": run_id,
+            "message": "All content discovery started. Currently only tools discovery is implemented."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"All discovery failed to start: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/runs/{run_id}")
@@ -407,6 +661,11 @@ async def discovery_dashboard(
         desc(DiscoveryRun.started_at)
     ).limit(10).all()
 
+    # Check for currently running discovery
+    running_discovery = db.query(DiscoveryRun).filter(
+        DiscoveryRun.status == "running"
+    ).first()
+
     # Source breakdown
     source_breakdown = db.query(
         DiscoveredTool.source_type,
@@ -430,6 +689,7 @@ async def discovery_dashboard(
             "user": user,
             "stats": stats,
             "recent_runs": recent_runs,
+            "running_discovery": running_discovery,
             **admin_context,
             "active_admin_page": "discovery",
         }

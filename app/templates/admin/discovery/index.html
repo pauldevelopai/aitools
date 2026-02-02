@@ -9,7 +9,13 @@
                 <h1 class="text-2xl font-bold text-gray-900">Discovery</h1>
                 <p class="text-gray-600 mt-1">Automated discovery of AI tools, resources, and use cases</p>
             </div>
-            <form id="runDiscoveryForm" action="/admin/discovery/run" method="POST" class="flex gap-2">
+            <form id="runDiscoveryForm" action="/admin/discovery/run" method="POST" class="flex gap-2 items-center">
+                <select name="content_type" id="contentTypeSelect" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <option value="tools">Tools</option>
+                    <option value="resources">Resources</option>
+                    <option value="usecases">Use Cases</option>
+                    <option value="all">All Content Types</option>
+                </select>
                 <select name="sources" id="sourceSelect" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
                     <option value="">All Sources</option>
                     <option value="github">GitHub Only</option>
@@ -358,11 +364,36 @@
             }
         }
 
+        // Check for running discovery on page load (passed from backend)
+        {% if running_discovery %}
+        document.addEventListener('DOMContentLoaded', function() {
+            const runId = "{{ running_discovery.id }}";
+
+            // Show progress panel
+            showProgressPanel();
+            document.getElementById('statusMessage').textContent =
+                'Discovery is running. You can navigate away - it will continue.';
+            document.getElementById('progressTitle').textContent = 'Discovery In Progress';
+
+            // Disable the run button
+            const button = document.querySelector('#runDiscoveryForm button[type="submit"]');
+            button.textContent = 'Running...';
+            button.disabled = true;
+
+            // Start polling for updates
+            pollInterval = setInterval(() => pollStatus(runId), 2000);
+            // Do an immediate poll
+            pollStatus(runId);
+        });
+        {% endif %}
+
         // Handle form submission
         document.getElementById('runDiscoveryForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            if (!confirm('Run discovery now?')) {
+            const contentType = document.getElementById('contentTypeSelect').value;
+
+            if (!confirm(`Run ${contentType} discovery now?`)) {
                 return;
             }
 
@@ -374,10 +405,22 @@
 
             // Show progress panel immediately
             showProgressPanel();
-            document.getElementById('statusMessage').textContent = 'Starting discovery...';
+            document.getElementById('statusMessage').textContent = `Starting ${contentType} discovery...`;
+
+            // Determine the endpoint based on content type
+            let baseUrl;
+            if (contentType === 'resources') {
+                baseUrl = '/admin/discovery/run-resources';
+            } else if (contentType === 'usecases') {
+                baseUrl = '/admin/discovery/run-usecases';
+            } else if (contentType === 'all') {
+                baseUrl = '/admin/discovery/run-all';
+            } else {
+                baseUrl = '/admin/discovery/run';
+            }
 
             try {
-                const url = sources ? `/admin/discovery/run?sources=${sources}` : '/admin/discovery/run';
+                const url = sources ? `${baseUrl}?sources=${sources}` : baseUrl;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -391,7 +434,7 @@
                     // Update button text
                     button.textContent = 'Running...';
 
-                    // If we got a run_id, start polling (though the current implementation returns after completion)
+                    // Discovery now starts in the background and returns immediately with run_id
                     if (data.run_id) {
                         // Start polling for updates every 2 seconds
                         pollInterval = setInterval(() => pollStatus(data.run_id), 2000);
@@ -399,22 +442,31 @@
                         pollStatus(data.run_id);
                     }
 
-                    // Update with final data (since current implementation waits for completion)
-                    updateProgress(data);
-
-                    // If already completed, handle it
-                    if (data.status === 'success' || !data.run_id) {
+                    // Update status message based on response
+                    if (data.status === 'started') {
+                        document.getElementById('statusMessage').textContent =
+                            'Discovery running in background. You can navigate away - it will continue.';
+                    } else if (data.status === 'already_running') {
+                        document.getElementById('statusMessage').textContent =
+                            'Discovery already running. Showing progress...';
+                    } else if (data.status === 'completed') {
+                        // Immediate completion (e.g., resources/usecases placeholders)
                         document.getElementById('progressTitle').textContent = 'Discovery Completed';
                         document.getElementById('statusMessage').textContent =
-                            `Finished! Found ${data.tools_found} tools (${data.tools_new} new, ${data.tools_updated} updated)`;
+                            data.message || 'Discovery completed.';
                         document.getElementById('sourceProgressBar').style.width = '100%';
                         document.getElementById('toolProgressBar').style.width = '100%';
 
                         button.textContent = 'Run Discovery';
                         button.disabled = false;
 
+                        if (pollInterval) {
+                            clearInterval(pollInterval);
+                            pollInterval = null;
+                        }
                         if (elapsedInterval) {
                             clearInterval(elapsedInterval);
+                            elapsedInterval = null;
                         }
 
                         // Reload after delay

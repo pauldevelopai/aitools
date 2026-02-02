@@ -205,7 +205,8 @@ async def run_discovery_pipeline(
     sources: list[str] | None = None,
     dry_run: bool = False,
     triggered_by: str = "manual",
-    config: dict | None = None
+    config: dict | None = None,
+    existing_run_id: str | None = None
 ) -> DiscoveryRun:
     """
     Run the discovery pipeline across specified sources.
@@ -217,33 +218,40 @@ async def run_discovery_pipeline(
         dry_run: If True, don't save to database
         triggered_by: Who triggered this run ("manual", "cron", or user ID)
         config: Optional configuration overrides for sources
+        existing_run_id: If provided, use existing run record instead of creating new
 
     Returns:
         DiscoveryRun record with stats
     """
-    # Create run record with progress tracking
-    run_config_with_progress = (config or {}).copy()
-    run_config_with_progress["progress"] = {
-        "current_source": None,
-        "current_source_index": 0,
-        "total_sources": 0,
-        "sources_completed": 0,
-        "current_tool": None,
-        "tools_in_current_source": 0,
-        "tools_processed_in_source": 0,
-    }
+    # Use existing run or create new one
+    if existing_run_id and not dry_run:
+        run = db.query(DiscoveryRun).filter(DiscoveryRun.id == existing_run_id).first()
+        if not run:
+            raise ValueError(f"Run not found: {existing_run_id}")
+    else:
+        # Create run record with progress tracking
+        run_config_with_progress = (config or {}).copy()
+        run_config_with_progress["progress"] = {
+            "current_source": None,
+            "current_source_index": 0,
+            "total_sources": 0,
+            "sources_completed": 0,
+            "current_tool": None,
+            "tools_in_current_source": 0,
+            "tools_processed_in_source": 0,
+        }
 
-    run = DiscoveryRun(
-        status="running",
-        source_type=",".join(sources) if sources else None,
-        triggered_by=triggered_by,
-        run_config=run_config_with_progress
-    )
+        run = DiscoveryRun(
+            status="running",
+            source_type=",".join(sources) if sources else None,
+            triggered_by=triggered_by,
+            run_config=run_config_with_progress
+        )
 
-    if not dry_run:
-        db.add(run)
-        db.commit()
-        db.refresh(run)
+        if not dry_run:
+            db.add(run)
+            db.commit()
+            db.refresh(run)
 
     def update_progress(source_name=None, source_index=0, total_sources=0,
                         sources_completed=0, current_tool=None,
