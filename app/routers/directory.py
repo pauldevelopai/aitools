@@ -1218,6 +1218,122 @@ async def get_department_teams(
 # AI INSIGHTS
 # =============================================================================
 
+# =============================================================================
+# GROUNDED SYNC
+# =============================================================================
+
+@router.get("/sync", response_class=HTMLResponse)
+async def sync_page(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Page for syncing directory to GROUNDED."""
+    from app.grounded_adapter import is_grounded_initialized
+    from app.services.directory_sync import get_directory_sync_service
+
+    # Get stats
+    org_count = db.query(func.count(MediaOrganization.id)).scalar() or 0
+    journalist_count = db.query(func.count(Journalist.id)).scalar() or 0
+    engagement_count = db.query(func.count(Engagement.id)).scalar() or 0
+
+    # Get GROUNDED status
+    grounded_status = is_grounded_initialized()
+    kb_stats = {}
+    if grounded_status:
+        try:
+            sync_service = get_directory_sync_service()
+            kb_stats = sync_service.get_stats()
+        except Exception as e:
+            kb_stats = {"error": str(e)}
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/sync.html",
+        {
+            "request": request,
+            "user": user,
+            "stats": {
+                "organizations": org_count,
+                "journalists": journalist_count,
+                "engagements": engagement_count,
+            },
+            "grounded_initialized": grounded_status,
+            "kb_stats": kb_stats,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/sync/all")
+async def sync_all_to_grounded(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Sync all directory data to GROUNDED knowledge base."""
+    from app.services.directory_sync import get_directory_sync_service
+
+    sync_service = get_directory_sync_service()
+    results = sync_service.sync_all(db)
+
+    return results
+
+
+@router.post("/sync/organizations")
+async def sync_organizations_to_grounded(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Sync organizations to GROUNDED."""
+    from app.services.directory_sync import get_directory_sync_service
+
+    sync_service = get_directory_sync_service()
+    return sync_service.sync_organizations(db)
+
+
+@router.post("/sync/journalists")
+async def sync_journalists_to_grounded(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Sync journalists to GROUNDED."""
+    from app.services.directory_sync import get_directory_sync_service
+
+    sync_service = get_directory_sync_service()
+    return sync_service.sync_journalists(db)
+
+
+@router.post("/sync/engagements")
+async def sync_engagements_to_grounded(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Sync engagements to GROUNDED."""
+    from app.services.directory_sync import get_directory_sync_service
+
+    sync_service = get_directory_sync_service()
+    return sync_service.sync_engagements(db)
+
+
+@router.get("/sync/search")
+async def search_grounded_directory(
+    q: str = Query(...),
+    entity_type: Optional[str] = Query(None),
+    limit: int = Query(10),
+    user: User = Depends(require_admin),
+):
+    """Search the GROUNDED knowledge base."""
+    from app.services.directory_sync import get_directory_sync_service
+
+    sync_service = get_directory_sync_service()
+    return sync_service.search(q, limit=limit, entity_type=entity_type)
+
+
+# =============================================================================
+# AI INSIGHTS
+# =============================================================================
+
 @router.get("/insights", response_class=HTMLResponse)
 async def directory_insights(
     request: Request,
