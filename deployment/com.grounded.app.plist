@@ -9,7 +9,7 @@
     <!-- Program to run -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/venv/bin/uvicorn</string>
+        <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/grounded/venv/bin/uvicorn</string>
         <string>app.main:app</string>
         <string>--host</string>
         <string>127.0.0.1</string>
@@ -21,7 +21,7 @@
 
     <!-- Working directory -->
     <key>WorkingDirectory</key>
-    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools</string>
+    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/grounded</string>
 
     <!-- Run at load and keep alive -->
     <key>RunAtLoad</key>
@@ -36,18 +36,18 @@
 
     <!-- Standard output and error logs -->
     <key>StandardOutPath</key>
-    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/logs/grounded.log</string>
+    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/grounded/logs/grounded.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/logs/grounded.error.log</string>
+    <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/grounded/logs/grounded.error.log</string>
 
     <!-- Environment variables -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools/venv/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/grounded/venv/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>PYTHONPATH</key>
-        <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools</string>
+        <string>/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/grounded</string>
     </dict>
 
     <!-- User to run as -->
