@@ -1,0 +1,184 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ engagement.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+        <a href="/admin/directory/journalists/{{ engagement.journalist.id }}" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Back to {{ engagement.journalist.full_name }}</a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-start">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <span class="px-3 py-1 rounded-full text-sm font-medium
+                        {% if engagement.engagement_type == 'training' %}bg-blue-100 text-blue-800
+                        {% elif engagement.engagement_type == 'mentoring' %}bg-purple-100 text-purple-800
+                        {% elif engagement.engagement_type == 'workshop' %}bg-green-100 text-green-800
+                        {% elif engagement.engagement_type == 'presentation' %}bg-orange-100 text-orange-800
+                        {% elif engagement.engagement_type == 'consultation' %}bg-cyan-100 text-cyan-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">{{ engagement.engagement_type|title }}</span>
+                    <span class="text-gray-500">{{ engagement.date.strftime('%B %d, %Y') }}</span>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 mt-2">{{ engagement.title }}</h1>
+                <div class="text-gray-600 mt-1">
+                    <a href="/admin/directory/journalists/{{ engagement.journalist.id }}" class="hover:text-blue-600">{{ engagement.journalist.full_name }}</a>
+                    {% if engagement.journalist.organization %}
+                    - <a href="/admin/directory/organizations/{{ engagement.journalist.organization.id }}" class="hover:text-blue-600">{{ engagement.journalist.organization.name }}</a>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="/admin/directory/engagements/{{ engagement.id }}/edit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                Edit
+            </a>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- Description -->
+            {% if engagement.description %}
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Description</h2>
+                <p class="text-gray-600">{{ engagement.description }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Details Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {% if engagement.duration_minutes %}
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Duration</div>
+                    <div class="font-medium">{{ engagement.duration_minutes }} min</div>
+                </div>
+                {% endif %}
+                {% if engagement.location %}
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Location</div>
+                    <div class="font-medium">{{ engagement.location }}</div>
+                </div>
+                {% endif %}
+                {% if engagement.skill_before or engagement.skill_after %}
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Skill Progression</div>
+                    <div class="font-medium">
+                        {{ engagement.skill_before or '?' }}
+                        <span class="text-gray-400 mx-1">&rarr;</span>
+                        <span class="text-green-600">{{ engagement.skill_after or '?' }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if engagement.follow_up_date %}
+                <div class="bg-orange-50 rounded-lg p-4">
+                    <div class="text-sm text-orange-600">Follow-up Date</div>
+                    <div class="font-medium text-orange-800">{{ engagement.follow_up_date.strftime('%b %d, %Y') }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Topics -->
+            {% if engagement.topics_covered %}
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Topics Covered</h2>
+                <div class="flex flex-wrap gap-2">
+                    {% for topic in engagement.topics_covered %}
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{{ topic }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Materials -->
+            {% if engagement.materials_used %}
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Materials Used</h2>
+                <div class="flex flex-wrap gap-2">
+                    {% for material in engagement.materials_used %}
+                    <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{{ material }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Outcomes -->
+            {% if engagement.outcomes %}
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Outcomes</h2>
+                <p class="text-gray-600">{{ engagement.outcomes }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Follow-up -->
+            {% if engagement.follow_up_actions %}
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Follow-up Actions</h2>
+                <p class="text-gray-600">{{ engagement.follow_up_actions }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Notes -->
+            {% if engagement.notes %}
+            <div class="bg-yellow-50 rounded-lg p-4">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">Private Notes</h2>
+                <p class="text-gray-600">{{ engagement.notes }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Documents -->
+            <div class="border-t border-gray-200 pt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">Documents & Materials</h2>
+                </div>
+
+                {% if engagement.documents %}
+                <div class="space-y-2">
+                    {% for doc in engagement.documents %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <span class="px-2 py-1 text-xs rounded
+                                {% if doc.doc_type == 'presentation' %}bg-blue-100 text-blue-800
+                                {% elif doc.doc_type == 'handout' %}bg-green-100 text-green-800
+                                {% elif doc.doc_type == 'guide' %}bg-purple-100 text-purple-800
+                                {% elif doc.doc_type == 'recording' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-200 text-gray-800{% endif %}">{{ doc.doc_type|title }}</span>
+                            <div>
+                                <div class="font-medium text-gray-900">{{ doc.title }}</div>
+                                {% if doc.notes %}
+                                <div class="text-sm text-gray-500">{{ doc.notes }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            {% if doc.url %}
+                            <a href="{{ doc.url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">Open</a>
+                            {% endif %}
+                            <form method="POST" action="/admin/directory/documents/{{ doc.id }}/delete" onsubmit="return confirm('Delete this document?')">
+                                <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Add Document Form -->
+                <form method="POST" action="/admin/directory/engagements/{{ engagement.id }}/documents" class="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <div class="text-sm font-medium text-gray-700 mb-3">Add Document</div>
+                    <div class="grid grid-cols-4 gap-3">
+                        <input type="text" name="title" required placeholder="Document title" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                        <select name="doc_type" required class="border border-gray-300 rounded px-3 py-2 text-sm">
+                            <option value="">Type...</option>
+                            <option value="presentation">Presentation</option>
+                            <option value="handout">Handout</option>
+                            <option value="guide">Guide</option>
+                            <option value="recording">Recording</option>
+                            <option value="link">Link</option>
+                        </select>
+                        <input type="url" name="url" placeholder="URL (optional)" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                        <button type="submit" class="bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm font-medium">Add</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

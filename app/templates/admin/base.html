@@ -213,6 +213,17 @@
                           {% if active_admin_page == 'training' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Training
                 </a>
+                <a href="/admin/directory"
+                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
+                          {% if active_admin_page == 'directory' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                    Directory
+                </a>
+                <span class="border-l border-gray-300 mx-1"></span>
+                <a href="/admin/demo/documents"
+                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
+                          {% if active_admin_page == 'demo_documents' %}bg-purple-600 text-white{% else %}text-purple-600 hover:bg-purple-50{% endif %}">
+                    GROUNDED Demo
+                </a>
             </div>
         </div>
     </div>

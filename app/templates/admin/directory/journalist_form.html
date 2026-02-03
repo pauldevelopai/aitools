@@ -1,0 +1,228 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if journalist %}Edit {{ journalist.full_name }}{% else %}New Journalist{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="mb-6">
+        <a href="/admin/directory/journalists" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Back to Journalists</a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-xl font-bold text-gray-900">
+                {% if journalist %}Edit Journalist{% else %}New Journalist{% endif %}
+            </h1>
+        </div>
+
+        <form method="POST" action="{% if journalist %}/admin/directory/journalists/{{ journalist.id }}{% else %}/admin/directory/journalists{% endif %}" class="p-6 space-y-6">
+            <!-- Basic Info -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                        <input type="text" name="first_name" value="{{ journalist.first_name if journalist else '' }}" required
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                        <input type="text" name="last_name" value="{{ journalist.last_name if journalist else '' }}" required
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Contact Information</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="email" value="{{ journalist.email if journalist else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input type="text" name="phone" value="{{ journalist.phone if journalist else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organization -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Organization</h2>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+                        <select name="organization_id" id="org-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">Freelance</option>
+                            {% for org in organizations %}
+                            <option value="{{ org.id }}" {% if (journalist and journalist.organization_id == org.id) or (selected_org_id == org.id|string) %}selected{% endif %}>{{ org.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                        <select name="department_id" id="dept-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">None</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if journalist and journalist.department_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Team</label>
+                        <select name="team_id" id="team-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">None</option>
+                            {% for team in teams %}
+                            <option value="{{ team.id }}" {% if journalist and journalist.team_id == team.id %}selected{% endif %}>{{ team.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Role -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Role & Coverage</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Job Title/Role</label>
+                        <input type="text" name="role" value="{{ journalist.role if journalist else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., Senior Reporter, Editor">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Beat/Coverage Area</label>
+                        <input type="text" name="beat" value="{{ journalist.beat if journalist else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., Politics, Technology, Health">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Social & Web</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Twitter/X Handle</label>
+                        <div class="flex">
+                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">@</span>
+                            <input type="text" name="twitter" value="{{ journalist.twitter if journalist else '' }}"
+                                   class="flex-1 border border-gray-300 rounded-r-md px-3 py-2" placeholder="username">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">LinkedIn URL</label>
+                        <input type="url" name="linkedin" value="{{ journalist.linkedin if journalist else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="https://linkedin.com/in/...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Personal Website</label>
+                        <input type="url" name="website" value="{{ journalist.website if journalist else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="https://...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Photo URL</label>
+                        <input type="url" name="photo_url" value="{{ journalist.photo_url if journalist else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="https://...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Learning -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">AI Learning Status</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Current AI Skill Level</label>
+                        <select name="ai_skill_level" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="none" {% if not journalist or journalist.ai_skill_level == 'none' %}selected{% endif %}>None</option>
+                            <option value="beginner" {% if journalist and journalist.ai_skill_level == 'beginner' %}selected{% endif %}>Beginner</option>
+                            <option value="intermediate" {% if journalist and journalist.ai_skill_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                            <option value="advanced" {% if journalist and journalist.ai_skill_level == 'advanced' %}selected{% endif %}>Advanced</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Areas of Interest (JSON array)</label>
+                        <input type="text" name="areas_of_interest" value="{{ journalist.areas_of_interest|tojson if journalist and journalist.areas_of_interest else '[]' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder='["ChatGPT", "Image Generation", "Data Analysis"]'>
+                        <p class="text-xs text-gray-500 mt-1">Enter as JSON array, e.g., ["Topic 1", "Topic 2"]</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bio -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Biography</label>
+                <textarea name="bio" rows="4" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="Brief bio about this journalist...">{{ journalist.bio if journalist else '' }}</textarea>
+            </div>
+
+            {% if journalist %}
+            <div>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" name="is_active" value="true" {% if journalist.is_active %}checked{% endif %} class="rounded border-gray-300">
+                    <span class="text-sm text-gray-700">Active Contact</span>
+                </label>
+            </div>
+            {% endif %}
+
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <a href="/admin/directory/journalists{% if journalist %}/{{ journalist.id }}{% endif %}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+                    Cancel
+                </a>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                    {% if journalist %}Save Changes{% else %}Create Journalist{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Dynamic department/team loading
+document.getElementById('org-select').addEventListener('change', function() {
+    const orgId = this.value;
+    const deptSelect = document.getElementById('dept-select');
+    const teamSelect = document.getElementById('team-select');
+
+    // Clear current options
+    deptSelect.innerHTML = '<option value="">None</option>';
+    teamSelect.innerHTML = '<option value="">None</option>';
+
+    if (orgId) {
+        fetch(`/admin/directory/api/organizations/${orgId}/departments`)
+            .then(r => r.json())
+            .then(depts => {
+                depts.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = d.name;
+                    deptSelect.appendChild(opt);
+                });
+            });
+    }
+});
+
+document.getElementById('dept-select').addEventListener('change', function() {
+    const deptId = this.value;
+    const teamSelect = document.getElementById('team-select');
+
+    teamSelect.innerHTML = '<option value="">None</option>';
+
+    if (deptId) {
+        fetch(`/admin/directory/api/departments/${deptId}/teams`)
+            .then(r => r.json())
+            .then(teams => {
+                teams.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.textContent = t.name;
+                    teamSelect.appendChild(opt);
+                });
+            });
+    }
+});
+</script>
+{% endblock %}

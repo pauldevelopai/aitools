@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 
-from app.routers import health, admin, rag, auth_routes, toolkit, strategy, tools, clusters, sources, profile, feedback, reviews, discovery, playbook, recommendations, resources, usecases, foundations
+from app.routers import health, admin, rag, auth_routes, toolkit, strategy, tools, clusters, sources, profile, feedback, reviews, discovery, playbook, recommendations, resources, usecases, foundations, demo_documents, api_interface, directory
 from app.routers.recommendations import page_router as recommendations_pages
 from app.routers.discovery import approved_router as approved_tools_router
 from app.dependencies import get_current_user
@@ -15,6 +15,7 @@ from app.models.auth import User
 from app.settings import settings
 from app.startup import run_startup_validation
 from app.products.definitions import register_all_products
+from app.grounded_adapter import initialize_grounded, shutdown_grounded, get_grounded_health
 from app.products.guards import FeatureDisabledError, get_feature_disabled_context
 from app.templates_engine import templates
 from app.middleware import (
@@ -47,6 +48,12 @@ async def lifespan(app: FastAPI):
         register_all_products()
         logger.info("Products and editions registered successfully")
 
+        # Initialize GROUNDED infrastructure layer
+        if initialize_grounded():
+            logger.info("GROUNDED infrastructure initialized")
+        else:
+            logger.warning("GROUNDED initialization failed, continuing with degraded functionality")
+
     except Exception as e:
         logger.error(f"Startup validation failed: {e}")
         logger.error("Application will not start")
@@ -54,12 +61,14 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Shutdown GROUNDED infrastructure
+    shutdown_grounded()
     logger.info("Shutting down application")
 
 
 app = FastAPI(
-    title="AI Toolkit",
-    description="AI Toolkit - AI Learning Platform",
+    title="Grounded",
+    description="Grounded - AI Learning Platform",
     version="0.1.0",
     lifespan=lifespan
 )
@@ -106,6 +115,7 @@ async def feature_disabled_handler(request: Request, exc: FeatureDisabledError):
 # Include routers
 app.include_router(health.router)
 app.include_router(admin.router)
+app.include_router(demo_documents.router)  # GROUNDED Document Intelligence demo
 app.include_router(rag.router)
 app.include_router(auth_routes.router)
 app.include_router(toolkit.router)
@@ -124,6 +134,8 @@ app.include_router(recommendations_pages)  # For You page at /for-you
 app.include_router(resources.router)  # Public resources at /resources
 app.include_router(usecases.router)  # Public use cases at /use-cases
 app.include_router(foundations.router)  # Foundational content at /foundations
+app.include_router(api_interface.router)  # GROUNDED Interface API for civic tools
+app.include_router(directory.router)  # Journalist & Media Organization Directory
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -161,7 +173,7 @@ async def home(
         {
             "request": request,
             "user": user,
-            "title": "AI Toolkit",
+            "title": "Grounded",
             "clusters": enriched_clusters,
             "stats": stats,
         }

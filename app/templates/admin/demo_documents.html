@@ -1,0 +1,487 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Document Intelligence Demo{% endblock %}
+
+{% block extra_head %}
+<style>
+    .chunk-card {
+        transition: all 0.2s ease;
+    }
+    .chunk-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .embedding-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .loading-spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3B82F6;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .result-highlight {
+        background-color: #FEF3C7;
+        padding: 0 2px;
+        border-radius: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Document Intelligence Demo</h1>
+            <p class="text-sm text-gray-600 mt-1">
+                GROUNDED infrastructure capability - Process documents, generate embeddings, and test semantic search
+            </p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                GROUNDED v0.1.0
+            </span>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex space-x-8">
+                <div>
+                    <span class="text-sm text-gray-500">Documents</span>
+                    <p class="text-xl font-semibold" id="stat-docs">{{ stats.storage.document_count if stats else 0 }}</p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-500">Chunks</span>
+                    <p class="text-xl font-semibold" id="stat-chunks">{{ stats.storage.chunk_count if stats else 0 }}</p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-500">Embedding Provider</span>
+                    <p class="text-xl font-semibold">{{ stats.embedding_provider if stats else 'local_stub' }}</p>
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <a href="/admin/demo/governance"
+                   class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition">
+                    View Audit Trail
+                </a>
+                <button onclick="loadSampleDocuments()"
+                        class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition">
+                    Load Sample Docs
+                </button>
+                <button onclick="clearStorage()"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 transition">
+                    Clear Storage
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- Left Column: Process Documents -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Process Document</h2>
+                </div>
+                <div class="p-6">
+                    <form id="process-form" class="space-y-4">
+                        <!-- Document Title -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Title (optional)</label>
+                            <input type="text" name="title" id="doc-title"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Document title">
+                        </div>
+
+                        <!-- Document Content -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Content</label>
+                            <textarea name="content" id="doc-content" rows="8"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                                      placeholder="Paste or type your document content here..."></textarea>
+                        </div>
+
+                        <!-- Options Row -->
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select name="doc_type" id="doc-type"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="text">Plain Text</option>
+                                    <option value="markdown">Markdown</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Chunking</label>
+                                <select name="chunking_strategy" id="chunking-strategy"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="sentence">Sentence</option>
+                                    <option value="paragraph">Paragraph</option>
+                                    <option value="fixed_size">Fixed Size</option>
+                                    <option value="semantic">Semantic</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Chunk Size</label>
+                                <input type="number" name="chunk_size" id="chunk-size" value="500"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="process-btn"
+                                class="w-full px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition flex items-center justify-center">
+                            <span>Process Document</span>
+                            <div class="loading-spinner ml-2 hidden" id="process-spinner"></div>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Processing Results -->
+            <div class="bg-white rounded-lg shadow" id="results-section" style="display: none;">
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Processing Results</h2>
+                    <span class="text-sm text-gray-500" id="result-time"></span>
+                </div>
+                <div class="p-6">
+                    <!-- Result Summary -->
+                    <div class="grid grid-cols-4 gap-4 mb-6">
+                        <div class="text-center p-3 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-blue-600" id="result-chunks">0</p>
+                            <p class="text-xs text-gray-500">Chunks</p>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-green-600" id="result-embeddings">0</p>
+                            <p class="text-xs text-gray-500">Embeddings</p>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-purple-600" id="result-words">0</p>
+                            <p class="text-xs text-gray-500">Words</p>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-orange-600" id="result-chars">0</p>
+                            <p class="text-xs text-gray-500">Chars</p>
+                        </div>
+                    </div>
+
+                    <!-- Chunks List -->
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Chunks</h3>
+                        <div class="space-y-3" id="chunks-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Search -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Semantic Search</h2>
+                </div>
+                <div class="p-6">
+                    <form id="search-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Search Query</label>
+                            <input type="text" name="query" id="search-query"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Enter search query...">
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Limit</label>
+                                <input type="number" name="limit" id="search-limit" value="5"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="flex items-center pt-6">
+                                <input type="checkbox" name="use_embeddings" id="use-embeddings" checked
+                                       class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <label for="use-embeddings" class="ml-2 text-sm text-gray-700">Use Embeddings</label>
+                            </div>
+                        </div>
+                        <button type="submit" id="search-btn"
+                                class="w-full px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition flex items-center justify-center">
+                            <span>Search</span>
+                            <div class="loading-spinner ml-2 hidden" id="search-spinner"></div>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div class="bg-white rounded-lg shadow" id="search-results-section" style="display: none;">
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Search Results</h2>
+                    <span class="text-sm text-gray-500" id="search-result-info"></span>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4" id="search-results-list"></div>
+                </div>
+            </div>
+
+            <!-- How It Works -->
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">How It Works</h3>
+                <div class="space-y-3 text-sm text-gray-700">
+                    <div class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">1</span>
+                        <p><strong>Extract:</strong> Text is extracted from documents (plain text, markdown, etc.)</p>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">2</span>
+                        <p><strong>Chunk:</strong> Content is split into semantic chunks using the selected strategy</p>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">3</span>
+                        <p><strong>Embed:</strong> Each chunk gets a 1536-dimensional embedding vector</p>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">4</span>
+                        <p><strong>Search:</strong> Queries are matched using text + vector similarity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Process Document Form
+    document.getElementById('process-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const content = document.getElementById('doc-content').value.trim();
+        if (!content) {
+            alert('Please enter document content');
+            return;
+        }
+
+        const btn = document.getElementById('process-btn');
+        const spinner = document.getElementById('process-spinner');
+        btn.disabled = true;
+        spinner.classList.remove('hidden');
+
+        try {
+            const formData = new FormData();
+            formData.append('content', content);
+            formData.append('title', document.getElementById('doc-title').value);
+            formData.append('doc_type', document.getElementById('doc-type').value);
+            formData.append('chunking_strategy', document.getElementById('chunking-strategy').value);
+            formData.append('chunk_size', document.getElementById('chunk-size').value);
+
+            const response = await fetch('/admin/demo/documents/process', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                displayResults(data);
+                refreshStats();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error processing document: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('hidden');
+        }
+    });
+
+    // Search Form
+    document.getElementById('search-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const query = document.getElementById('search-query').value.trim();
+        if (!query) {
+            alert('Please enter a search query');
+            return;
+        }
+
+        const btn = document.getElementById('search-btn');
+        const spinner = document.getElementById('search-spinner');
+        btn.disabled = true;
+        spinner.classList.remove('hidden');
+
+        try {
+            const formData = new FormData();
+            formData.append('query', query);
+            formData.append('limit', document.getElementById('search-limit').value);
+            formData.append('use_embeddings', document.getElementById('use-embeddings').checked);
+
+            const response = await fetch('/admin/demo/documents/search', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                displaySearchResults(data);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error searching: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('hidden');
+        }
+    });
+
+    function displayResults(data) {
+        const section = document.getElementById('results-section');
+        section.style.display = 'block';
+
+        document.getElementById('result-time').textContent = `${data.processing_time_ms}ms`;
+        document.getElementById('result-chunks').textContent = data.chunk_count;
+        document.getElementById('result-embeddings').textContent = data.has_embeddings ? data.chunk_count : 0;
+        document.getElementById('result-words').textContent = data.original.word_count;
+        document.getElementById('result-chars').textContent = data.original.char_count;
+
+        const chunksList = document.getElementById('chunks-list');
+        chunksList.innerHTML = '';
+
+        data.chunks.forEach((chunk, i) => {
+            const card = document.createElement('div');
+            card.className = 'chunk-card bg-gray-50 rounded-lg p-4 border border-gray-200';
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-gray-500">Chunk ${chunk.index + 1}</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-gray-400">${chunk.word_count} words</span>
+                        ${chunk.has_embedding ?
+                            '<span class="embedding-dot bg-green-500" title="Has embedding"></span>' :
+                            '<span class="embedding-dot bg-gray-300" title="No embedding"></span>'}
+                    </div>
+                </div>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(chunk.content)}</p>
+                ${chunk.embedding_preview ? `
+                    <div class="mt-2 text-xs text-gray-400 font-mono">
+                        Embedding: [${chunk.embedding_preview.map(v => v.toFixed(4)).join(', ')}...]
+                    </div>
+                ` : ''}
+            `;
+            chunksList.appendChild(card);
+        });
+    }
+
+    function displaySearchResults(data) {
+        const section = document.getElementById('search-results-section');
+        section.style.display = 'block';
+
+        document.getElementById('search-result-info').textContent =
+            `${data.returned_results} of ${data.total_results} results (${data.query_time_ms}ms)`;
+
+        const resultsList = document.getElementById('search-results-list');
+        resultsList.innerHTML = '';
+
+        if (data.results.length === 0) {
+            resultsList.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No results found</p>';
+            return;
+        }
+
+        data.results.forEach((result, i) => {
+            const card = document.createElement('div');
+            card.className = 'bg-gray-50 rounded-lg p-4 border border-gray-200';
+
+            const scoreColor = result.score > 0.7 ? 'text-green-600' :
+                              result.score > 0.4 ? 'text-yellow-600' : 'text-gray-600';
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium ${scoreColor}">Score: ${result.score.toFixed(4)}</span>
+                    <span class="text-xs text-gray-400">Chunk ${result.chunk_index + 1}</span>
+                </div>
+                <p class="text-sm text-gray-700">${escapeHtml(result.content)}</p>
+                ${result.highlights.length > 0 ? `
+                    <div class="mt-2 text-xs text-gray-500">
+                        <span class="font-medium">Highlights:</span>
+                        ${result.highlights.map(h => `<span class="result-highlight">${escapeHtml(h)}</span>`).join(' ')}
+                    </div>
+                ` : ''}
+            `;
+            resultsList.appendChild(card);
+        });
+    }
+
+    async function loadSampleDocuments() {
+        try {
+            const response = await fetch('/admin/demo/documents/load-sample', {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`Loaded ${data.documents_loaded} sample documents with ${data.total_chunks} chunks`);
+                refreshStats();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error loading samples: ' + error.message);
+        }
+    }
+
+    async function clearStorage() {
+        if (!confirm('Clear all processed documents?')) return;
+
+        try {
+            const response = await fetch('/admin/demo/documents/clear', {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Storage cleared');
+                refreshStats();
+                document.getElementById('results-section').style.display = 'none';
+                document.getElementById('search-results-section').style.display = 'none';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error clearing storage: ' + error.message);
+        }
+    }
+
+    async function refreshStats() {
+        try {
+            const response = await fetch('/admin/demo/documents/stats');
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('stat-docs').textContent = data.stats.storage?.document_count || 0;
+                document.getElementById('stat-chunks').textContent = data.stats.storage?.chunk_count || 0;
+            }
+        } catch (error) {
+            console.error('Error refreshing stats:', error);
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{% endblock %}

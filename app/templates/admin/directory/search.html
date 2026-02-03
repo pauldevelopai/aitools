@@ -1,0 +1,147 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Search Directory{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Search Directory</h1>
+        <p class="text-gray-600">Search across organizations, journalists, and engagements</p>
+    </div>
+
+    <!-- Search Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <form method="GET" class="flex gap-4">
+            <input type="text" name="q" value="{{ query or '' }}" placeholder="Search by name, email, title, description..."
+                   class="flex-1 border border-gray-300 rounded-md px-4 py-3 text-lg" autofocus>
+            <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium">
+                Search
+            </button>
+        </form>
+    </div>
+
+    {% if query %}
+    <!-- Results -->
+    <div class="space-y-6">
+        <!-- Organizations -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Organizations</h2>
+                <span class="text-sm text-gray-500">{{ results.organizations|length }} found</span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for org in results.organizations %}
+                <a href="/admin/directory/organizations/{{ org.id }}" class="block px-6 py-4 hover:bg-gray-50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            {% if org.logo_url %}
+                            <img src="{{ org.logo_url }}" alt="" class="w-10 h-10 rounded object-cover">
+                            {% else %}
+                            <div class="w-10 h-10 rounded bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                                {{ org.name[:2]|upper }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <div class="font-medium text-gray-900">{{ org.name }}</div>
+                                <div class="text-sm text-gray-500">{{ org.org_type|title }}{% if org.country %} - {{ org.country }}{% endif %}</div>
+                            </div>
+                        </div>
+                        <span class="text-blue-600 text-sm">View &rarr;</span>
+                    </div>
+                </a>
+                {% else %}
+                <div class="px-6 py-4 text-gray-500">No organizations found</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Journalists -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Journalists</h2>
+                <span class="text-sm text-gray-500">{{ results.journalists|length }} found</span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for journalist in results.journalists %}
+                <a href="/admin/directory/journalists/{{ journalist.id }}" class="block px-6 py-4 hover:bg-gray-50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            {% if journalist.photo_url %}
+                            <img src="{{ journalist.photo_url }}" alt="" class="w-10 h-10 rounded-full object-cover">
+                            {% else %}
+                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                                {{ journalist.first_name[0]|upper }}{{ journalist.last_name[0]|upper }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <div class="font-medium text-gray-900">{{ journalist.full_name }}</div>
+                                <div class="text-sm text-gray-500">
+                                    {% if journalist.organization %}{{ journalist.organization.name }}{% else %}Freelance{% endif %}
+                                    {% if journalist.role %} - {{ journalist.role }}{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            {% if journalist.ai_skill_level == 'advanced' %}
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Advanced</span>
+                            {% elif journalist.ai_skill_level == 'intermediate' %}
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Intermediate</span>
+                            {% elif journalist.ai_skill_level == 'beginner' %}
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Beginner</span>
+                            {% endif %}
+                            <span class="text-blue-600 text-sm">View &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                {% else %}
+                <div class="px-6 py-4 text-gray-500">No journalists found</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Engagements -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Engagements</h2>
+                <span class="text-sm text-gray-500">{{ results.engagements|length }} found</span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for engagement in results.engagements %}
+                <a href="/admin/directory/engagements/{{ engagement.id }}" class="block px-6 py-4 hover:bg-gray-50">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900">{{ engagement.title }}</div>
+                            <div class="text-sm text-gray-500">
+                                {{ engagement.journalist.full_name }} - {{ engagement.date.strftime('%b %d, %Y') }}
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="px-2 py-1 rounded text-xs
+                                {% if engagement.engagement_type == 'training' %}bg-blue-100 text-blue-800
+                                {% elif engagement.engagement_type == 'mentoring' %}bg-purple-100 text-purple-800
+                                {% elif engagement.engagement_type == 'workshop' %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">{{ engagement.engagement_type|title }}</span>
+                            <span class="text-blue-600 text-sm">View &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                {% else %}
+                <div class="px-6 py-4 text-gray-500">No engagements found</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Query Yet -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <div class="text-gray-400 mb-4">
+            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+        </div>
+        <p class="text-gray-600">Enter a search term to find organizations, journalists, or engagements</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,295 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Directory AI Insights{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">AI Insights</h1>
+            <p class="text-gray-600">Ask questions about your directory and discover patterns</p>
+        </div>
+        <a href="/admin/directory" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+            &larr; Back to Directory
+        </a>
+    </div>
+
+    <!-- Ask AI Section -->
+    <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg shadow-sm border border-amber-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+            </svg>
+            Ask AI About Your Directory
+        </h2>
+        <form id="insights-form" class="space-y-4">
+            <div>
+                <textarea id="question-input" name="question" rows="3"
+                    class="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="Ask anything about your journalists, organizations, or training progress...
+
+Examples:
+- Which journalists are ready for advanced training?
+- What organizations have the most engagement?
+- Who should I follow up with this month?
+- What patterns do you see in skill progression?"></textarea>
+            </div>
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    Powered by AI - analyzes your directory data in real-time
+                </div>
+                <button type="submit" id="ask-btn" class="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Get Insights
+                </button>
+            </div>
+        </form>
+
+        <!-- Response Area -->
+        <div id="response-area" class="hidden mt-6">
+            <div class="bg-white rounded-lg p-6 border border-gray-200">
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <div id="response-content" class="prose prose-sm max-w-none text-gray-700"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading-area" class="hidden mt-6">
+            <div class="bg-white rounded-lg p-6 border border-gray-200 text-center">
+                <div class="animate-pulse flex items-center justify-center space-x-2">
+                    <div class="w-3 h-3 bg-amber-500 rounded-full animate-bounce"></div>
+                    <div class="w-3 h-3 bg-amber-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                    <div class="w-3 h-3 bg-amber-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                </div>
+                <p class="text-gray-500 mt-3">Analyzing your directory data...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Insights -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Stats Overview -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Directory Overview</h2>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <div class="text-2xl font-bold text-blue-600">{{ stats.organizations }}</div>
+                    <div class="text-sm text-gray-500">Organizations</div>
+                </div>
+                <div class="text-center p-4 bg-emerald-50 rounded-lg">
+                    <div class="text-2xl font-bold text-emerald-600">{{ stats.journalists }}</div>
+                    <div class="text-sm text-gray-500">Journalists</div>
+                </div>
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-2xl font-bold text-purple-600">{{ stats.engagements }}</div>
+                    <div class="text-sm text-gray-500">Engagements</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skill Distribution -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">AI Skill Distribution</h2>
+            <div class="space-y-3">
+                {% set total = skill_stats.values()|sum or 1 %}
+                <div class="flex items-center">
+                    <span class="w-24 text-sm text-gray-600">None</span>
+                    <div class="flex-1 bg-gray-100 rounded-full h-4 mx-3">
+                        <div class="bg-gray-400 h-4 rounded-full" style="width: {{ (skill_stats.get('none', 0) / total * 100)|int }}%"></div>
+                    </div>
+                    <span class="w-8 text-sm font-medium text-gray-600">{{ skill_stats.get('none', 0) }}</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-24 text-sm text-gray-600">Beginner</span>
+                    <div class="flex-1 bg-gray-100 rounded-full h-4 mx-3">
+                        <div class="bg-yellow-400 h-4 rounded-full" style="width: {{ (skill_stats.get('beginner', 0) / total * 100)|int }}%"></div>
+                    </div>
+                    <span class="w-8 text-sm font-medium text-gray-600">{{ skill_stats.get('beginner', 0) }}</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-24 text-sm text-gray-600">Intermediate</span>
+                    <div class="flex-1 bg-gray-100 rounded-full h-4 mx-3">
+                        <div class="bg-blue-500 h-4 rounded-full" style="width: {{ (skill_stats.get('intermediate', 0) / total * 100)|int }}%"></div>
+                    </div>
+                    <span class="w-8 text-sm font-medium text-gray-600">{{ skill_stats.get('intermediate', 0) }}</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-24 text-sm text-gray-600">Advanced</span>
+                    <div class="flex-1 bg-gray-100 rounded-full h-4 mx-3">
+                        <div class="bg-green-500 h-4 rounded-full" style="width: {{ (skill_stats.get('advanced', 0) / total * 100)|int }}%"></div>
+                    </div>
+                    <span class="w-8 text-sm font-medium text-gray-600">{{ skill_stats.get('advanced', 0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Engagement Types -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Engagement Types</h2>
+            {% if engagement_types %}
+            <div class="space-y-2">
+                {% for type, count in engagement_types %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span class="font-medium text-gray-700 capitalize">{{ type }}</span>
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-center py-4">No engagements recorded yet</p>
+            {% endif %}
+        </div>
+
+        <!-- Top Organizations -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Top Organizations</h2>
+            {% if top_orgs %}
+            <div class="space-y-2">
+                {% for name, count in top_orgs[:7] %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span class="font-medium text-gray-700">{{ name }}</span>
+                    <span class="text-sm text-gray-500">{{ count }} journalist{% if count != 1 %}s{% endif %}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-center py-4">No organizations yet</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Skill Progressions -->
+    {% if recent_progressions %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Recent Skill Progressions</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Date</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Journalist</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Engagement</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Progression</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for e in recent_progressions %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-3 px-4 text-sm text-gray-600">{{ e.date.strftime('%b %d, %Y') }}</td>
+                        <td class="py-3 px-4">
+                            <a href="/admin/directory/journalists/{{ e.journalist_id }}" class="text-blue-600 hover:underline">{{ e.journalist.full_name }}</a>
+                        </td>
+                        <td class="py-3 px-4 text-sm text-gray-600">{{ e.title }}</td>
+                        <td class="py-3 px-4">
+                            <span class="text-gray-500">{{ e.skill_before }}</span>
+                            <span class="mx-2 text-gray-400">&rarr;</span>
+                            <span class="font-medium text-green-600">{{ e.skill_after }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Suggested Questions -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Try Asking</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button onclick="askQuestion('Which journalists should be prioritized for follow-up training?')" class="p-3 text-left bg-gray-50 rounded-lg hover:bg-amber-50 hover:border-amber-200 border border-transparent transition text-sm text-gray-700">
+                Which journalists should be prioritized for follow-up training?
+            </button>
+            <button onclick="askQuestion('What patterns do you see in our engagement history?')" class="p-3 text-left bg-gray-50 rounded-lg hover:bg-amber-50 hover:border-amber-200 border border-transparent transition text-sm text-gray-700">
+                What patterns do you see in our engagement history?
+            </button>
+            <button onclick="askQuestion('Which organizations have the most engaged journalists?')" class="p-3 text-left bg-gray-50 rounded-lg hover:bg-amber-50 hover:border-amber-200 border border-transparent transition text-sm text-gray-700">
+                Which organizations have the most engaged journalists?
+            </button>
+            <button onclick="askQuestion('Who are the journalists with the highest skill progression?')" class="p-3 text-left bg-gray-50 rounded-lg hover:bg-amber-50 hover:border-amber-200 border border-transparent transition text-sm text-gray-700">
+                Who are the journalists with the highest skill progression?
+            </button>
+            <button onclick="askQuestion('What topics have been most popular in training sessions?')" class="p-3 text-left bg-gray-50 rounded-lg hover:bg-amber-50 hover:border-amber-200 border border-transparent transition text-sm text-gray-700">
+                What topics have been most popular in training sessions?
+            </button>
+            <button onclick="askQuestion('Suggest a strategy for expanding our AI training program')" class="p-3 text-left bg-gray-50 rounded-lg hover:bg-amber-50 hover:border-amber-200 border border-transparent transition text-sm text-gray-700">
+                Suggest a strategy for expanding our AI training program
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function askQuestion(q) {
+    document.getElementById('question-input').value = q;
+    document.getElementById('insights-form').dispatchEvent(new Event('submit'));
+}
+
+document.getElementById('insights-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const question = document.getElementById('question-input').value.trim();
+    if (!question) return;
+
+    const responseArea = document.getElementById('response-area');
+    const loadingArea = document.getElementById('loading-area');
+    const responseContent = document.getElementById('response-content');
+    const askBtn = document.getElementById('ask-btn');
+
+    // Show loading
+    responseArea.classList.add('hidden');
+    loadingArea.classList.remove('hidden');
+    askBtn.disabled = true;
+    askBtn.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing...';
+
+    try {
+        const formData = new FormData();
+        formData.append('question', question);
+
+        const response = await fetch('/admin/directory/insights/query', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        // Format the response with markdown-like styling
+        let formatted = data.answer
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n\n/g, '</p><p class="mt-3">')
+            .replace(/\n- /g, '</p><li class="ml-4">')
+            .replace(/\n(\d+)\. /g, '</p><li class="ml-4">')
+            .replace(/^- /gm, '<li class="ml-4">')
+            .replace(/^(\d+)\. /gm, '<li class="ml-4">');
+
+        responseContent.innerHTML = '<p>' + formatted + '</p>';
+
+        // Show response
+        loadingArea.classList.add('hidden');
+        responseArea.classList.remove('hidden');
+
+    } catch (error) {
+        responseContent.innerHTML = '<p class="text-red-600">Error: ' + error.message + '</p>';
+        loadingArea.classList.add('hidden');
+        responseArea.classList.remove('hidden');
+    }
+
+    // Reset button
+    askBtn.disabled = false;
+    askBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Get Insights';
+});
+</script>
+{% endblock %}

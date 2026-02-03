@@ -26,10 +26,10 @@ from app.products.registry import ProductRegistry, EditionRegistry
 
 AITOOLKIT_PRODUCT = Product(
     id="aitoolkit",
-    name="AI Toolkit",
+    name="Grounded",
     description="",
     branding=Branding(
-        logo_text="AI Toolkit",
+        logo_text="Grounded",
         logo_path=None,  # Uses text-based logo
         primary_color="#3B82F6",    # Blue
         secondary_color="#1E40AF",  # Dark blue

@@ -1,0 +1,362 @@
+{% extends "admin/base.html" %}
+
+{% block title %}AI Governance Audit Trail{% endblock %}
+
+{% block extra_head %}
+<style>
+    .stat-card {
+        transition: all 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .record-row {
+        transition: background-color 0.15s ease;
+    }
+    .record-row:hover {
+        background-color: #F3F4F6;
+    }
+    .status-badge {
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    .status-completed { background-color: #D1FAE5; color: #065F46; }
+    .status-failed { background-color: #FEE2E2; color: #991B1B; }
+    .status-in_progress { background-color: #FEF3C7; color: #92400E; }
+    .status-pending { background-color: #E5E7EB; color: #374151; }
+    .op-type-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .op-embedding { background-color: #DBEAFE; color: #1E40AF; }
+    .op-embedding_batch { background-color: #C7D2FE; color: #3730A3; }
+    .op-document_processing { background-color: #E0E7FF; color: #3730A3; }
+    .op-completion { background-color: #FCE7F3; color: #9D174D; }
+    .op-semantic_search { background-color: #CCFBF1; color: #115E59; }
+    .op-default { background-color: #F3F4F6; color: #374151; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">AI Governance Audit Trail</h1>
+            <p class="text-sm text-gray-600 mt-1">
+                Track all AI operations across GROUNDED infrastructure for transparency and accountability
+            </p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="/admin/demo/documents"
+               class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                &larr; Back to Document Demo
+            </a>
+            <button onclick="refreshData()"
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div class="stat-card bg-white rounded-lg shadow p-4">
+            <p class="text-sm text-gray-500">Total Operations</p>
+            <p class="text-2xl font-bold text-gray-900" id="stat-total">{{ stats.total_operations }}</p>
+        </div>
+        <div class="stat-card bg-white rounded-lg shadow p-4">
+            <p class="text-sm text-gray-500">Successful</p>
+            <p class="text-2xl font-bold text-green-600" id="stat-success">{{ stats.successful_operations }}</p>
+        </div>
+        <div class="stat-card bg-white rounded-lg shadow p-4">
+            <p class="text-sm text-gray-500">Failed</p>
+            <p class="text-2xl font-bold text-red-600" id="stat-failed">{{ stats.failed_operations }}</p>
+        </div>
+        <div class="stat-card bg-white rounded-lg shadow p-4">
+            <p class="text-sm text-gray-500">Success Rate</p>
+            <p class="text-2xl font-bold text-blue-600" id="stat-rate">{{ "%.1f"|format(stats.success_rate) }}%</p>
+        </div>
+        <div class="stat-card bg-white rounded-lg shadow p-4">
+            <p class="text-sm text-gray-500">Avg Duration</p>
+            <p class="text-2xl font-bold text-purple-600" id="stat-duration">{{ "%.1f"|format(stats.avg_duration_ms) }}ms</p>
+        </div>
+        <div class="stat-card bg-white rounded-lg shadow p-4">
+            <p class="text-sm text-gray-500">Total Tokens</p>
+            <p class="text-2xl font-bold text-orange-600" id="stat-tokens">{{ stats.total_tokens }}</p>
+        </div>
+    </div>
+
+    <!-- Operations by Type & Provider -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- By Type -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Operations by Type</h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3" id="ops-by-type">
+                    {% for op_type, count in stats.operations_by_type.items() %}
+                    <div class="flex items-center justify-between">
+                        <span class="op-type-badge op-{{ op_type|replace('_', '-') }} op-default">{{ op_type }}</span>
+                        <span class="text-sm font-medium text-gray-900">{{ count }}</span>
+                    </div>
+                    {% else %}
+                    <p class="text-sm text-gray-500 text-center py-4">No operations recorded yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- By Provider -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Operations by Provider</h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3" id="ops-by-provider">
+                    {% for provider, count in stats.operations_by_provider.items() %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700">{{ provider }}</span>
+                        <span class="text-sm font-medium text-gray-900">{{ count }}</span>
+                    </div>
+                    {% else %}
+                    <p class="text-sm text-gray-500 text-center py-4">No providers used yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Operations -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900">Recent Operations</h2>
+            <div class="flex items-center space-x-4">
+                <select id="filter-type" onchange="filterRecords()"
+                        class="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Types</option>
+                    <option value="embedding">Embedding</option>
+                    <option value="embedding_batch">Embedding Batch</option>
+                    <option value="document_processing">Document Processing</option>
+                    <option value="semantic_search">Semantic Search</option>
+                </select>
+                <select id="filter-status" onchange="filterRecords()"
+                        class="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="in_progress">In Progress</option>
+                </select>
+                <button onclick="clearRecords()"
+                        class="px-3 py-1 text-sm text-red-600 hover:text-red-800">
+                    Clear All
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Input</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Output</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="records-table">
+                    {% for record in recent_records %}
+                    <tr class="record-row">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ record.started_at.strftime('%H:%M:%S') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="op-type-badge op-{{ record.operation_type.value|replace('_', '-') }} op-default">
+                                {{ record.operation_type.value }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {{ record.context.provider_name or '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {{ record.context.source_component or record.context.source_module or '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="status-badge status-{{ record.status.value }}">
+                                {{ record.status.value }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {{ "%.1f"|format(record.duration_ms) }}ms
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ record.context.input_size }} {{ record.context.input_data_type.value }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ record.output_size }} {{ record.output_data_type.value }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                            No operations recorded yet. Process some documents to see the audit trail.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">About AI Governance</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
+            <div>
+                <h4 class="font-medium text-gray-900 mb-2">What is tracked?</h4>
+                <ul class="space-y-1 list-disc list-inside">
+                    <li>All embedding operations (single and batch)</li>
+                    <li>Document processing (extraction, chunking)</li>
+                    <li>Semantic search queries</li>
+                    <li>Text completions (when implemented)</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium text-gray-900 mb-2">What data is captured?</h4>
+                <ul class="space-y-1 list-disc list-inside">
+                    <li>Operation type and timestamp</li>
+                    <li>Source component and module</li>
+                    <li>Provider and model used</li>
+                    <li>Input/output sizes and types</li>
+                    <li>Duration and success status</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function refreshData() {
+        try {
+            const response = await fetch('/admin/demo/governance/stats');
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('stat-total').textContent = data.stats.total_operations;
+                document.getElementById('stat-success').textContent = data.stats.successful_operations;
+                document.getElementById('stat-failed').textContent = data.stats.failed_operations;
+                document.getElementById('stat-rate').textContent = data.stats.success_rate.toFixed(1) + '%';
+                document.getElementById('stat-duration').textContent = data.stats.avg_duration_ms.toFixed(1) + 'ms';
+                document.getElementById('stat-tokens').textContent = data.stats.total_tokens;
+            }
+
+            // Also refresh records
+            await filterRecords();
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+        }
+    }
+
+    async function filterRecords() {
+        const typeFilter = document.getElementById('filter-type').value;
+        const statusFilter = document.getElementById('filter-status').value;
+
+        try {
+            let url = '/admin/demo/governance/records?limit=50';
+            if (typeFilter) url += `&operation_type=${typeFilter}`;
+            if (statusFilter) url += `&status=${statusFilter}`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.success) {
+                updateRecordsTable(data.records);
+            }
+        } catch (error) {
+            console.error('Error filtering records:', error);
+        }
+    }
+
+    function updateRecordsTable(records) {
+        const tbody = document.getElementById('records-table');
+
+        if (records.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                        No operations match the current filters.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = records.map(record => {
+            const time = new Date(record.started_at).toLocaleTimeString();
+            const opType = record.context.operation_type;
+            const opTypeClass = opType.replace(/_/g, '-');
+
+            return `
+                <tr class="record-row">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${time}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="op-type-badge op-${opTypeClass} op-default">${opType}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        ${record.context.provider_name || '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        ${record.context.source_component || record.context.source_module || '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="status-badge status-${record.status}">${record.status}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        ${record.duration_ms.toFixed(1)}ms
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${record.context.input_size} ${record.context.input_data_type}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${record.output_size} ${record.output_data_type}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function clearRecords() {
+        if (!confirm('Clear all AI governance audit records?')) return;
+
+        try {
+            const response = await fetch('/admin/demo/governance/clear', {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Audit records cleared');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error clearing records: ' + error.message);
+        }
+    }
+
+    // Auto-refresh every 30 seconds
+    setInterval(refreshData, 30000);
+</script>
+{% endblock %}

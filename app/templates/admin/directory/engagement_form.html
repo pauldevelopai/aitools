@@ -1,0 +1,168 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if engagement %}Edit Engagement{% else %}New Engagement{% endif %} - {{ journalist.full_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="mb-6">
+        <a href="/admin/directory/journalists/{{ journalist.id }}" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Back to {{ journalist.full_name }}</a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-xl font-bold text-gray-900">
+                {% if engagement %}Edit Engagement{% else %}New Engagement{% endif %}
+            </h1>
+            <p class="text-gray-600">{{ journalist.full_name }}{% if journalist.organization %} - {{ journalist.organization.name }}{% endif %}</p>
+        </div>
+
+        <form method="POST" action="{% if engagement %}/admin/directory/engagements/{{ engagement.id }}{% else %}/admin/directory/journalists/{{ journalist.id }}/engagements{% endif %}" class="p-6 space-y-6">
+            <!-- Basic Info -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Engagement Details</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                        <select name="engagement_type" required class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">Select type...</option>
+                            <option value="training" {% if engagement and engagement.engagement_type == 'training' %}selected{% endif %}>Training Session</option>
+                            <option value="mentoring" {% if engagement and engagement.engagement_type == 'mentoring' %}selected{% endif %}>Mentoring</option>
+                            <option value="workshop" {% if engagement and engagement.engagement_type == 'workshop' %}selected{% endif %}>Workshop</option>
+                            <option value="presentation" {% if engagement and engagement.engagement_type == 'presentation' %}selected{% endif %}>Presentation</option>
+                            <option value="consultation" {% if engagement and engagement.engagement_type == 'consultation' %}selected{% endif %}>Consultation</option>
+                            <option value="follow_up" {% if engagement and engagement.engagement_type == 'follow_up' %}selected{% endif %}>Follow-up</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                        <input type="date" name="date" value="{{ engagement.date.strftime('%Y-%m-%d') if engagement else '' }}" required
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                    <input type="text" name="title" value="{{ engagement.title if engagement else '' }}" required
+                           class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., Introduction to AI Tools for Journalism">
+                </div>
+
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="What was covered in this engagement...">{{ engagement.description if engagement else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Time & Location -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Time & Location</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+                        <input type="number" name="duration_minutes" value="{{ engagement.duration_minutes if engagement else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="60">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                        <input type="text" name="location" value="{{ engagement.location if engagement else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., Virtual, BBC Office, etc.">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topics & Materials -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Topics & Materials</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Topics Covered (JSON array)</label>
+                        <input type="text" name="topics_covered" value="{{ engagement.topics_covered|tojson if engagement and engagement.topics_covered else '[]' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder='["ChatGPT", "Prompting", "Fact-checking"]'>
+                        <p class="text-xs text-gray-500 mt-1">Enter as JSON array</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Materials Used (JSON array)</label>
+                        <input type="text" name="materials_used" value="{{ engagement.materials_used|tojson if engagement and engagement.materials_used else '[]' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder='["Slides", "Handout", "Demo"]'>
+                        <p class="text-xs text-gray-500 mt-1">Enter as JSON array</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skill Progression -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Skill Progression</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Skill Level Before</label>
+                        <select name="skill_before" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">Unknown</option>
+                            <option value="none" {% if engagement and engagement.skill_before == 'none' %}selected{% elif not engagement and journalist.ai_skill_level == 'none' %}selected{% endif %}>None</option>
+                            <option value="beginner" {% if engagement and engagement.skill_before == 'beginner' %}selected{% elif not engagement and journalist.ai_skill_level == 'beginner' %}selected{% endif %}>Beginner</option>
+                            <option value="intermediate" {% if engagement and engagement.skill_before == 'intermediate' %}selected{% elif not engagement and journalist.ai_skill_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                            <option value="advanced" {% if engagement and engagement.skill_before == 'advanced' %}selected{% elif not engagement and journalist.ai_skill_level == 'advanced' %}selected{% endif %}>Advanced</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Skill Level After</label>
+                        <select name="skill_after" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">Unknown</option>
+                            <option value="none" {% if engagement and engagement.skill_after == 'none' %}selected{% endif %}>None</option>
+                            <option value="beginner" {% if engagement and engagement.skill_after == 'beginner' %}selected{% endif %}>Beginner</option>
+                            <option value="intermediate" {% if engagement and engagement.skill_after == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                            <option value="advanced" {% if engagement and engagement.skill_after == 'advanced' %}selected{% endif %}>Advanced</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">This will update the journalist's current skill level</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Outcomes -->
+            <div>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Outcomes & Follow-up</h2>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Outcomes</label>
+                    <textarea name="outcomes" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="What was achieved? Key takeaways...">{{ engagement.outcomes if engagement else '' }}</textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Follow-up Actions</label>
+                        <textarea name="follow_up_actions" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="Next steps...">{{ engagement.follow_up_actions if engagement else '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Follow-up Date</label>
+                        <input type="date" name="follow_up_date" value="{{ engagement.follow_up_date.strftime('%Y-%m-%d') if engagement and engagement.follow_up_date else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Private Notes</label>
+                <textarea name="notes" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="Internal notes about this engagement...">{{ engagement.notes if engagement else '' }}</textarea>
+            </div>
+
+            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+                {% if engagement %}
+                <form method="POST" action="/admin/directory/engagements/{{ engagement.id }}/delete" onsubmit="return confirm('Delete this engagement?')" class="inline">
+                    <button type="submit" class="px-4 py-2 text-red-600 hover:text-red-800 text-sm font-medium">
+                        Delete Engagement
+                    </button>
+                </form>
+                {% else %}
+                <div></div>
+                {% endif %}
+                <div class="flex space-x-3">
+                    <a href="/admin/directory/journalists/{{ journalist.id }}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                        {% if engagement %}Save Changes{% else %}Create Engagement{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

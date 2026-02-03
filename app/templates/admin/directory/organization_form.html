@@ -1,0 +1,88 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if organization %}Edit {{ organization.name }}{% else %}New Organization{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <a href="/admin/directory/organizations" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Back to Organizations</a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-xl font-bold text-gray-900">
+                {% if organization %}Edit Organization{% else %}New Organization{% endif %}
+            </h1>
+        </div>
+
+        <form method="POST" action="{% if organization %}/admin/directory/organizations/{{ organization.id }}{% else %}/admin/directory/organizations{% endif %}" class="p-6 space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Organization Name *</label>
+                <input type="text" name="name" value="{{ organization.name if organization else '' }}" required
+                       class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., BBC, The Guardian">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                    <select name="org_type" required class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">Select type...</option>
+                        <option value="newspaper" {% if organization and organization.org_type == 'newspaper' %}selected{% endif %}>Newspaper</option>
+                        <option value="broadcaster" {% if organization and organization.org_type == 'broadcaster' %}selected{% endif %}>Broadcaster</option>
+                        <option value="digital" {% if organization and organization.org_type == 'digital' %}selected{% endif %}>Digital</option>
+                        <option value="agency" {% if organization and organization.org_type == 'agency' %}selected{% endif %}>News Agency</option>
+                        <option value="freelance_collective" {% if organization and organization.org_type == 'freelance_collective' %}selected{% endif %}>Freelance Collective</option>
+                        <option value="magazine" {% if organization and organization.org_type == 'magazine' %}selected{% endif %}>Magazine</option>
+                        <option value="other" {% if organization and organization.org_type == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                    <input type="text" name="country" value="{{ organization.country if organization else '' }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., United Kingdom">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                <input type="url" name="website" value="{{ organization.website if organization else '' }}"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="https://example.com">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                <input type="url" name="logo_url" value="{{ organization.logo_url if organization else '' }}"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="https://example.com/logo.png">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea name="description" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="About this organization...">{{ organization.description if organization else '' }}</textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Internal Notes</label>
+                <textarea name="notes" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="Private notes about this organization...">{{ organization.notes if organization else '' }}</textarea>
+            </div>
+
+            {% if organization %}
+            <div>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" name="is_active" value="true" {% if organization.is_active %}checked{% endif %} class="rounded border-gray-300">
+                    <span class="text-sm text-gray-700">Active</span>
+                </label>
+            </div>
+            {% endif %}
+
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <a href="/admin/directory/organizations{% if organization %}/{{ organization.id }}{% endif %}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+                    Cancel
+                </a>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                    {% if organization %}Save Changes{% else %}Create Organization{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -10,6 +10,15 @@ from app.models.usecase import UseCase
 from app.models.suggested_source import SuggestedSource
 from app.models.tool_suggestion import ToolSuggestion
 from app.models.learning_profile import UserLearningProfile
+from app.models.directory import (
+    MediaOrganization,
+    Department,
+    Team,
+    Journalist,
+    Engagement,
+    JournalistNote,
+    EngagementDocument,
+)
 
 __all__ = [
     "User",
@@ -29,4 +38,11 @@ __all__ = [
     "SuggestedSource",
     "ToolSuggestion",
     "UserLearningProfile",
+    "MediaOrganization",
+    "Department",
+    "Team",
+    "Journalist",
+    "Engagement",
+    "JournalistNote",
+    "EngagementDocument",
 ]

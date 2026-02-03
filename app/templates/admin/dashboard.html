@@ -146,41 +146,101 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <a href="/admin/documents/upload" class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition">
-                <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                </svg>
+    <!-- Media Directory CRM -->
+    <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg shadow p-6 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Media Directory</h2>
+                <p class="text-sm text-gray-600">Journalist contacts, organizations & AI training engagements</p>
+            </div>
+            <a href="/admin/directory" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
+                Open Directory &rarr;
+            </a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <a href="/admin/directory/journalists" class="flex items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-emerald-500 hover:shadow-md transition">
+                <div class="flex-shrink-0 w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
                 <div>
-                    <p class="font-medium text-gray-900">Upload Document</p>
-                    <p class="text-sm text-gray-600">Ingest new editorial toolkit content</p>
+                    <p class="font-medium text-gray-900">Journalists</p>
+                    <p class="text-sm text-gray-600">View all contacts</p>
+                </div>
+            </a>
+            <a href="/admin/directory/journalists/new" class="flex items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-emerald-500 hover:shadow-md transition">
+                <div class="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-900">Add Journalist</p>
+                    <p class="text-sm text-gray-600">New contact</p>
+                </div>
+            </a>
+            <a href="/admin/directory/organizations" class="flex items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-emerald-500 hover:shadow-md transition">
+                <div class="flex-shrink-0 w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-900">Organizations</p>
+                    <p class="text-sm text-gray-600">Media outlets</p>
+                </div>
+            </a>
+            <a href="/admin/directory/insights" class="flex items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-emerald-500 hover:shadow-md transition">
+                <div class="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-900">AI Insights</p>
+                    <p class="text-sm text-gray-600">Analyze connections</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- GROUNDED Infrastructure -->
+    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">GROUNDED Infrastructure</h2>
+                <p class="text-sm text-gray-600">AI capabilities and governance demos</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                v0.1.0
+            </span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="/admin/demo/documents" class="flex items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition">
+                <div class="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-900">Document Intelligence</p>
+                    <p class="text-sm text-gray-600">Process documents, generate embeddings, test semantic search</p>
                 </div>
             </a>
 
-            <a href="/admin/analytics" class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition">
-                <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
+            <a href="/admin/demo/governance" class="flex items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition">
+                <div class="flex-shrink-0 w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                </div>
                 <div>
-                    <p class="font-medium text-gray-900">View Analytics</p>
-                    <p class="text-sm text-gray-600">Platform insights and metrics</p>
+                    <p class="font-medium text-gray-900">AI Governance Audit Trail</p>
+                    <p class="text-sm text-gray-600">Track AI operations for transparency and accountability</p>
                 </div>
             </a>
-
-            <form action="/admin/documents/ingest-kit" method="POST" class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition cursor-pointer"
-                  onclick="if(confirm('Ingest all editorial toolkit content from /kit JSON files?')) this.submit();">
-                <input type="hidden" name="create_embeddings" value="true">
-                <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
-                </svg>
-                <div>
-                    <p class="font-medium text-gray-900">Ingest from Kit</p>
-                    <p class="text-sm text-gray-600">Load 46 tools, 7 clusters into RAG</p>
-                </div>
-            </form>
         </div>
     </div>
 </div>
