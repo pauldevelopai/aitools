@@ -550,10 +550,6 @@
   ],
   "foundations": [
     {
-      "slug": "introduction",
-      "title": "Introduction"
-    },
-    {
       "slug": "how-to-use",
       "title": "How to Use This Toolkit"
     },
