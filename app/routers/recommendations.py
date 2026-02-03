@@ -14,7 +14,7 @@ from app.services.recommendation import (
     build_user_context,
     MAX_RECOMMENDATIONS,
 )
-from app.services.kit_loader import get_tool, get_all_clusters
+from app.services.kit_loader import get_tool, get_all_clusters_with_approved
 from app.schemas.recommendation import (
     RecommendationsResponse,
     ToolGuidanceResponse,
@@ -53,7 +53,7 @@ async def for_you_page(
                 "requires_login": True,
                 "feature_name": "Personalized Recommendations",
                 "feature_description": "Get AI tool recommendations tailored to your experience level, budget, and use cases.",
-                "clusters": get_all_clusters(),
+                "clusters": get_all_clusters_with_approved(db),
                 "selected_use_case": use_case,
             }
         )
@@ -92,7 +92,7 @@ async def for_you_page(
     logger.info(f"User context: budget={context.budget}, exp={context.ai_experience_level}, activity={len(context.searched_queries)} searches, {len(context.browsed_clusters)} clusters")
 
     # Get clusters for use case filtering
-    clusters = get_all_clusters()
+    clusters = get_all_clusters_with_approved(db)
 
     return templates.TemplateResponse(
         "recommendations/for_you.html",

@@ -378,3 +378,46 @@ def get_all_tools_with_approved(db) -> List[Dict[str, Any]]:
     tools = list(get_all_tools())  # Copy to avoid modifying cached list
     tools.extend(get_approved_tools_from_db(db))
     return tools
+
+
+def get_kit_stats_with_approved(db) -> Dict[str, Any]:
+    """
+    Get summary statistics including admin-approved tools and clusters.
+
+    This should be used instead of get_kit_stats() when you need
+    accurate counts that include dynamically approved tools.
+
+    Args:
+        db: SQLAlchemy database session
+
+    Returns:
+        Statistics dictionary with accurate tool/cluster counts
+    """
+    manifest = get_manifest()
+    tools = get_all_tools_with_approved(db)
+    clusters = get_all_clusters_with_approved(db)
+
+    # CDI averages
+    if tools:
+        avg_cost = sum(t.get("cdi_scores", {}).get("cost", 0) for t in tools) / len(tools)
+        avg_diff = sum(t.get("cdi_scores", {}).get("difficulty", 0) for t in tools) / len(tools)
+        avg_inv = sum(t.get("cdi_scores", {}).get("invasiveness", 0) for t in tools) / len(tools)
+    else:
+        avg_cost = avg_diff = avg_inv = 0
+
+    sources = get_all_sources()
+
+    return {
+        "title": manifest.get("title", ""),
+        "tool_count": len(tools),
+        "cluster_count": len(clusters),
+        "foundation_count": len(manifest.get("foundations", [])),
+        "addenda_count": len(manifest.get("addenda", [])),
+        "source_count": sources.get("total_entries", 0),
+        "source_batch_count": sources.get("batch_count", 0),
+        "avg_cdi": {
+            "cost": round(avg_cost, 1),
+            "difficulty": round(avg_diff, 1),
+            "invasiveness": round(avg_inv, 1),
+        },
+    }

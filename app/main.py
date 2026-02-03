@@ -133,19 +133,28 @@ async def home(
     db=Depends(get_db),
 ):
     """Homepage."""
-    from app.services.kit_loader import get_all_clusters, get_cluster_tools, get_kit_stats
-    from app.services.recommendation import get_suggested_for_location
+    from app.services.kit_loader import (
+        get_all_clusters_with_approved,
+        get_cluster_tools,
+        get_kit_stats_with_approved,
+        get_approved_tools_from_db,
+        ADMIN_APPROVED_CLUSTER_SLUG,
+    )
 
-    clusters_data = get_all_clusters()
+    clusters_data = get_all_clusters_with_approved(db)
     enriched_clusters = []
     for c in clusters_data:
-        tool_list = get_cluster_tools(c["slug"])
-        enriched_clusters.append({
-            **c,
-            "tool_count": len(tool_list),
-        })
+        if c["slug"] == ADMIN_APPROVED_CLUSTER_SLUG:
+            # Admin-approved cluster already has tool_count set
+            enriched_clusters.append(c)
+        else:
+            tool_list = get_cluster_tools(c["slug"])
+            enriched_clusters.append({
+                **c,
+                "tool_count": len(tool_list),
+            })
 
-    stats = get_kit_stats()
+    stats = get_kit_stats_with_approved(db)
 
     return templates.TemplateResponse(
         "index.html",

@@ -29,8 +29,8 @@ async def tool_finder(
     db: Session = Depends(get_db),
 ):
     """Interactive tool finder to help journalists choose the right tool."""
-    clusters = get_all_clusters()
-    all_tools_list = get_all_tools()
+    clusters = get_all_clusters_with_approved(db)
+    all_tools_list = get_all_tools_with_approved(db)
 
     # Pre-defined journalism needs mapped to use case groups
     needs_map = {
