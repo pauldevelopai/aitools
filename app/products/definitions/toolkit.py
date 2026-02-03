@@ -27,7 +27,7 @@ from app.products.registry import ProductRegistry, EditionRegistry
 GROUNDED_PRODUCT = Product(
     id="grounded",
     name="Grounded",
-    description="Grounded - Discover and master AI tools",
+    description="",
     branding=Branding(
         logo_text="Grounded",
         logo_path=None,  # Uses text-based logo
