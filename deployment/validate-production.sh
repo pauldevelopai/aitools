@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ToolkitRAG Production Validation Script
+# Grounded Production Validation Script
 # Run this after deployment to verify everything is working
 
 set -e
@@ -19,7 +19,7 @@ if [ "$DOMAIN" != "localhost" ]; then
 fi
 
 echo "=========================================="
-echo "ToolkitRAG Production Validation"
+echo "Grounded Production Validation"
 echo "Domain: $DOMAIN"
 echo "=========================================="
 echo ""
@@ -48,11 +48,11 @@ warning() {
 echo "1. Checking System Services"
 echo "----------------------------"
 
-if systemctl is-active --quiet toolkitrag; then
+if systemctl is-active --quiet grounded; then
     success "Application service running"
 else
     error "Application service not running"
-    echo "  Run: sudo systemctl status toolkitrag"
+    echo "  Run: sudo systemctl status grounded"
 fi
 
 if systemctl is-active --quiet caddy 2>/dev/null; then
@@ -136,11 +136,11 @@ fi
 echo "4. Checking File Permissions"
 echo "----------------------------"
 
-if [ -r /etc/toolkitrag/.env ]; then
+if [ -r /etc/grounded/.env ]; then
     success ".env file readable"
 
     # Check ENV setting
-    ENV_VALUE=$(grep "^ENV=" /etc/toolkitrag/.env | cut -d'=' -f2)
+    ENV_VALUE=$(grep "^ENV=" /etc/grounded/.env | cut -d'=' -f2)
     if [ "$ENV_VALUE" = "prod" ]; then
         success "ENV=prod (production mode)"
     else
@@ -148,8 +148,8 @@ if [ -r /etc/toolkitrag/.env ]; then
     fi
 
     # Check SECRET_KEY
-    if grep -q "^SECRET_KEY=" /etc/toolkitrag/.env; then
-        SECRET_LEN=$(grep "^SECRET_KEY=" /etc/toolkitrag/.env | cut -d'=' -f2 | wc -c)
+    if grep -q "^SECRET_KEY=" /etc/grounded/.env; then
+        SECRET_LEN=$(grep "^SECRET_KEY=" /etc/grounded/.env | cut -d'=' -f2 | wc -c)
         if [ $SECRET_LEN -ge 32 ]; then
             success "SECRET_KEY set (length OK)"
         else
@@ -162,13 +162,13 @@ else
     error ".env file not readable"
 fi
 
-if [ -w /opt/toolkitrag/data/uploads ]; then
+if [ -w /opt/grounded/data/uploads ]; then
     success "Upload directory writable"
 else
     error "Upload directory not writable"
 fi
 
-if [ -w /var/log/toolkitrag ]; then
+if [ -w /var/log/grounded ]; then
     success "Log directory writable"
 else
     error "Log directory not writable"
@@ -181,7 +181,7 @@ echo "5. Checking Database"
 echo "----------------------------"
 
 if command_exists python3; then
-    cd /opt/toolkitrag/app 2>/dev/null || cd .
+    cd /opt/grounded/app 2>/dev/null || cd .
 
     # Check if venv exists
     if [ -f venv/bin/python ]; then
@@ -235,21 +235,21 @@ echo ""
 echo "6. Checking Logs"
 echo "----------------------------"
 
-if [ -f /var/log/toolkitrag/app.log ]; then
-    LOG_SIZE=$(du -h /var/log/toolkitrag/app.log | cut -f1)
-    LOG_LINES=$(wc -l < /var/log/toolkitrag/app.log)
+if [ -f /var/log/grounded/app.log ]; then
+    LOG_SIZE=$(du -h /var/log/grounded/app.log | cut -f1)
+    LOG_LINES=$(wc -l < /var/log/grounded/app.log)
     success "Application log exists ($LOG_SIZE, $LOG_LINES lines)"
 
     # Check for recent errors
-    RECENT_ERRORS=$(tail -n 100 /var/log/toolkitrag/app.log | grep -c '"level":"ERROR"' || echo "0")
+    RECENT_ERRORS=$(tail -n 100 /var/log/grounded/app.log | grep -c '"level":"ERROR"' || echo "0")
     if [ "$RECENT_ERRORS" -gt 0 ]; then
         warning "Found $RECENT_ERRORS recent errors in logs"
-        echo "  Run: tail -f /var/log/toolkitrag/app.log | jq ."
+        echo "  Run: tail -f /var/log/grounded/app.log | jq ."
     else
         success "No recent errors in logs"
     fi
 else
-    warning "Application log not found at /var/log/toolkitrag/app.log"
+    warning "Application log not found at /var/log/grounded/app.log"
 fi
 
 echo ""
@@ -258,12 +258,12 @@ echo ""
 echo "7. Checking Backups"
 echo "----------------------------"
 
-if [ -d /opt/toolkitrag/backups ]; then
-    DB_BACKUPS=$(find /opt/toolkitrag/backups -name "toolkitrag_*.sql.gz" 2>/dev/null | wc -l)
-    FILE_BACKUPS=$(find /opt/toolkitrag/backups -name "uploads_*.tar.gz" 2>/dev/null | wc -l)
+if [ -d /opt/grounded/backups ]; then
+    DB_BACKUPS=$(find /opt/grounded/backups -name "grounded_*.sql.gz" 2>/dev/null | wc -l)
+    FILE_BACKUPS=$(find /opt/grounded/backups -name "uploads_*.tar.gz" 2>/dev/null | wc -l)
 
     if [ "$DB_BACKUPS" -gt 0 ]; then
-        LATEST_DB=$(find /opt/toolkitrag/backups -name "toolkitrag_*.sql.gz" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        LATEST_DB=$(find /opt/grounded/backups -name "grounded_*.sql.gz" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
         success "Database backups: $DB_BACKUPS (latest: $(basename $LATEST_DB))"
     else
         warning "No database backups found"
@@ -325,6 +325,6 @@ echo "4. Test chat at $PROTOCOL://$DOMAIN/toolkit"
 echo "5. Test strategy builder at $PROTOCOL://$DOMAIN/strategy"
 echo ""
 echo "For detailed logs:"
-echo "  sudo journalctl -u toolkitrag -f"
-echo "  tail -f /var/log/toolkitrag/app.log | jq ."
+echo "  sudo journalctl -u grounded -f"
+echo "  tail -f /var/log/grounded/app.log | jq ."
 echo ""

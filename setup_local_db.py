@@ -2,7 +2,7 @@
 """
 Setup script for local PostgreSQL database without Docker.
 
-This script helps you set up the toolkitrag database and user.
+This script helps you set up the grounded database and user.
 Run this after you've configured PostgreSQL authentication.
 """
 
@@ -37,7 +37,7 @@ def run_command(cmd, description, check=True):
 def main():
     print("""
 ╔══════════════════════════════════════════════════════════╗
-║  ToolkitRAG Local Database Setup                         ║
+║  Grounded Local Database Setup                           ║
 ╚══════════════════════════════════════════════════════════╝
 
 This script will help you set up the local PostgreSQL database.
@@ -98,11 +98,11 @@ Choose how you want to set up the database:
         print("""
 Please run these SQL commands as a PostgreSQL superuser:
 
-    CREATE USER toolkitrag WITH PASSWORD 'changeme';
-    CREATE DATABASE toolkitrag OWNER toolkitrag;
-    \\c toolkitrag
+    CREATE USER grounded WITH PASSWORD 'changeme';
+    CREATE DATABASE grounded OWNER grounded;
+    \\c grounded
     CREATE EXTENSION vector;
-    GRANT ALL ON SCHEMA public TO toolkitrag;
+    GRANT ALL ON SCHEMA public TO grounded;
 
 You can use:
   - pgAdmin (GUI tool)
@@ -123,12 +123,12 @@ You can use:
     print("  Testing Database Connection")
     print("="*60)
 
-    test_cmd = "PGPASSWORD=changeme psql -h localhost -U toolkitrag -d toolkitrag -c 'SELECT version();'"
+    test_cmd = "PGPASSWORD=changeme psql -h localhost -U grounded -d grounded -c 'SELECT version();'"
     if not run_command(test_cmd, "Test database connection"):
         print("\n❌ Could not connect to the database!")
         print("Please verify:")
-        print("  1. Database 'toolkitrag' exists")
-        print("  2. User 'toolkitrag' exists with password 'changeme'")
+        print("  1. Database 'grounded' exists")
+        print("  2. User 'grounded' exists with password 'changeme'")
         print("  3. User has proper permissions")
         sys.exit(1)
 
@@ -137,11 +137,11 @@ You can use:
     print("  Checking pgvector Extension")
     print("="*60)
 
-    vector_cmd = "PGPASSWORD=changeme psql -h localhost -U toolkitrag -d toolkitrag -c '\\dx vector'"
+    vector_cmd = "PGPASSWORD=changeme psql -h localhost -U grounded -d grounded -c '\\dx vector'"
     if not run_command(vector_cmd, "Check for pgvector extension", check=False):
         print("\n⚠️  pgvector extension might not be installed properly")
         print("Try creating it manually:")
-        print("  PGPASSWORD=changeme psql -h localhost -U toolkitrag -d toolkitrag -c 'CREATE EXTENSION vector;'")
+        print("  PGPASSWORD=changeme psql -h localhost -U grounded -d grounded -c 'CREATE EXTENSION vector;'")
 
     # Update .env file
     print("\n" + "="*60)
@@ -155,8 +155,8 @@ You can use:
 
         # Replace db with localhost in DATABASE_URL
         new_content = content.replace(
-            "DATABASE_URL=postgresql://toolkitrag:changeme@db:5432/toolkitrag",
-            "DATABASE_URL=postgresql://toolkitrag:changeme@localhost:5432/toolkitrag"
+            "DATABASE_URL=postgresql://grounded:changeme@db:5432/grounded",
+            "DATABASE_URL=postgresql://grounded:changeme@localhost:5432/grounded"
         )
 
         if new_content != content:

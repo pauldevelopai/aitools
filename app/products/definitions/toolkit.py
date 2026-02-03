@@ -27,7 +27,7 @@ from app.products.registry import ProductRegistry, EditionRegistry
 AI_TOOLKIT_PRODUCT = Product(
     id="ai_toolkit",
     name="AI Toolkit",
-    description="The AI Editorial Toolkit for discovering and mastering AI tools",
+    description="Grounded - Discover and master AI tools",
     branding=Branding(
         logo_text="AI Toolkit",
         logo_path=None,  # Uses text-based logo

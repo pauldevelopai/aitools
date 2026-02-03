@@ -6,8 +6,8 @@ def test_homepage_loads(client):
     """Test homepage returns 200 and renders template."""
     response = client.get("/")
     assert response.status_code == 200
-    assert b"ToolkitRAG" in response.content
-    assert b"AI Toolkit Learning Platform" in response.content
+    assert b"Grounded" in response.content
+    assert b"AI Learning Platform" in response.content
 
 
 def test_homepage_has_health_links(client):

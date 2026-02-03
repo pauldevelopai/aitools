@@ -23,7 +23,7 @@ depends_on = None
 def upgrade() -> None:
     """Add heading, chunk_metadata, embedding columns to toolkit_chunks."""
     # pgvector extension must be enabled by a superuser before running this migration:
-    # psql -d toolkitrag -c "CREATE EXTENSION IF NOT EXISTS vector;"
+    # psql -d grounded -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
     # Add missing columns
     op.add_column('toolkit_chunks', sa.Column('heading', sa.String(), nullable=True))

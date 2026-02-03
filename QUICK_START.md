@@ -102,7 +102,7 @@ launchctl load ~/Library/LaunchAgents/com.grounded.app.plist
 
 ### Connect to Database
 ```bash
-PGPASSWORD=changeme psql -h localhost -U toolkitrag -d toolkitrag
+PGPASSWORD=changeme psql -h localhost -U grounded -d grounded
 ```
 
 ### Check Tables
@@ -118,7 +118,7 @@ SELECT email, username, is_admin FROM users;
 ### Create Another Admin User
 ```bash
 cd "/Users/paulmcnally/Developai Dropbox/Paul McNally/DROPBOX/ONMAC/PYTHON 2025/aitools"
-PGPASSWORD=changeme psql -h localhost -U toolkitrag -d toolkitrag << 'EOF'
+PGPASSWORD=changeme psql -h localhost -U grounded -d grounded << 'EOF'
 INSERT INTO users (email, username, hashed_password, is_admin, created_at)
 VALUES (
     'your@email.com',

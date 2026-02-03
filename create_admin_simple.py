@@ -10,7 +10,7 @@ from app.models.user import User
 from app.auth.password import get_password_hash
 
 # Get database URL from environment
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://toolkitrag:changeme@localhost:5432/toolkitrag')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://grounded:changeme@localhost:5432/grounded')
 
 # Create engine and session
 engine = create_engine(DATABASE_URL)

@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# ToolkitRAG Restore Script
+# Grounded Restore Script
 # Usage: ./restore.sh [database|files|all] [backup_file]
 
 set -e
 
-BACKUP_DIR="/opt/toolkitrag/backups"
-UPLOADS_DIR="/opt/toolkitrag/data/uploads"
+BACKUP_DIR="/opt/grounded/backups"
+UPLOADS_DIR="/opt/grounded/data/uploads"
 
 # Load database URL from .env
-if [ -f /etc/toolkitrag/.env ]; then
-    export $(grep -v '^#' /etc/toolkitrag/.env | grep DATABASE_URL | xargs)
+if [ -f /etc/grounded/.env ]; then
+    export $(grep -v '^#' /etc/grounded/.env | grep DATABASE_URL | xargs)
 else
-    echo "ERROR: /etc/toolkitrag/.env not found"
+    echo "ERROR: /etc/grounded/.env not found"
     exit 1
 fi
 
@@ -23,7 +23,7 @@ list_backups() {
     echo "-------------------------------------------"
 
     if [ "$type" = "database" ]; then
-        ls -lh "$BACKUP_DIR"/toolkitrag_*.sql.gz 2>/dev/null | tail -n 10 || echo "No database backups found"
+        ls -lh "$BACKUP_DIR"/grounded_*.sql.gz 2>/dev/null | tail -n 10 || echo "No database backups found"
     elif [ "$type" = "files" ]; then
         ls -lh "$BACKUP_DIR"/uploads_*.tar.gz 2>/dev/null | tail -n 10 || echo "No file backups found"
     fi
@@ -53,7 +53,7 @@ restore_database() {
 
     echo ""
     echo "Stopping application..."
-    sudo systemctl stop toolkitrag
+    sudo systemctl stop grounded
 
     echo "Creating pre-restore backup..."
     PRE_RESTORE_BACKUP="$BACKUP_DIR/pre_restore_$(date +%Y%m%d_%H%M%S).sql.gz"
@@ -67,7 +67,7 @@ restore_database() {
         echo "Database restored successfully!"
         echo ""
         echo "Starting application..."
-        sudo systemctl start toolkitrag
+        sudo systemctl start grounded
 
         echo ""
         echo "Waiting for application to start..."
@@ -77,7 +77,7 @@ restore_database() {
             echo "✓ Application started successfully"
         else
             echo "✗ Application health check failed"
-            echo "Check logs: sudo journalctl -u toolkitrag -n 50"
+            echo "Check logs: sudo journalctl -u grounded -n 50"
         fi
     else
         echo "ERROR: Database restore failed!"
@@ -109,11 +109,11 @@ restore_files() {
     echo ""
     echo "Creating pre-restore backup of current files..."
     PRE_RESTORE_BACKUP="$BACKUP_DIR/pre_restore_files_$(date +%Y%m%d_%H%M%S).tar.gz"
-    tar -czf "$PRE_RESTORE_BACKUP" -C /opt/toolkitrag/data uploads 2>/dev/null || echo "No existing files to backup"
+    tar -czf "$PRE_RESTORE_BACKUP" -C /opt/grounded/data uploads 2>/dev/null || echo "No existing files to backup"
 
     echo "Restoring files..."
     rm -rf "$UPLOADS_DIR"/*
-    tar -xzf "$backup_file" -C /opt/toolkitrag/data/
+    tar -xzf "$backup_file" -C /opt/grounded/data/
 
     if [ $? -eq 0 ]; then
         echo "Files restored successfully!"
@@ -135,7 +135,7 @@ case "$1" in
             list_backups database
             echo ""
             echo "Usage: $0 database <backup_file>"
-            echo "Example: $0 database $BACKUP_DIR/toolkitrag_20260123_020000.sql.gz"
+            echo "Example: $0 database $BACKUP_DIR/grounded_20260123_020000.sql.gz"
             exit 1
         fi
         restore_database "$2"
@@ -162,14 +162,14 @@ case "$1" in
         ;;
 
     *)
-        echo "ToolkitRAG Restore Script"
+        echo "Grounded Restore Script"
         echo ""
         echo "Usage: $0 [database|files|all] [backup_file(s)]"
         echo ""
         echo "Examples:"
-        echo "  $0 database $BACKUP_DIR/toolkitrag_20260123_020000.sql.gz"
+        echo "  $0 database $BACKUP_DIR/grounded_20260123_020000.sql.gz"
         echo "  $0 files $BACKUP_DIR/uploads_20260123_030000.tar.gz"
-        echo "  $0 all $BACKUP_DIR/toolkitrag_20260123_020000.sql.gz $BACKUP_DIR/uploads_20260123_030000.tar.gz"
+        echo "  $0 all $BACKUP_DIR/grounded_20260123_020000.sql.gz $BACKUP_DIR/uploads_20260123_030000.tar.gz"
         echo ""
         list_backups database
         echo ""

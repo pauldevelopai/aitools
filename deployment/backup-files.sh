@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# ToolkitRAG File Backup Script
-# Schedule with cron: 0 3 * * 0 /opt/toolkitrag/deployment/backup-files.sh (weekly)
+# Grounded File Backup Script
+# Schedule with cron: 0 3 * * 0 /opt/grounded/deployment/backup-files.sh (weekly)
 
 set -e
 
 # Configuration
-BACKUP_DIR="/opt/toolkitrag/backups"
+BACKUP_DIR="/opt/grounded/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/uploads_$DATE.tar.gz"
-UPLOADS_DIR="/opt/toolkitrag/data/uploads"
+UPLOADS_DIR="/opt/grounded/data/uploads"
 RETENTION_DAYS=60
 
 # Ensure backup directory exists
@@ -19,7 +19,7 @@ mkdir -p "$BACKUP_DIR"
 echo "$(date): Starting file backup..."
 
 if [ -d "$UPLOADS_DIR" ]; then
-    tar -czf "$BACKUP_FILE" -C /opt/toolkitrag/data uploads
+    tar -czf "$BACKUP_FILE" -C /opt/grounded/data uploads
 
     # Check if backup was successful
     if [ $? -eq 0 ] && [ -f "$BACKUP_FILE" ]; then

@@ -62,7 +62,7 @@ def test_authenticated_user_access_toolkit(client, db_session, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert b"ToolkitRAG Chat" in response.content
+    assert b"Grounded Chat" in response.content
     assert user.username.encode() in response.content
 
 

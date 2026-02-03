@@ -12,14 +12,14 @@ If you have pgAdmin installed:
 1. Open pgAdmin
 2. Connect to your PostgreSQL server
 3. Right-click on "Databases" → Create → Database
-   - Database name: `toolkitrag`
+   - Database name: `grounded`
 4. Right-click on "Login/Group Roles" → Create → Login/Group Role
-   - General tab: Name = `toolkitrag`
+   - General tab: Name = `grounded`
    - Definition tab: Password = `changeme`
    - Privileges tab: Check "Can login?"
-5. Right-click on the `toolkitrag` database → Query Tool
+5. Right-click on the `grounded` database → Query Tool
 6. Run: `CREATE EXTENSION vector;`
-7. Grant permissions: `GRANT ALL ON SCHEMA public TO toolkitrag;`
+7. Grant permissions: `GRANT ALL ON SCHEMA public TO grounded;`
 
 ### Option B: Using Command Line
 
@@ -33,11 +33,11 @@ Run these commands in your terminal:
 psql -U postgres
 
 # Then run these SQL commands:
-CREATE USER toolkitrag WITH PASSWORD 'changeme';
-CREATE DATABASE toolkitrag OWNER toolkitrag;
-\c toolkitrag
+CREATE USER grounded WITH PASSWORD 'changeme';
+CREATE DATABASE grounded OWNER grounded;
+\c grounded
 CREATE EXTENSION vector;
-GRANT ALL ON SCHEMA public TO toolkitrag;
+GRANT ALL ON SCHEMA public TO grounded;
 \q
 ```
 
@@ -76,7 +76,7 @@ psql -U postgres -f setup_db.sql
 Test the connection:
 
 ```bash
-PGPASSWORD=changeme psql -h localhost -U toolkitrag -d toolkitrag -c "SELECT version();"
+PGPASSWORD=changeme psql -h localhost -U grounded -d grounded -c "SELECT version();"
 ```
 
 You should see PostgreSQL version information.
@@ -93,7 +93,7 @@ pip install -r requirements.txt
 Edit your `.env` file and change the DATABASE_URL from `db` to `localhost`:
 
 ```env
-DATABASE_URL=postgresql://toolkitrag:changeme@localhost:5432/toolkitrag
+DATABASE_URL=postgresql://grounded:changeme@localhost:5432/grounded
 ```
 
 All other settings can remain the same.
@@ -168,7 +168,7 @@ sudo make install
 If migrations fail:
 ```bash
 # Check database connection
-PGPASSWORD=changeme psql -h localhost -U toolkitrag -d toolkitrag -c "\dt"
+PGPASSWORD=changeme psql -h localhost -U grounded -d grounded -c "\dt"
 
 # Reset migrations (WARNING: This will drop all tables)
 alembic downgrade base

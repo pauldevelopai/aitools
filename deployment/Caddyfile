@@ -1,4 +1,4 @@
-# Caddyfile for ToolkitRAG Production Deployment
+# Caddyfile for Grounded Production Deployment
 # Replace 'yourdomain.com' with your actual domain
 
 # Main site with automatic HTTPS
@@ -7,7 +7,7 @@ yourdomain.com {
 
     # Logging
     log {
-        output file /var/log/caddy/toolkitrag-access.log
+        output file /var/log/caddy/grounded-access.log
         format json
     }
 

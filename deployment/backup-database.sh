@@ -1,21 +1,21 @@
 #!/bin/bash
 
-# ToolkitRAG Database Backup Script
-# Schedule with cron: 0 2 * * * /opt/toolkitrag/deployment/backup-database.sh
+# Grounded Database Backup Script
+# Schedule with cron: 0 2 * * * /opt/grounded/deployment/backup-database.sh
 
 set -e
 
 # Configuration
-BACKUP_DIR="/opt/toolkitrag/backups"
+BACKUP_DIR="/opt/grounded/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/toolkitrag_$DATE.sql.gz"
+BACKUP_FILE="$BACKUP_DIR/grounded_$DATE.sql.gz"
 RETENTION_DAYS=30
 
 # Load database URL from .env
-if [ -f /etc/toolkitrag/.env ]; then
-    export $(grep -v '^#' /etc/toolkitrag/.env | grep DATABASE_URL | xargs)
+if [ -f /etc/grounded/.env ]; then
+    export $(grep -v '^#' /etc/grounded/.env | grep DATABASE_URL | xargs)
 else
-    echo "ERROR: /etc/toolkitrag/.env not found"
+    echo "ERROR: /etc/grounded/.env not found"
     exit 1
 fi
 
@@ -33,7 +33,7 @@ if [ $? -eq 0 ] && [ -f "$BACKUP_FILE" ]; then
     echo "$(date): Backup successful: $BACKUP_FILE ($BACKUP_SIZE)"
 
     # Delete old backups
-    find "$BACKUP_DIR" -name "toolkitrag_*.sql.gz" -mtime +$RETENTION_DAYS -delete
+    find "$BACKUP_DIR" -name "grounded_*.sql.gz" -mtime +$RETENTION_DAYS -delete
     echo "$(date): Deleted backups older than $RETENTION_DAYS days"
 
     # Optional: Upload to S3 (uncomment and configure)

@@ -2,7 +2,7 @@
 set -e
 
 echo "======================================"
-echo "ToolkitRAG - Milestone 1 Validation"
+echo "Grounded - Milestone 1 Validation"
 echo "======================================"
 echo ""
 
@@ -52,7 +52,7 @@ fi
 # Test homepage
 echo -n "Testing GET / (homepage)... "
 HOME_RESPONSE=$(curl -s http://localhost:8000/)
-if echo "$HOME_RESPONSE" | grep -q "ToolkitRAG"; then
+if echo "$HOME_RESPONSE" | grep -q "Grounded"; then
     echo "✅ PASSED"
 else
     echo "❌ FAILED"

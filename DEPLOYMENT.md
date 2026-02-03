@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This guide covers deploying ToolkitRAG in a production environment without Docker containers.
+This guide covers deploying Grounded in a production environment without Docker containers.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
@@ -52,11 +52,11 @@ sudo dnf install -y \
 
 ### 1. Create Production Environment File
 
-Create `/etc/toolkitrag/.env`:
+Create `/etc/grounded/.env`:
 
 ```bash
-sudo mkdir -p /etc/toolkitrag
-sudo nano /etc/toolkitrag/.env
+sudo mkdir -p /etc/grounded
+sudo nano /etc/grounded/.env
 ```
 
 **Required Settings**:
@@ -72,7 +72,7 @@ ENV=prod
 # =============================================================================
 # Database
 # =============================================================================
-DATABASE_URL=postgresql://toolkitrag:SECURE_PASSWORD@localhost:5432/toolkitrag
+DATABASE_URL=postgresql://grounded:SECURE_PASSWORD@localhost:5432/grounded
 
 # =============================================================================
 # Security - CRITICAL
@@ -102,7 +102,7 @@ RATE_LIMIT_RAG_WINDOW=60
 # =============================================================================
 LOG_LEVEL=INFO
 LOG_FORMAT=json
-LOG_FILE=/var/log/toolkitrag/app.log
+LOG_FILE=/var/log/grounded/app.log
 
 # =============================================================================
 # OpenAI API
@@ -129,8 +129,8 @@ RAG_MAX_CONTEXT_LENGTH=4000
 ### 2. Set Secure Permissions
 
 ```bash
-sudo chown root:toolkitrag /etc/toolkitrag/.env
-sudo chmod 640 /etc/toolkitrag/.env
+sudo chown root:grounded /etc/grounded/.env
+sudo chmod 640 /etc/grounded/.env
 ```
 
 ### 3. Generate Secrets
@@ -143,7 +143,7 @@ python -c 'import secrets; print(f"SECRET_KEY={secrets.token_urlsafe(32)}")'
 python -c 'import secrets; print(f"CSRF_SECRET_KEY={secrets.token_urlsafe(32)}")'
 ```
 
-Add these to `/etc/toolkitrag/.env`.
+Add these to `/etc/grounded/.env`.
 
 ---
 
@@ -167,11 +167,11 @@ sudo systemctl enable postgresql
 
 ```bash
 sudo -u postgres psql <<EOF
-CREATE USER toolkitrag WITH PASSWORD 'SECURE_PASSWORD_HERE';
-CREATE DATABASE toolkitrag OWNER toolkitrag;
-\c toolkitrag
+CREATE USER grounded WITH PASSWORD 'SECURE_PASSWORD_HERE';
+CREATE DATABASE grounded OWNER grounded;
+\c grounded
 CREATE EXTENSION vector;
-GRANT ALL PRIVILEGES ON DATABASE toolkitrag TO toolkitrag;
+GRANT ALL PRIVILEGES ON DATABASE grounded TO grounded;
 EOF
 ```
 
@@ -190,8 +190,8 @@ Edit `/etc/postgresql/15/main/pg_hba.conf`:
 
 ```
 # Only allow local connections with password
-local   all             toolkitrag                              scram-sha-256
-host    all             toolkitrag      127.0.0.1/32            scram-sha-256
+local   all             grounded                              scram-sha-256
+host    all             grounded      127.0.0.1/32            scram-sha-256
 ```
 
 ```bash
@@ -205,19 +205,19 @@ sudo systemctl restart postgresql
 ### 1. Create Application User
 
 ```bash
-sudo useradd -r -s /bin/bash -d /opt/toolkitrag -m toolkitrag
-sudo usermod -aG toolkitrag toolkitrag
+sudo useradd -r -s /bin/bash -d /opt/grounded -m grounded
+sudo usermod -aG grounded grounded
 ```
 
 ### 2. Clone and Install Application
 
 ```bash
 # Switch to app user
-sudo -u toolkitrag -i
+sudo -u grounded -i
 
 # Clone repository (or copy files)
-cd /opt/toolkitrag
-git clone https://github.com/your-org/toolkitrag.git app
+cd /opt/grounded
+git clone https://github.com/your-org/grounded.git app
 cd app
 
 # Create virtual environment
@@ -229,22 +229,22 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Create required directories
-mkdir -p /opt/toolkitrag/data/uploads
-mkdir -p /var/log/toolkitrag
+mkdir -p /opt/grounded/data/uploads
+mkdir -p /var/log/grounded
 
 # Set permissions
-sudo chown -R toolkitrag:toolkitrag /opt/toolkitrag
-sudo chown -R toolkitrag:toolkitrag /var/log/toolkitrag
+sudo chown -R grounded:grounded /opt/grounded
+sudo chown -R grounded:grounded /var/log/grounded
 ```
 
 ### 3. Run Database Migrations
 
 ```bash
-cd /opt/toolkitrag/app
+cd /opt/grounded/app
 source venv/bin/activate
 
 # Link environment file
-ln -s /etc/toolkitrag/.env .env
+ln -s /etc/grounded/.env .env
 
 # Run migrations
 alembic upgrade head
@@ -295,10 +295,10 @@ sudo systemctl enable certbot.timer
 
 ### 3. Nginx Reverse Proxy
 
-Create `/etc/nginx/sites-available/toolkitrag`:
+Create `/etc/nginx/sites-available/grounded`:
 
 ```nginx
-upstream toolkitrag {
+upstream grounded {
     server 127.0.0.1:8000;
 }
 
@@ -332,12 +332,12 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
 
     # Logging
-    access_log /var/log/nginx/toolkitrag.access.log;
-    error_log /var/log/nginx/toolkitrag.error.log;
+    access_log /var/log/nginx/grounded.access.log;
+    error_log /var/log/nginx/grounded.error.log;
 
     # Proxy settings
     location / {
-        proxy_pass http://toolkitrag;
+        proxy_pass http://grounded;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -354,12 +354,12 @@ server {
 
     # Health check (no auth required)
     location /health {
-        proxy_pass http://toolkitrag/health;
+        proxy_pass http://grounded/health;
         access_log off;
     }
 
     location /ready {
-        proxy_pass http://toolkitrag/ready;
+        proxy_pass http://grounded/ready;
         access_log off;
     }
 }
@@ -368,7 +368,7 @@ server {
 Enable site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/toolkitrag /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/grounded /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
@@ -377,22 +377,22 @@ sudo systemctl restart nginx
 
 ## Systemd Service
 
-Create `/etc/systemd/system/toolkitrag.service`:
+Create `/etc/systemd/system/grounded.service`:
 
 ```ini
 [Unit]
-Description=ToolkitRAG Application
+Description=Grounded Application
 After=network.target postgresql.service
 Requires=postgresql.service
 
 [Service]
 Type=notify
-User=toolkitrag
-Group=toolkitrag
-WorkingDirectory=/opt/toolkitrag/app
-Environment="PATH=/opt/toolkitrag/app/venv/bin"
-EnvironmentFile=/etc/toolkitrag/.env
-ExecStart=/opt/toolkitrag/app/venv/bin/uvicorn app.main:app \
+User=grounded
+Group=grounded
+WorkingDirectory=/opt/grounded/app
+Environment="PATH=/opt/grounded/app/venv/bin"
+EnvironmentFile=/etc/grounded/.env
+ExecStart=/opt/grounded/app/venv/bin/uvicorn app.main:app \
     --host 127.0.0.1 \
     --port 8000 \
     --workers 4 \
@@ -409,7 +409,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/toolkitrag/data /var/log/toolkitrag
+ReadWritePaths=/opt/grounded/data /var/log/grounded
 
 # Resource limits
 LimitNOFILE=65536
@@ -424,14 +424,14 @@ Enable and start service:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable toolkitrag
-sudo systemctl start toolkitrag
+sudo systemctl enable grounded
+sudo systemctl start grounded
 
 # Check status
-sudo systemctl status toolkitrag
+sudo systemctl status grounded
 
 # View logs
-sudo journalctl -u toolkitrag -f
+sudo journalctl -u grounded -f
 ```
 
 ---
@@ -450,41 +450,41 @@ curl https://yourdomain.com/ready
 
 ### 2. Application Logs
 
-Logs are written in JSON format to `/var/log/toolkitrag/app.log`:
+Logs are written in JSON format to `/var/log/grounded/app.log`:
 
 ```bash
 # Tail logs
-tail -f /var/log/toolkitrag/app.log | jq .
+tail -f /var/log/grounded/app.log | jq .
 
 # Search for errors
-grep '"level":"ERROR"' /var/log/toolkitrag/app.log | jq .
+grep '"level":"ERROR"' /var/log/grounded/app.log | jq .
 
 # Track specific request
-grep '"request_id":"abc123"' /var/log/toolkitrag/app.log | jq .
+grep '"request_id":"abc123"' /var/log/grounded/app.log | jq .
 ```
 
 ### 3. Rate Limit Monitoring
 
 ```bash
 # Check rate limit violations
-grep "Rate limit exceeded" /var/log/toolkitrag/app.log | jq .
+grep "Rate limit exceeded" /var/log/grounded/app.log | jq .
 ```
 
 ### 4. Log Rotation
 
-Create `/etc/logrotate.d/toolkitrag`:
+Create `/etc/logrotate.d/grounded`:
 
 ```
-/var/log/toolkitrag/*.log {
+/var/log/grounded/*.log {
     daily
     rotate 30
     compress
     delaycompress
     notifempty
-    create 0640 toolkitrag toolkitrag
+    create 0640 grounded grounded
     sharedscripts
     postrotate
-        systemctl reload toolkitrag >/dev/null 2>&1 || true
+        systemctl reload grounded >/dev/null 2>&1 || true
     endscript
 }
 ```
@@ -543,13 +543,13 @@ curl https://yourdomain.com/ready
 
 **Check systemd logs**:
 ```bash
-sudo journalctl -u toolkitrag -n 100 --no-pager
+sudo journalctl -u grounded -n 100 --no-pager
 ```
 
 **Check startup validation**:
 ```bash
-sudo -u toolkitrag -i
-cd /opt/toolkitrag/app
+sudo -u grounded -i
+cd /opt/grounded/app
 source venv/bin/activate
 python -c "from app.startup import run_startup_validation; run_startup_validation()"
 ```
@@ -558,7 +558,7 @@ python -c "from app.startup import run_startup_validation; run_startup_validatio
 
 **Test PostgreSQL**:
 ```bash
-sudo -u toolkitrag psql -h localhost -U toolkitrag -d toolkitrag -c "SELECT 1;"
+sudo -u grounded psql -h localhost -U grounded -d grounded -c "SELECT 1;"
 ```
 
 **Check PostgreSQL logs**:
@@ -570,10 +570,10 @@ sudo tail -f /var/log/postgresql/postgresql-15-main.log
 
 **Reset rate limits** (requires app restart):
 ```bash
-sudo systemctl restart toolkitrag
+sudo systemctl restart grounded
 ```
 
-**Adjust limits** in `/etc/toolkitrag/.env`:
+**Adjust limits** in `/etc/grounded/.env`:
 ```bash
 RATE_LIMIT_AUTH_REQUESTS=10
 RATE_LIMIT_RAG_REQUESTS=50
@@ -600,17 +600,17 @@ sudo certbot renew --dry-run
 
 ```bash
 # Backup database
-sudo -u postgres pg_dump toolkitrag > /backup/toolkitrag-$(date +%Y%m%d).sql
+sudo -u postgres pg_dump grounded > /backup/grounded-$(date +%Y%m%d).sql
 
 # Restore database
-sudo -u postgres psql toolkitrag < /backup/toolkitrag-20260123.sql
+sudo -u postgres psql grounded < /backup/grounded-20260123.sql
 ```
 
 ### Application Data
 
 ```bash
 # Backup uploads
-tar -czf /backup/uploads-$(date +%Y%m%d).tar.gz /opt/toolkitrag/data/uploads/
+tar -czf /backup/uploads-$(date +%Y%m%d).tar.gz /opt/grounded/data/uploads/
 
 # Restore uploads
 tar -xzf /backup/uploads-20260123.tar.gz -C /
@@ -661,8 +661,8 @@ client_max_body_size 50M;
 - [ ] PostgreSQL only listens on localhost
 - [ ] Firewall configured (only 22, 80, 443 open)
 - [ ] SSL/TLS certificate installed and auto-renewing
-- [ ] Application runs as non-root user (`toolkitrag`)
-- [ ] File permissions: `/etc/toolkitrag/.env` is 640
+- [ ] Application runs as non-root user (`grounded`)
+- [ ] File permissions: `/etc/grounded/.env` is 640
 - [ ] Rate limiting enabled
 - [ ] Structured logging enabled (JSON format)
 - [ ] Health checks configured in load balancer

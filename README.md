@@ -1,6 +1,6 @@
-# ToolkitRAG
+# Grounded
 
-AI Toolkit Learning Platform - A production-ready web application built with FastAPI and PostgreSQL.
+Grounded - AI Learning Platform - A production-ready web application built with FastAPI and PostgreSQL.
 
 ## Local Run
 
@@ -134,7 +134,7 @@ docker compose logs -f db
 
 ```bash
 # Connect to PostgreSQL
-docker compose exec db psql -U toolkitrag -d toolkitrag
+docker compose exec db psql -U grounded -d grounded
 ```
 
 ## How to Ingest Toolkit
@@ -199,15 +199,15 @@ docker compose run --rm app python -m app.ingest \
 
 ```bash
 # Check toolkit_documents table
-docker compose exec db psql -U toolkitrag -d toolkitrag -c \
+docker compose exec db psql -U grounded -d grounded -c \
   "SELECT version_tag, chunk_count, upload_date FROM toolkit_documents;"
 
 # Check toolkit_chunks table
-docker compose exec db psql -U toolkitrag -d toolkitrag -c \
+docker compose exec db psql -U grounded -d grounded -c \
   "SELECT COUNT(*), AVG(LENGTH(chunk_text)) FROM toolkit_chunks;"
 
 # Check embeddings (if created)
-docker compose exec db psql -U toolkitrag -d toolkitrag -c \
+docker compose exec db psql -U grounded -d grounded -c \
   "SELECT COUNT(*) FROM toolkit_chunks WHERE embedding IS NOT NULL;"
 ```
 

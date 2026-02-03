@@ -1,8 +1,8 @@
-# ToolkitRAG - Build Specification
+# Grounded - Build Specification
 
 ## Project Overview
 
-ToolkitRAG is a production-ready web application that transforms an AI Toolkit document into an interactive learning and decision-support platform with multi-user support, RAG-powered Q&A, and strategy planning capabilities.
+Grounded is a production-ready web application that transforms an AI Toolkit document into an interactive learning and decision-support platform with multi-user support, RAG-powered Q&A, and strategy planning capabilities.
 
 ## Core Requirements
 
@@ -258,7 +258,7 @@ Each citation must include:
 ## Repository File Structure
 
 ```
-toolkitrag/
+grounded/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
@@ -413,10 +413,10 @@ Required environment variables (`.env.example`):
 
 ```bash
 # Database
-DATABASE_URL=postgresql://user:password@db:5432/toolkitrag
-POSTGRES_USER=toolkitrag
+DATABASE_URL=postgresql://user:password@db:5432/grounded
+POSTGRES_USER=grounded
 POSTGRES_PASSWORD=changeme
-POSTGRES_DB=toolkitrag
+POSTGRES_DB=grounded
 
 # Auth
 JWT_SECRET_KEY=generate-secure-random-key-here

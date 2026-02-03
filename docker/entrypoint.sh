@@ -2,7 +2,7 @@
 set -e
 
 echo "Waiting for postgres..."
-while ! pg_isready -h db -U ${POSTGRES_USER:-toolkitrag}; do
+while ! pg_isready -h db -U ${POSTGRES_USER:-grounded}; do
   sleep 1
 done
 echo "PostgreSQL started"

@@ -1,6 +1,6 @@
 # Production Deployment Guide - No Docker
 
-This guide provides step-by-step instructions for deploying ToolkitRAG on a production VPS without Docker.
+This guide provides step-by-step instructions for deploying Grounded on a production VPS without Docker.
 
 ## Table of Contents
 1. [Create Lightsail Instance](#1-create-lightsail-instance)
@@ -29,7 +29,7 @@ This guide provides step-by-step instructions for deploying ToolkitRAG on a prod
    - Platform: Linux/Unix
    - Blueprint: OS Only → Ubuntu 22.04 LTS
    - Instance Plan: $10/month (2 GB RAM, 1 vCPU, 60 GB SSD)
-   - Name: toolkitrag-prod
+   - Name: grounded-prod
    ```
 
 3. **Create Static IP** (Optional but recommended):
@@ -84,7 +84,7 @@ sudo usermod -aG sudo deployer
 
 ```bash
 # Generate SSH key if you don't have one
-ssh-keygen -t ed25519 -C "deployer@toolkitrag"
+ssh-keygen -t ed25519 -C "deployer@grounded"
 
 # Copy public key
 cat ~/.ssh/id_ed25519.pub
@@ -257,11 +257,11 @@ sudo systemctl enable postgresql
 
 # Create database and user
 sudo -u postgres psql <<EOF
-CREATE USER toolkitrag WITH PASSWORD 'REPLACE_WITH_STRONG_PASSWORD';
-CREATE DATABASE toolkitrag OWNER toolkitrag;
-\c toolkitrag
+CREATE USER grounded WITH PASSWORD 'REPLACE_WITH_STRONG_PASSWORD';
+CREATE DATABASE grounded OWNER grounded;
+\c grounded
 CREATE EXTENSION vector;
-GRANT ALL PRIVILEGES ON DATABASE toolkitrag TO toolkitrag;
+GRANT ALL PRIVILEGES ON DATABASE grounded TO grounded;
 EOF
 
 # Configure PostgreSQL to only accept local connections
@@ -271,22 +271,22 @@ sudo nano /etc/postgresql/15/main/postgresql.conf
 sudo systemctl restart postgresql
 
 # Test connection
-psql -h localhost -U toolkitrag -d toolkitrag -c "SELECT version();"
+psql -h localhost -U grounded -d grounded -c "SELECT version();"
 ```
 
-**DATABASE_URL**: `postgresql://toolkitrag:YOUR_PASSWORD@localhost:5432/toolkitrag`
+**DATABASE_URL**: `postgresql://grounded:YOUR_PASSWORD@localhost:5432/grounded`
 
 ### Option B: AWS RDS
 
 1. **Create RDS Instance**:
    - Engine: PostgreSQL 15
    - Template: Free tier or Production
-   - DB instance identifier: toolkitrag-db
-   - Master username: toolkitrag
+   - DB instance identifier: grounded-db
+   - Master username: grounded
    - Master password: (generate strong password)
    - VPC: Same as Lightsail instance
    - Public access: No (unless Lightsail is in different VPC)
-   - Create database: toolkitrag
+   - Create database: grounded
 
 2. **Enable pgvector**:
    ```sql
@@ -294,7 +294,7 @@ psql -h localhost -U toolkitrag -d toolkitrag -c "SELECT version();"
    CREATE EXTENSION vector;
    ```
 
-**DATABASE_URL**: `postgresql://toolkitrag:PASSWORD@your-rds-endpoint.region.rds.amazonaws.com:5432/toolkitrag`
+**DATABASE_URL**: `postgresql://grounded:PASSWORD@your-rds-endpoint.region.rds.amazonaws.com:5432/grounded`
 
 ### Option C: Supabase
 
@@ -320,21 +320,21 @@ psql -h localhost -U toolkitrag -d toolkitrag -c "SELECT version();"
 
 ```bash
 # Create app directory
-sudo mkdir -p /opt/toolkitrag
-sudo chown deployer:deployer /opt/toolkitrag
-cd /opt/toolkitrag
+sudo mkdir -p /opt/grounded
+sudo chown deployer:deployer /opt/grounded
+cd /opt/grounded
 ```
 
 ### Clone Repository
 
 ```bash
 # Clone from GitHub (replace with your repo)
-git clone https://github.com/YOUR_USERNAME/toolkitrag.git app
+git clone https://github.com/YOUR_USERNAME/grounded.git app
 cd app
 
 # Or upload via SCP if not using git:
 # From your local machine:
-# scp -r /path/to/aitools deployer@YOUR_IP:/opt/toolkitrag/app
+# scp -r /path/to/aitools deployer@YOUR_IP:/opt/grounded/app
 ```
 
 ### Create Virtual Environment
@@ -360,19 +360,19 @@ python -c "import fastapi; print(fastapi.__version__)"
 
 ```bash
 # Create data directories
-mkdir -p /opt/toolkitrag/data/uploads
-mkdir -p /var/log/toolkitrag
+mkdir -p /opt/grounded/data/uploads
+mkdir -p /var/log/grounded
 
 # Set permissions
-sudo chown -R deployer:deployer /opt/toolkitrag
-sudo chown -R deployer:deployer /var/log/toolkitrag
+sudo chown -R deployer:deployer /opt/grounded
+sudo chown -R deployer:deployer /var/log/grounded
 ```
 
 ### Configure Environment Variables
 
 ```bash
 # Create production environment file
-sudo nano /etc/toolkitrag/.env
+sudo nano /etc/grounded/.env
 ```
 
 **Production .env template**:
@@ -389,7 +389,7 @@ ENV=prod
 # Database
 # =============================================================================
 # Replace with your actual database URL
-DATABASE_URL=postgresql://toolkitrag:YOUR_PASSWORD@localhost:5432/toolkitrag
+DATABASE_URL=postgresql://grounded:YOUR_PASSWORD@localhost:5432/grounded
 
 # =============================================================================
 # Security - CRITICAL
@@ -423,7 +423,7 @@ RATE_LIMIT_RAG_WINDOW=60
 # =============================================================================
 LOG_LEVEL=INFO
 LOG_FORMAT=json
-LOG_FILE=/var/log/toolkitrag/app.log
+LOG_FILE=/var/log/grounded/app.log
 
 # =============================================================================
 # OpenAI API
@@ -467,18 +467,18 @@ python3.11 -c 'import secrets; print(secrets.token_urlsafe(32))'
 
 ```bash
 # Create directory
-sudo mkdir -p /etc/toolkitrag
+sudo mkdir -p /etc/grounded
 
 # Move .env file
-sudo mv /etc/toolkitrag/.env /etc/toolkitrag/.env.bak  # if exists
-sudo nano /etc/toolkitrag/.env  # Create with above template
+sudo mv /etc/grounded/.env /etc/grounded/.env.bak  # if exists
+sudo nano /etc/grounded/.env  # Create with above template
 
 # Set permissions
-sudo chown root:deployer /etc/toolkitrag/.env
-sudo chmod 640 /etc/toolkitrag/.env
+sudo chown root:deployer /etc/grounded/.env
+sudo chmod 640 /etc/grounded/.env
 
 # Link to app directory
-ln -s /etc/toolkitrag/.env /opt/toolkitrag/app/.env
+ln -s /etc/grounded/.env /opt/grounded/app/.env
 ```
 
 ---
@@ -487,13 +487,13 @@ ln -s /etc/toolkitrag/.env /opt/toolkitrag/app/.env
 
 ```bash
 # Navigate to app directory
-cd /opt/toolkitrag/app
+cd /opt/grounded/app
 
 # Activate venv
 source venv/bin/activate
 
 # Verify .env is linked
-ls -la .env  # Should show symlink to /etc/toolkitrag/.env
+ls -la .env  # Should show symlink to /etc/grounded/.env
 
 # Test database connection
 python -c "from app.db import engine; from sqlalchemy import text; \
@@ -530,10 +530,10 @@ alembic history
 ### Create Systemd Service File
 
 ```bash
-sudo nano /etc/systemd/system/toolkitrag.service
+sudo nano /etc/systemd/system/grounded.service
 ```
 
-**Copy contents from `deployment/toolkitrag.service` (see section below)**
+**Copy contents from `deployment/grounded.service` (see section below)**
 
 ### Enable and Start Service
 
@@ -542,19 +542,19 @@ sudo nano /etc/systemd/system/toolkitrag.service
 sudo systemctl daemon-reload
 
 # Enable service (start on boot)
-sudo systemctl enable toolkitrag
+sudo systemctl enable grounded
 
 # Start service
-sudo systemctl start toolkitrag
+sudo systemctl start grounded
 
 # Check status
-sudo systemctl status toolkitrag
+sudo systemctl status grounded
 
 # View logs
-sudo journalctl -u toolkitrag -f
+sudo journalctl -u grounded -f
 
 # If there are errors, check logs and fix issues
-sudo journalctl -u toolkitrag -n 100 --no-pager
+sudo journalctl -u grounded -n 100 --no-pager
 ```
 
 ### Test Application
@@ -621,7 +621,7 @@ sudo journalctl -u caddy -f
 
 ```bash
 # Create Nginx config
-sudo nano /etc/nginx/sites-available/toolkitrag
+sudo nano /etc/nginx/sites-available/grounded
 ```
 
 **Copy contents from `deployment/nginx.conf` (see section below)**
@@ -630,10 +630,10 @@ sudo nano /etc/nginx/sites-available/toolkitrag
 
 ```bash
 # Replace domain
-sudo sed -i 's/yourdomain.com/YOUR_ACTUAL_DOMAIN/g' /etc/nginx/sites-available/toolkitrag
+sudo sed -i 's/yourdomain.com/YOUR_ACTUAL_DOMAIN/g' /etc/nginx/sites-available/grounded
 
 # Create symlink
-sudo ln -s /etc/nginx/sites-available/toolkitrag /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/grounded /etc/nginx/sites-enabled/
 
 # Remove default site
 sudo rm /etc/nginx/sites-enabled/default
@@ -769,12 +769,12 @@ sudo fail2ban-client status sshd
 
 ```bash
 # Create logrotate config
-sudo nano /etc/logrotate.d/toolkitrag
+sudo nano /etc/logrotate.d/grounded
 ```
 
 **Contents**:
 ```
-/var/log/toolkitrag/*.log {
+/var/log/grounded/*.log {
     daily
     rotate 30
     compress
@@ -783,7 +783,7 @@ sudo nano /etc/logrotate.d/toolkitrag
     create 0640 deployer deployer
     sharedscripts
     postrotate
-        systemctl reload toolkitrag >/dev/null 2>&1 || true
+        systemctl reload grounded >/dev/null 2>&1 || true
     endscript
 }
 ```
@@ -792,20 +792,20 @@ sudo nano /etc/logrotate.d/toolkitrag
 
 ```bash
 # Test rotation
-sudo logrotate -d /etc/logrotate.d/toolkitrag
+sudo logrotate -d /etc/logrotate.d/grounded
 
 # Force rotation (for testing)
-sudo logrotate -f /etc/logrotate.d/toolkitrag
+sudo logrotate -f /etc/logrotate.d/grounded
 ```
 
 ### View Logs
 
 ```bash
 # Application logs (JSON format)
-tail -f /var/log/toolkitrag/app.log | jq .
+tail -f /var/log/grounded/app.log | jq .
 
 # Systemd logs
-sudo journalctl -u toolkitrag -f
+sudo journalctl -u grounded -f
 
 # Caddy/Nginx logs
 sudo journalctl -u caddy -f
@@ -814,10 +814,10 @@ sudo tail -f /var/log/nginx/access.log
 sudo tail -f /var/log/nginx/error.log
 
 # Search for errors
-grep '"level":"ERROR"' /var/log/toolkitrag/app.log | jq .
+grep '"level":"ERROR"' /var/log/grounded/app.log | jq .
 
 # Track specific request
-grep '"request_id":"abc-123"' /var/log/toolkitrag/app.log | jq .
+grep '"request_id":"abc-123"' /var/log/grounded/app.log | jq .
 ```
 
 ### Setup Monitoring (Optional)
@@ -826,19 +826,19 @@ grep '"request_id":"abc-123"' /var/log/toolkitrag/app.log | jq .
 
 ```bash
 # Create health check script
-cat > /opt/toolkitrag/health-check.sh <<'EOF'
+cat > /opt/grounded/health-check.sh <<'EOF'
 #!/bin/bash
 HEALTH=$(curl -s http://localhost:8000/health | jq -r '.status')
 if [ "$HEALTH" != "healthy" ]; then
-    echo "$(date): Health check failed!" | mail -s "ToolkitRAG Down" admin@yourdomain.com
+    echo "$(date): Health check failed!" | mail -s "Grounded Down" admin@yourdomain.com
 fi
 EOF
 
-chmod +x /opt/toolkitrag/health-check.sh
+chmod +x /opt/grounded/health-check.sh
 
 # Add to cron (every 5 minutes)
 crontab -e
-# Add: */5 * * * * /opt/toolkitrag/health-check.sh
+# Add: */5 * * * * /opt/grounded/health-check.sh
 ```
 
 ---
@@ -851,11 +851,11 @@ crontab -e
 
 ```bash
 # Create backup directory
-sudo mkdir -p /opt/toolkitrag/backups
-sudo chown deployer:deployer /opt/toolkitrag/backups
+sudo mkdir -p /opt/grounded/backups
+sudo chown deployer:deployer /opt/grounded/backups
 
 # Create backup script
-nano /opt/toolkitrag/backup-db.sh
+nano /opt/grounded/backup-db.sh
 ```
 
 **Script contents**:
@@ -863,10 +863,10 @@ nano /opt/toolkitrag/backup-db.sh
 #!/bin/bash
 
 # Configuration
-BACKUP_DIR="/opt/toolkitrag/backups"
+BACKUP_DIR="/opt/grounded/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/toolkitrag_$DATE.sql.gz"
-DB_URL="postgresql://toolkitrag:PASSWORD@localhost:5432/toolkitrag"
+BACKUP_FILE="$BACKUP_DIR/grounded_$DATE.sql.gz"
+DB_URL="postgresql://grounded:PASSWORD@localhost:5432/grounded"
 
 # Keep only last 30 days of backups
 RETENTION_DAYS=30
@@ -883,7 +883,7 @@ else
 fi
 
 # Delete old backups
-find "$BACKUP_DIR" -name "toolkitrag_*.sql.gz" -mtime +$RETENTION_DAYS -delete
+find "$BACKUP_DIR" -name "grounded_*.sql.gz" -mtime +$RETENTION_DAYS -delete
 
 # Optional: Upload to S3
 # aws s3 cp "$BACKUP_FILE" s3://your-bucket/backups/
@@ -892,8 +892,8 @@ find "$BACKUP_DIR" -name "toolkitrag_*.sql.gz" -mtime +$RETENTION_DAYS -delete
 **Make executable and test**:
 
 ```bash
-chmod +x /opt/toolkitrag/backup-db.sh
-/opt/toolkitrag/backup-db.sh
+chmod +x /opt/grounded/backup-db.sh
+/opt/grounded/backup-db.sh
 ```
 
 **Schedule daily backups**:
@@ -903,7 +903,7 @@ chmod +x /opt/toolkitrag/backup-db.sh
 crontab -e
 
 # Add line (runs daily at 2 AM):
-0 2 * * * /opt/toolkitrag/backup-db.sh >> /var/log/toolkitrag/backup.log 2>&1
+0 2 * * * /opt/grounded/backup-db.sh >> /var/log/grounded/backup.log 2>&1
 ```
 
 ### Uploaded Files Backup
@@ -911,20 +911,20 @@ crontab -e
 **Create backup script**:
 
 ```bash
-nano /opt/toolkitrag/backup-files.sh
+nano /opt/grounded/backup-files.sh
 ```
 
 **Script contents**:
 ```bash
 #!/bin/bash
 
-BACKUP_DIR="/opt/toolkitrag/backups"
+BACKUP_DIR="/opt/grounded/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/uploads_$DATE.tar.gz"
-UPLOADS_DIR="/opt/toolkitrag/data/uploads"
+UPLOADS_DIR="/opt/grounded/data/uploads"
 
 # Create backup
-tar -czf "$BACKUP_FILE" -C /opt/toolkitrag/data uploads
+tar -czf "$BACKUP_FILE" -C /opt/grounded/data uploads
 
 # Keep last 30 days
 find "$BACKUP_DIR" -name "uploads_*.tar.gz" -mtime +30 -delete
@@ -935,11 +935,11 @@ echo "$(date): Files backup complete: $BACKUP_FILE"
 **Schedule weekly backups**:
 
 ```bash
-chmod +x /opt/toolkitrag/backup-files.sh
+chmod +x /opt/grounded/backup-files.sh
 
 # Add to crontab (runs weekly on Sunday at 3 AM)
 crontab -e
-0 3 * * 0 /opt/toolkitrag/backup-files.sh >> /var/log/toolkitrag/backup.log 2>&1
+0 3 * * 0 /opt/grounded/backup-files.sh >> /var/log/grounded/backup.log 2>&1
 ```
 
 ### Restore from Backup
@@ -948,19 +948,19 @@ crontab -e
 
 ```bash
 # Find backup
-ls -lh /opt/toolkitrag/backups/
+ls -lh /opt/grounded/backups/
 
 # Restore from backup
-gunzip < /opt/toolkitrag/backups/toolkitrag_20260123_020000.sql.gz | \
-    psql postgresql://toolkitrag:PASSWORD@localhost:5432/toolkitrag
+gunzip < /opt/grounded/backups/grounded_20260123_020000.sql.gz | \
+    psql postgresql://grounded:PASSWORD@localhost:5432/grounded
 ```
 
 **Restore files**:
 
 ```bash
 # Restore uploads
-tar -xzf /opt/toolkitrag/backups/uploads_20260123_030000.tar.gz \
-    -C /opt/toolkitrag/data/
+tar -xzf /opt/grounded/backups/uploads_20260123_030000.tar.gz \
+    -C /opt/grounded/data/
 ```
 
 ---
@@ -973,20 +973,20 @@ Run through this checklist before considering deployment complete:
 
 ```bash
 # Navigate to validation script location
-cd /opt/toolkitrag/app
+cd /opt/grounded/app
 
 # Create validation script
 cat > validate-deployment.sh <<'EOF'
 #!/bin/bash
 
 echo "=========================================="
-echo "ToolkitRAG Production Validation"
+echo "Grounded Production Validation"
 echo "=========================================="
 echo ""
 
 # 1. Check services
 echo "1. Checking services..."
-systemctl is-active --quiet toolkitrag && echo "✓ Application running" || echo "✗ Application not running"
+systemctl is-active --quiet grounded && echo "✓ Application running" || echo "✗ Application not running"
 systemctl is-active --quiet caddy && echo "✓ Caddy running" || echo "✓ Caddy running (or using Nginx)"
 systemctl is-active --quiet postgresql && echo "✓ PostgreSQL running" || echo "✓ Using managed DB"
 
@@ -1014,9 +1014,9 @@ echo ""
 
 # 4. Check file permissions
 echo "4. Checking permissions..."
-[ -r /etc/toolkitrag/.env ] && echo "✓ .env readable" || echo "✗ .env not readable"
-[ -w /opt/toolkitrag/data/uploads ] && echo "✓ Uploads writable" || echo "✗ Uploads not writable"
-[ -w /var/log/toolkitrag ] && echo "✓ Logs writable" || echo "✗ Logs not writable"
+[ -r /etc/grounded/.env ] && echo "✓ .env readable" || echo "✗ .env not readable"
+[ -w /opt/grounded/data/uploads ] && echo "✓ Uploads writable" || echo "✗ Uploads not writable"
+[ -w /var/log/grounded ] && echo "✓ Logs writable" || echo "✗ Logs not writable"
 
 echo ""
 
@@ -1127,18 +1127,18 @@ https://yourdomain.com/strategy
 
 ```bash
 # Start/stop/restart app
-sudo systemctl start toolkitrag
-sudo systemctl stop toolkitrag
-sudo systemctl restart toolkitrag
+sudo systemctl start grounded
+sudo systemctl stop grounded
+sudo systemctl restart grounded
 
 # View status
-sudo systemctl status toolkitrag
+sudo systemctl status grounded
 
 # View logs
-sudo journalctl -u toolkitrag -f
+sudo journalctl -u grounded -f
 
 # Reload after code changes
-sudo systemctl restart toolkitrag
+sudo systemctl restart grounded
 ```
 
 ### Database Operations
@@ -1148,11 +1148,11 @@ sudo systemctl restart toolkitrag
 psql $DATABASE_URL
 
 # Run migrations
-cd /opt/toolkitrag/app && source venv/bin/activate
+cd /opt/grounded/app && source venv/bin/activate
 alembic upgrade head
 
 # Create backup
-/opt/toolkitrag/backup-db.sh
+/opt/grounded/backup-db.sh
 
 # Restore backup
 gunzip < backup.sql.gz | psql $DATABASE_URL
@@ -1178,7 +1178,7 @@ curl https://yourdomain.com/health
 curl https://yourdomain.com/ready
 
 # View application logs
-tail -f /var/log/toolkitrag/app.log | jq .
+tail -f /var/log/grounded/app.log | jq .
 
 # View reverse proxy logs
 sudo journalctl -u caddy -f
@@ -1192,13 +1192,13 @@ sudo journalctl -u caddy -f
 
 ```bash
 # Check logs
-sudo journalctl -u toolkitrag -n 100 --no-pager
+sudo journalctl -u grounded -n 100 --no-pager
 
 # Check environment
-sudo -u deployer cat /etc/toolkitrag/.env | grep -v "PASSWORD\|KEY"
+sudo -u deployer cat /etc/grounded/.env | grep -v "PASSWORD\|KEY"
 
 # Test manually
-cd /opt/toolkitrag/app
+cd /opt/grounded/app
 source venv/bin/activate
 python -m app.main
 ```
@@ -1236,11 +1236,11 @@ sudo ufw status
 
 ```bash
 # Check rate limit logs
-grep "Rate limit exceeded" /var/log/toolkitrag/app.log | jq .
+grep "Rate limit exceeded" /var/log/grounded/app.log | jq .
 
 # Temporarily disable (in .env)
 RATE_LIMIT_ENABLED=false
-sudo systemctl restart toolkitrag
+sudo systemctl restart grounded
 ```
 
 ---
@@ -1285,7 +1285,7 @@ After successful deployment:
 ---
 
 For detailed configuration files, see:
-- `deployment/toolkitrag.service` - Systemd service file
+- `deployment/grounded.service` - Systemd service file
 - `deployment/Caddyfile` - Caddy reverse proxy config
 - `deployment/nginx.conf` - Nginx reverse proxy config
 
