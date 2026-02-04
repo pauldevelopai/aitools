@@ -3,8 +3,8 @@ from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.database import get_db
-from app.models.user import User
+from app.db import get_db
+from app.models.auth import User
 from app.auth.jwt import decode_token
 
 

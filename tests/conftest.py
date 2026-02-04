@@ -8,6 +8,10 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import app
 
+
+# Configure pytest-asyncio
+pytest_plugins = ('pytest_asyncio',)
+
 # Use in-memory SQLite for tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
@@ -22,6 +26,9 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 @pytest.fixture(scope="function")
 def db_session():
     """Create a fresh database session for each test."""
+    # Import models to register them with Base
+    from app.models import auth, toolkit, workflow, directory
+
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:

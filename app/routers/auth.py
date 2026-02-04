@@ -2,8 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models.user import User
+from app.db import get_db
+from app.models.auth import User
 from app.schemas.user import UserCreate, UserLogin, UserResponse
 from app.schemas.auth import MessageResponse
 from app.auth.password import hash_password, verify_password
@@ -37,10 +37,11 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
     # Create new user
-    hashed_password = hash_password(user_data.password)
+    hashed_pwd = hash_password(user_data.password)
     new_user = User(
         email=user_data.email,
-        password_hash=hashed_password,
+        username=user_data.email,
+        hashed_password=hashed_pwd,
         is_admin=False
     )
     db.add(new_user)
@@ -68,7 +69,7 @@ async def login(user_data: UserLogin, response: Response, db: Session = Depends(
     """
     # Find user by email
     user = db.query(User).filter(User.email == user_data.email).first()
-    if not user or not verify_password(user_data.password, user.password_hash):
+    if not user or not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"

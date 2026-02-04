@@ -1,32 +1,8 @@
-"""Database configuration and session management."""
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from app.config import settings
+"""Database configuration - re-exports from app.db for backwards compatibility.
 
-# Create engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    echo=settings.APP_DEBUG
-)
+DEPRECATED: Import directly from app.db instead.
+"""
+from app.db import Base, get_db
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Base class for models
-Base = declarative_base()
-
-
-def get_db():
-    """
-    Dependency for getting database sessions.
-
-    Yields:
-        Database session that will be automatically closed.
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Re-export for backwards compatibility
+__all__ = ['Base', 'get_db']

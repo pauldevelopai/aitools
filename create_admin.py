@@ -2,7 +2,7 @@
 """Create or update admin user for easy access."""
 from sqlalchemy.orm import Session
 from app.db import SessionLocal, engine
-from app.models.user import User
+from app.models.auth import User
 from app.services.auth import create_user
 from app.auth.password import get_password_hash
 
@@ -36,7 +36,7 @@ def create_admin_user():
             user = User(
                 email=email,
                 username=username,
-                password_hash=get_password_hash(password),
+                hashed_password=get_password_hash(password),
                 is_admin=True
             )
             db.add(user)

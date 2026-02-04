@@ -6,7 +6,7 @@ os.environ['ADMIN_PASSWORD'] = 'admin123'
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.user import User
+from app.models.auth import User
 from app.auth.password import get_password_hash
 
 # Get database URL from environment
@@ -46,7 +46,7 @@ def create_admin_user():
             user = User(
                 email=email,
                 username=username,
-                password_hash=get_password_hash(password),
+                hashed_password=get_password_hash(password),
                 is_admin=True
             )
             db.add(user)
