@@ -165,6 +165,10 @@ async def fetch_pages(state: PartnerIntelligenceState, db_session=None) -> dict:
                     text_content = _extract_text_from_html(html_content)
                     title = _extract_title_from_html(html_content)
 
+                    # Store content in page_info for extraction
+                    page_info["text_content"] = text_content
+                    page_info["title"] = title
+
                     # Store snapshot if we have a database session
                     if db_session:
                         snapshot = WebPageSnapshot(
@@ -181,10 +185,6 @@ async def fetch_pages(state: PartnerIntelligenceState, db_session=None) -> dict:
                         db_session.add(snapshot)
                         db_session.flush()
                         snapshot_ids.append(str(snapshot.id))
-
-                        # Store content in page_info for extraction
-                        page_info["text_content"] = text_content
-                        page_info["title"] = title
                 else:
                     page_info["error"] = f"HTTP {response.status_code}"
                     fetch_errors.append(f"{url}: HTTP {response.status_code}")

@@ -89,3 +89,17 @@ async def workflows_health(response: Response):
         response.status_code = status.HTTP_200_OK  # Still operational but degraded
 
     return health_info
+
+
+@router.get("/health/grounded")
+async def grounded_health():
+    """
+    GROUNDED infrastructure health check.
+
+    Returns status of GROUNDED initialization and components.
+    """
+    from app.grounded_adapter import is_grounded_initialized, get_grounded_health
+    return {
+        "initialized": is_grounded_initialized(),
+        **get_grounded_health()
+    }

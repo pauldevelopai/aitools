@@ -141,11 +141,18 @@
         </div>
     </nav>
 
-    <!-- Admin Navigation - All tabs always visible for consistency -->
+    {# ── Active-page group helpers ── #}
+    {% set _content_pages = ['documents', 'sources', 'training', 'playbooks', 'governance_content'] %}
+    {% set _tools_pages   = ['discovery', 'approved_tools', 'tool_suggestions', 'reviews', 'governance_tools'] %}
+    {% set _dir_pages     = ['directory', 'governance', 'sync'] %}
+    {% set _system_pages  = ['users', 'analytics', 'feedback'] %}
+
+    <!-- Admin Navigation -->
     <div class="bg-white border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex space-x-1 py-2 overflow-x-auto">
-                {# Master View tab - Hidden for now, enable with show_product_switching #}
+            <div class="flex items-center space-x-1 py-2">
+
+                {# Master View tab - Hidden for now #}
                 {% if show_product_switching|default(false) %}
                 <a href="/admin/master"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
@@ -153,72 +160,94 @@
                     Master View
                 </a>
                 {% endif %}
+
+                {# ── Dashboard (standalone) ── #}
                 <a href="/admin"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'dashboard' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                     Dashboard
                 </a>
-                <a href="/admin/users"
+
+                {# ── Directory dropdown (CRM - primary feature) ── #}
+                <div class="relative" data-dropdown>
+                    <button type="button"
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
+                               {% if active_admin_page in _dir_pages %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                        Directory
+                        <svg class="ml-1 w-3.5 h-3.5 {% if active_admin_page in _dir_pages %}text-white{% else %}text-gray-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="hidden absolute left-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40" data-dropdown-menu>
+                        <a href="/admin/directory"                     class="block px-4 py-2 text-sm {% if active_admin_page == 'directory' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Overview</a>
+                        <a href="/admin/directory/organizations"       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Organizations</a>
+                        <a href="/admin/directory/journalists"         class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Journalists</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="/admin/directory/sync"                class="block px-4 py-2 text-sm {% if active_admin_page == 'sync' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Sync to GROUNDED</a>
+                        <a href="/admin/governance"                    class="block px-4 py-2 text-sm {% if active_admin_page == 'governance' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Governance</a>
+                    </div>
+                </div>
+
+                {# ── Tools dropdown ── #}
+                <div class="relative" data-dropdown>
+                    <button type="button"
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
+                               {% if active_admin_page in _tools_pages %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                        Tools
+                        <svg class="ml-1 w-3.5 h-3.5 {% if active_admin_page in _tools_pages %}text-white{% else %}text-gray-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="hidden absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40" data-dropdown-menu>
+                        <a href="/admin/discovery"        class="block px-4 py-2 text-sm {% if active_admin_page == 'discovery' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Discovery</a>
+                        <a href="/admin/approved-tools"   class="block px-4 py-2 text-sm {% if active_admin_page == 'approved_tools' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Approved Tools</a>
+                        <a href="/admin/tool-suggestions" class="block px-4 py-2 text-sm {% if active_admin_page == 'tool_suggestions' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Suggestions</a>
+                        <a href="/admin/reviews"          class="block px-4 py-2 text-sm {% if active_admin_page == 'reviews' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Reviews</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="/admin/governance/tools" class="block px-4 py-2 text-sm {% if active_admin_page == 'governance_tools' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Tool Tests</a>
+                    </div>
+                </div>
+
+                {# ── Content dropdown ── #}
+                <div class="relative" data-dropdown>
+                    <button type="button"
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
+                               {% if active_admin_page in _content_pages %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                        Content
+                        <svg class="ml-1 w-3.5 h-3.5 {% if active_admin_page in _content_pages %}text-white{% else %}text-gray-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="hidden absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40" data-dropdown-menu>
+                        <a href="/admin/documents"  class="block px-4 py-2 text-sm {% if active_admin_page == 'documents' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Documents</a>
+                        <a href="/admin/sources"    class="block px-4 py-2 text-sm {% if active_admin_page == 'sources' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Sources</a>
+                        <a href="/admin/training"   class="block px-4 py-2 text-sm {% if active_admin_page == 'training' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Training</a>
+                        <a href="/admin/playbooks"  class="block px-4 py-2 text-sm {% if active_admin_page == 'playbooks' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Use Cases</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="/admin/governance/content" class="block px-4 py-2 text-sm {% if active_admin_page == 'governance_content' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Generated Content</a>
+                    </div>
+                </div>
+
+                {# ── System dropdown ── #}
+                <div class="relative" data-dropdown>
+                    <button type="button"
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
+                               {% if active_admin_page in _system_pages %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                        System
+                        <svg class="ml-1 w-3.5 h-3.5 {% if active_admin_page in _system_pages %}text-white{% else %}text-gray-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="hidden absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40" data-dropdown-menu>
+                        <a href="/admin/users"          class="block px-4 py-2 text-sm {% if active_admin_page == 'users' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Users</a>
+                        <a href="/admin/analytics"      class="block px-4 py-2 text-sm {% if active_admin_page == 'analytics' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Analytics</a>
+                        <a href="/admin/feedback"       class="block px-4 py-2 text-sm {% if active_admin_page == 'feedback' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Feedback</a>
+                    </div>
+                </div>
+
+                {# ── Spacer ── #}
+                <div class="flex-1"></div>
+
+                {# ── Workflow Runs (standalone, right side) ── #}
+                <a href="/admin/workflows/runs"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'users' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Users
+                          {% if active_admin_page == 'workflow_runs' %}bg-green-600 text-white{% else %}text-green-600 hover:bg-green-50{% endif %}">
+                    Workflow Runs
                 </a>
-                <a href="/admin/documents"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'documents' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Documents
-                </a>
-                <a href="/admin/analytics"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'analytics' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Analytics
-                </a>
-                <a href="/admin/feedback"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'feedback' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Feedback
-                </a>
-                <a href="/admin/reviews"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'reviews' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Reviews
-                </a>
-                <a href="/admin/discovery"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'discovery' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Discovery
-                </a>
-                <a href="/admin/approved-tools"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'approved_tools' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Approved Tools
-                </a>
-                <a href="/admin/playbooks"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'playbooks' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Use Cases
-                </a>
-                <a href="/admin/sources"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'sources' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Sources
-                </a>
-                <a href="/admin/tool-suggestions"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'tool_suggestions' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Tool Suggestions
-                </a>
-                <a href="/admin/training"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'training' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Training
-                </a>
-                <a href="/admin/directory"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'directory' %}bg-blue-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                    Directory
-                </a>
-                <span class="border-l border-gray-300 mx-1"></span>
+
+                {# ── Demo (standalone) ── #}
                 <a href="/admin/demo/documents"
                    class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
                           {% if active_admin_page == 'demo_documents' %}bg-purple-600 text-white{% else %}text-purple-600 hover:bg-purple-50{% endif %}">
@@ -249,12 +278,44 @@
             menu.classList.toggle('hidden');
         }
 
-        // Close menu when clicking outside
+        // Close context menu when clicking outside
         document.addEventListener('click', function(e) {
             var menu = document.getElementById('context-menu');
-            var button = e.target.closest('button');
-            if (!e.target.closest('#context-menu') && !button) {
+            if (menu && !e.target.closest('#context-menu') && !e.target.closest('button')) {
                 menu.classList.add('hidden');
+            }
+        });
+
+        // Dropdown navigation
+        document.querySelectorAll('[data-dropdown]').forEach(function(dropdown) {
+            var btn = dropdown.querySelector('button');
+            var menu = dropdown.querySelector('[data-dropdown-menu]');
+
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Close other dropdowns
+                document.querySelectorAll('[data-dropdown-menu]').forEach(function(m) {
+                    if (m !== menu) m.classList.add('hidden');
+                });
+                menu.classList.toggle('hidden');
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('[data-dropdown]')) {
+                document.querySelectorAll('[data-dropdown-menu]').forEach(function(m) {
+                    m.classList.add('hidden');
+                });
+            }
+        });
+
+        // Close dropdowns on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('[data-dropdown-menu]').forEach(function(m) {
+                    m.classList.add('hidden');
+                });
             }
         });
     </script>

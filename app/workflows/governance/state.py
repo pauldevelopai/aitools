@@ -147,6 +147,7 @@ class GovernanceTargetState(TypedDict, total=False):
     target_description: str
     jurisdiction: str
     tool_id: str
+    tool_url: str
     search_terms: list[str]
     known_urls: list[str]
     workflow_run_id: str

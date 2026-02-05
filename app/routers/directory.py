@@ -1270,7 +1270,7 @@ async def sync_page(
             "grounded_initialized": grounded_status,
             "kb_stats": kb_stats,
             **admin_context,
-            "active_admin_page": "directory",
+            "active_admin_page": "sync",
         }
     )
 

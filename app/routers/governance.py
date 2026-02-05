@@ -539,7 +539,7 @@ async def list_tools(
             "tools": tools,
             "filters": {"status": status, "search": search},
             **admin_context,
-            "active_admin_page": "governance",
+            "active_admin_page": "governance_tools",
         }
     )
 
@@ -574,7 +574,7 @@ async def new_tool_form(
             "tool": None,
             "discovered_tools": discovered_tools,
             **admin_context,
-            "active_admin_page": "governance",
+            "active_admin_page": "governance_tools",
         }
     )
 
@@ -665,7 +665,7 @@ async def view_tool(
             "tests": tests,
             "test_cases": test_cases,
             **admin_context,
-            "active_admin_page": "governance",
+            "active_admin_page": "governance_tools",
         }
     )
 
@@ -739,7 +739,7 @@ async def list_content(
             "content_items": content_items,
             "filters": {"status": status, "section": section, "search": search},
             **admin_context,
-            "active_admin_page": "governance",
+            "active_admin_page": "governance_content",
         }
     )
 
@@ -766,7 +766,7 @@ async def content_review_queue(
             "user": user,
             "pending_items": pending_items,
             **admin_context,
-            "active_admin_page": "governance",
+            "active_admin_page": "governance_content",
         }
     )
 
@@ -791,7 +791,7 @@ async def view_content(
             "user": user,
             "item": item,
             **admin_context,
-            "active_admin_page": "governance",
+            "active_admin_page": "governance_content",
         }
     )
 
