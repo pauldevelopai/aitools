@@ -1,0 +1,81 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Framework Library{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Framework Library</h1>
+            <p class="text-gray-500 mt-1">Governance frameworks, regulations, and guidelines</p>
+        </div>
+        <a href="/admin/governance/targets/new" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+            + Research New Framework
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <form method="get" class="flex flex-wrap gap-4">
+            <input type="text" name="search" value="{{ filters.search or '' }}" placeholder="Search frameworks..."
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm w-64">
+            <select name="jurisdiction" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All Jurisdictions</option>
+                {% for j in jurisdictions %}
+                <option value="{{ j }}" {% if filters.jurisdiction == j %}selected{% endif %}>{{ j }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All Status</option>
+                <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Draft</option>
+                <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+                <option value="superseded" {% if filters.status == 'superseded' %}selected{% endif %}>Superseded</option>
+            </select>
+            <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">Filter</button>
+            <a href="/admin/governance/frameworks" class="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm">Clear</a>
+        </form>
+    </div>
+
+    {% if frameworks %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for framework in frameworks %}
+        <a href="/admin/governance/frameworks/{{ framework.id }}" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:border-blue-300 transition-colors">
+            <div class="flex justify-between items-start mb-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ framework.jurisdiction }}
+                </span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                    {% if framework.status == 'active' %}bg-green-100 text-green-800
+                    {% elif framework.status == 'draft' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ framework.status|capitalize }}
+                </span>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">
+                {{ framework.short_name or framework.name }}
+            </h3>
+            {% if framework.short_name %}
+            <div class="text-sm text-gray-600 mb-2">{{ framework.name }}</div>
+            {% endif %}
+            <p class="text-sm text-gray-500 line-clamp-3">{{ framework.summary or framework.description|truncate(150) }}</p>
+            <div class="mt-4 text-xs text-gray-400">
+                {{ framework.framework_type|capitalize }}
+                {% if framework.effective_date %} - Effective {{ framework.effective_date.strftime('%b %Y') }}{% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-gray-900">No frameworks yet</h3>
+        <p class="mt-2 text-gray-500">Add a governance target to start researching frameworks.</p>
+        <a href="/admin/governance/targets/new" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+            + Research Framework
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

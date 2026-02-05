@@ -1,0 +1,189 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ tool.name }} - Tool Details{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <a href="/admin/governance/tools" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ tool.name }}</h1>
+                {% if tool.url %}
+                <a href="{{ tool.url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">{{ tool.url }}</a>
+                {% endif %}
+            </div>
+        </div>
+        {% if tool.url %}
+        <button onclick="runTest()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+            Run Tests
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Test Summary -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Test Summary</h2>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="text-center">
+                        <div class="text-3xl font-bold {% if tool.test_score and tool.test_score >= 0.8 %}text-green-600{% elif tool.test_score and tool.test_score >= 0.5 %}text-yellow-600{% elif tool.test_score %}text-red-600{% else %}text-gray-400{% endif %}">
+                            {% if tool.test_score is not none %}{{ (tool.test_score * 100)|int }}%{% else %}-{% endif %}
+                        </div>
+                        <div class="text-sm text-gray-500">Overall Score</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold {% if tool.last_test_passed %}text-green-600{% elif tool.last_test_passed is not none %}text-red-600{% else %}text-gray-400{% endif %}">
+                            {% if tool.last_test_passed %}Pass{% elif tool.last_test_passed is not none %}Fail{% else %}-{% endif %}
+                        </div>
+                        <div class="text-sm text-gray-500">Last Result</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-gray-900">{{ tests|length }}</div>
+                        <div class="text-sm text-gray-500">Total Tests</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Red Flags -->
+            {% if tool.red_flags %}
+            <div class="bg-red-50 rounded-lg border border-red-200 p-6">
+                <h2 class="text-lg font-semibold text-red-800 mb-4">Red Flags</h2>
+                <ul class="space-y-2">
+                    {% for flag in tool.red_flags %}
+                    <li class="flex items-start">
+                        <svg class="w-5 h-5 text-red-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span class="text-red-700">{{ flag }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Test History -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Test History</h2>
+                {% if tests %}
+                <div class="space-y-3">
+                    {% for test in tests %}
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-gray-900">
+                                    {{ test.test_case.name if test.test_case else 'General Test' }}
+                                </div>
+                                <div class="text-sm text-gray-500">{{ test.created_at.strftime('%b %d, %Y %H:%M') }}</div>
+                            </div>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if test.passed %}bg-green-100 text-green-800
+                                {% elif test.status == 'error' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {% if test.passed %}Passed{% elif test.status == 'error' %}Error{% else %}Failed{% endif %}
+                            </span>
+                        </div>
+                        {% if test.output %}
+                        <div class="mt-2 text-sm text-gray-600">{{ test.output }}</div>
+                        {% endif %}
+                        {% if test.error_message %}
+                        <div class="mt-2 text-sm text-red-600">{{ test.error_message }}</div>
+                        {% endif %}
+                        {% if test.duration_ms %}
+                        <div class="mt-2 text-xs text-gray-400">Duration: {{ test.duration_ms }}ms</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-4">No tests run yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Tool Info -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Tool Information</h3>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm text-gray-500">Test Frequency</dt>
+                        <dd class="text-sm font-medium text-gray-900 capitalize">{{ tool.test_frequency }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">Testable</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ 'Yes' if tool.is_testable else 'No' }}</dd>
+                    </div>
+                    {% if tool.last_tested_at %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Last Tested</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ tool.last_tested_at.strftime('%b %d, %Y %H:%M') }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if tool.gdpr_compliant is not none %}
+                    <div>
+                        <dt class="text-sm text-gray-500">GDPR Compliant</dt>
+                        <dd class="text-sm font-medium {% if tool.gdpr_compliant %}text-green-600{% else %}text-red-600{% endif %}">
+                            {{ 'Yes' if tool.gdpr_compliant else 'No' }}
+                        </dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+
+            <!-- Description -->
+            {% if tool.description %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Description</h3>
+                <p class="text-sm text-gray-600">{{ tool.description }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Test Cases -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Available Test Cases</h3>
+                {% if test_cases %}
+                <ul class="space-y-2">
+                    {% for tc in test_cases %}
+                    <li class="text-sm">
+                        <span class="font-medium text-gray-700">{{ tc.name }}</span>
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 ml-1">
+                            {{ tc.test_type }}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-sm text-gray-500">Default test cases will be used</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function runTest() {
+    try {
+        const response = await fetch('/admin/governance/tools/{{ tool.id }}/test', {
+            method: 'POST',
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert('Test started! Page will refresh to show results.');
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            alert('Error: ' + (data.detail || 'Failed to start test'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

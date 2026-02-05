@@ -1,0 +1,227 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Workflow Runs{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Workflow Runs</h1>
+            <p class="text-gray-500 mt-1">View all workflow executions across Partner Intelligence, Mentor, and Governance workflows</p>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-gray-900">{{ stats.total }}</div>
+            <div class="text-sm text-gray-500">Total Runs</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-blue-200 p-4">
+            <div class="text-2xl font-bold text-blue-600">{{ stats.running }}</div>
+            <div class="text-sm text-gray-500">Running</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-green-200 p-4">
+            <div class="text-2xl font-bold text-green-600">{{ stats.completed }}</div>
+            <div class="text-sm text-gray-500">Completed</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-yellow-200 p-4">
+            <div class="text-2xl font-bold text-yellow-600">{{ stats.needs_review }}</div>
+            <div class="text-sm text-gray-500">Needs Review</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-red-200 p-4">
+            <div class="text-2xl font-bold text-red-600">{{ stats.failed }}</div>
+            <div class="text-sm text-gray-500">Failed</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <form method="get" class="flex flex-wrap gap-4">
+            <input type="text" name="search" value="{{ filters.search or '' }}" placeholder="Search by name..."
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm w-64">
+            <select name="workflow" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All Workflows</option>
+                {% for w in workflow_names %}
+                <option value="{{ w }}" {% if filters.workflow == w %}selected{% endif %}>{{ w|replace('_', ' ')|title }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All Status</option>
+                <option value="queued" {% if filters.status == 'queued' %}selected{% endif %}>Queued</option>
+                <option value="running" {% if filters.status == 'running' %}selected{% endif %}>Running</option>
+                <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="needs_review" {% if filters.status == 'needs_review' %}selected{% endif %}>Needs Review</option>
+                <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+            <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">
+                Filter
+            </button>
+            <a href="/admin/workflows/runs" class="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm">
+                Clear
+            </a>
+        </form>
+    </div>
+
+    {% if runs %}
+    <!-- Runs Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Workflow</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target/Entity</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Triggered By</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for run in runs %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% set workflow_colors = {
+                            'partner_intelligence': 'bg-purple-100 text-purple-800',
+                            'mentor_intake': 'bg-blue-100 text-blue-800',
+                            'mentor_pre_call': 'bg-blue-100 text-blue-800',
+                            'mentor_post_call': 'bg-blue-100 text-blue-800',
+                            'governance_intelligence': 'bg-green-100 text-green-800'
+                        } %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ workflow_colors.get(run.workflow_name, 'bg-gray-100 text-gray-800') }}">
+                            {{ run.workflow_name|replace('_', ' ')|title }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if run.inputs %}
+                            {% if run.inputs.organization_name %}
+                            <div class="font-medium text-gray-900">{{ run.inputs.organization_name }}</div>
+                            <div class="text-xs text-gray-500">Organization</div>
+                            {% elif run.inputs.journalist_name %}
+                            <div class="font-medium text-gray-900">{{ run.inputs.journalist_name }}</div>
+                            <div class="text-xs text-gray-500">Engagement{% if run.inputs.session_number %} (Session {{ run.inputs.session_number }}){% endif %}</div>
+                            {% elif run.inputs.target_name %}
+                            <div class="font-medium text-gray-900">{{ run.inputs.target_name }}</div>
+                            <div class="text-xs text-gray-500">{{ run.inputs.target_type|capitalize if run.inputs.target_type else 'Target' }}</div>
+                            {% else %}
+                            <span class="text-gray-400">-</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if run.status == 'completed' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Completed
+                        </span>
+                        {% elif run.status == 'running' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <svg class="animate-spin -ml-1 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            Running
+                        </span>
+                        {% elif run.status == 'queued' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Queued
+                        </span>
+                        {% elif run.status == 'needs_review' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Needs Review
+                        </span>
+                        {% elif run.status == 'failed' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Failed
+                        </span>
+                        {% elif run.status == 'cancelled' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            Cancelled
+                        </span>
+                        {% endif %}
+                        {% if run.error_message %}
+                        <div class="text-xs text-red-600 mt-1 truncate max-w-xs" title="{{ run.error_message }}">
+                            {{ run.error_message[:40] }}...
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if run.started_at %}
+                        {{ run.started_at.strftime('%b %d, %Y') }}<br>
+                        <span class="text-xs">{{ run.started_at.strftime('%H:%M:%S') }}</span>
+                        {% else %}
+                        <span class="text-gray-400">Not started</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if run.started_at and run.completed_at %}
+                            {% set duration = (run.completed_at - run.started_at).total_seconds() %}
+                            {% if duration < 60 %}
+                            {{ duration|int }}s
+                            {% elif duration < 3600 %}
+                            {{ (duration / 60)|int }}m {{ (duration % 60)|int }}s
+                            {% else %}
+                            {{ (duration / 3600)|int }}h {{ ((duration % 3600) / 60)|int }}m
+                            {% endif %}
+                        {% elif run.status == 'running' %}
+                        <span class="text-blue-600">In progress...</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if run.triggerer %}
+                        {{ run.triggerer.email|truncate(20) }}
+                        {% else %}
+                        <span class="text-gray-400">System</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href="/admin/workflows/runs/{{ run.id }}" class="text-blue-600 hover:text-blue-800">
+                            View Details
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.total_pages > 1 %}
+    <div class="flex justify-between items-center">
+        <div class="text-sm text-gray-500">
+            Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} to {{ [pagination.page * pagination.per_page, pagination.total_count]|min }} of {{ pagination.total_count }} runs
+        </div>
+        <div class="flex space-x-2">
+            {% if pagination.page > 1 %}
+            <a href="?page={{ pagination.page - 1 }}{% if filters.workflow %}&workflow={{ filters.workflow }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.search %}&search={{ filters.search }}{% endif %}"
+               class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                Previous
+            </a>
+            {% endif %}
+            {% if pagination.page < pagination.total_pages %}
+            <a href="?page={{ pagination.page + 1 }}{% if filters.workflow %}&workflow={{ filters.workflow }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.search %}&search={{ filters.search }}{% endif %}"
+               class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                Next
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-gray-900">No workflow runs</h3>
+        <p class="mt-2 text-gray-500">Workflow runs will appear here as they are executed.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

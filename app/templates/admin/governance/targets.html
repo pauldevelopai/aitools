@@ -1,0 +1,195 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Governance Targets{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Governance Targets</h1>
+            <p class="text-gray-500 mt-1">Queue of frameworks and tools to research</p>
+        </div>
+        <a href="/admin/governance/targets/new" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+            + Add Target
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <form method="get" class="flex flex-wrap gap-4">
+            <select name="status" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All Status</option>
+                <option value="queued" {% if filters.status == 'queued' %}selected{% endif %}>Queued</option>
+                <option value="processing" {% if filters.status == 'processing' %}selected{% endif %}>Processing</option>
+                <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+            </select>
+            <select name="target_type" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option value="">All Types</option>
+                <option value="framework" {% if filters.target_type == 'framework' %}selected{% endif %}>Framework</option>
+                <option value="tool" {% if filters.target_type == 'tool' %}selected{% endif %}>Tool</option>
+                <option value="template" {% if filters.target_type == 'template' %}selected{% endif %}>Template</option>
+            </select>
+            <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">
+                Filter
+            </button>
+            <a href="/admin/governance/targets" class="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm">
+                Clear
+            </a>
+        </form>
+    </div>
+
+    <!-- Targets List -->
+    {% if targets %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queued</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for target in targets %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-gray-900">{{ target.target_name }}</div>
+                        {% if target.jurisdiction %}
+                        <div class="text-sm text-gray-500">{{ target.jurisdiction }}</div>
+                        {% endif %}
+                        {% if target.target_description %}
+                        <div class="text-sm text-gray-400 truncate max-w-md">{{ target.target_description }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if target.target_type == 'framework' %}bg-blue-100 text-blue-800
+                            {% elif target.target_type == 'tool' %}bg-purple-100 text-purple-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ target.target_type|capitalize }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if target.status == 'completed' %}bg-green-100 text-green-800
+                            {% elif target.status == 'processing' %}bg-blue-100 text-blue-800
+                            {% elif target.status == 'failed' %}bg-red-100 text-red-800
+                            {% elif target.status == 'queued' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ target.status|capitalize }}
+                        </span>
+                        {% if target.error_message %}
+                        <div class="text-xs text-red-600 mt-1 truncate max-w-xs" title="{{ target.error_message }}">
+                            {{ target.error_message[:50] }}...
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ target.queued_at.strftime('%b %d, %Y') }}<br>
+                        <span class="text-xs">{{ target.queued_at.strftime('%H:%M') }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <div class="flex space-x-2">
+                            {% if target.status == 'queued' %}
+                            <button onclick="runTarget('{{ target.id }}')" class="text-blue-600 hover:text-blue-800">
+                                Run
+                            </button>
+                            <button onclick="cancelTarget('{{ target.id }}')" class="text-yellow-600 hover:text-yellow-800">
+                                Cancel
+                            </button>
+                            {% elif target.status == 'completed' %}
+                            {% if target.output_content_ids %}
+                            <a href="/admin/governance/content?search={{ target.target_name }}" class="text-green-600 hover:text-green-800">
+                                View Content
+                            </a>
+                            {% endif %}
+                            {% if target.output_framework_id %}
+                            <a href="/admin/governance/frameworks/{{ target.output_framework_id }}" class="text-blue-600 hover:text-blue-800">
+                                View Framework
+                            </a>
+                            {% endif %}
+                            {% elif target.status == 'failed' %}
+                            <button onclick="runTarget('{{ target.id }}')" class="text-blue-600 hover:text-blue-800">
+                                Retry
+                            </button>
+                            {% endif %}
+                            <button onclick="deleteTarget('{{ target.id }}')" class="text-red-600 hover:text-red-800">
+                                Delete
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-gray-900">No targets</h3>
+        <p class="mt-2 text-gray-500">Add a governance target to start researching frameworks or testing tools.</p>
+        <a href="/admin/governance/targets/new" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+            + Add Target
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+async function runTarget(targetId) {
+    try {
+        const response = await fetch(`/admin/governance/targets/${targetId}/run`, {
+            method: 'POST',
+        });
+        const data = await response.json();
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.detail || 'Failed to run target'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function cancelTarget(targetId) {
+    if (!confirm('Cancel this target?')) return;
+    try {
+        const response = await fetch(`/admin/governance/targets/${targetId}/cancel`, {
+            method: 'POST',
+        });
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.detail || 'Failed to cancel'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteTarget(targetId) {
+    if (!confirm('Delete this target?')) return;
+    try {
+        const response = await fetch(`/admin/governance/targets/${targetId}`, {
+            method: 'DELETE',
+        });
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.detail || 'Failed to delete'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,211 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ item.title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <a href="/admin/governance/content" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ item.title }}</h1>
+                <div class="flex items-center space-x-2 mt-1">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if item.status == 'published' %}bg-green-100 text-green-800
+                        {% elif item.status == 'approved' %}bg-blue-100 text-blue-800
+                        {% elif item.status == 'pending_review' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ item.status|replace('_', ' ')|title }}
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span class="text-sm text-gray-500">{{ item.section|capitalize }}</span>
+                    <span class="text-gray-400">|</span>
+                    <span class="text-sm text-gray-500">{{ item.content_type|replace('_', ' ')|title }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex space-x-3">
+            {% if item.status == 'pending_review' or item.status == 'approved' %}
+            <button onclick="publishContent()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+                Publish
+            </button>
+            {% elif item.status == 'published' %}
+            <button onclick="unpublishContent()" class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm font-medium">
+                Unpublish
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Edit Form -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <form method="post" action="/admin/governance/content/{{ item.id }}/edit">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                            <input type="text" name="title" value="{{ item.title }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Summary</label>
+                            <textarea name="summary" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">{{ item.summary or '' }}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Content (Markdown)</label>
+                            <textarea name="content_markdown" rows="20"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-sm">{{ item.content_markdown }}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+                            <input type="text" name="tags" value="{{ item.tags|join(', ') if item.tags else '' }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Metadata -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Details</h3>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm text-gray-500">Slug</dt>
+                        <dd class="text-sm font-mono text-gray-900">{{ item.slug }}</dd>
+                    </div>
+                    {% if item.jurisdiction %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Jurisdiction</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ item.jurisdiction }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if item.audience %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Audience</dt>
+                        <dd class="text-sm text-gray-900">{{ item.audience|join(', ') }}</dd>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Created</dt>
+                        <dd class="text-sm text-gray-900">{{ item.created_at.strftime('%b %d, %Y %H:%M') }}</dd>
+                    </div>
+                    {% if item.reviewed_at %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Reviewed</dt>
+                        <dd class="text-sm text-gray-900">{{ item.reviewed_at.strftime('%b %d, %Y %H:%M') }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if item.published_at %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Published</dt>
+                        <dd class="text-sm text-gray-900">{{ item.published_at.strftime('%b %d, %Y %H:%M') }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+
+            <!-- Sources -->
+            {% if item.sources %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Evidence Sources</h3>
+                <div class="space-y-3">
+                    {% for source in item.sources %}
+                    <div class="border-l-4 border-blue-200 pl-3">
+                        <a href="{{ source.url }}" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 break-all">
+                            {{ source.url|truncate(50) }}
+                        </a>
+                        {% if source.retrieved_at %}
+                        <div class="text-xs text-gray-400">{{ source.retrieved_at[:10] }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Related -->
+            {% if item.framework %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Related Framework</h3>
+                <a href="/admin/governance/frameworks/{{ item.framework.id }}" class="text-blue-600 hover:text-blue-800">
+                    {{ item.framework.short_name or item.framework.name }}
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Actions</h3>
+                <div class="space-y-2">
+                    {% if item.status == 'pending_review' %}
+                    <button onclick="approveContent()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                        Approve
+                    </button>
+                    {% endif %}
+                    {% if item.status != 'archived' %}
+                    <button onclick="rejectContent()" class="w-full px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 text-sm">
+                        Archive
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function approveContent() {
+    try {
+        const response = await fetch('/admin/governance/content/{{ item.id }}/approve', { method: 'POST' });
+        if (response.ok) window.location.reload();
+        else alert('Error: ' + (await response.json()).detail);
+    } catch (error) { alert('Error: ' + error.message); }
+}
+
+async function publishContent() {
+    try {
+        const response = await fetch('/admin/governance/content/{{ item.id }}/publish', { method: 'POST' });
+        if (response.ok) window.location.reload();
+        else alert('Error: ' + (await response.json()).detail);
+    } catch (error) { alert('Error: ' + error.message); }
+}
+
+async function unpublishContent() {
+    try {
+        const response = await fetch('/admin/governance/content/{{ item.id }}/unpublish', { method: 'POST' });
+        if (response.ok) window.location.reload();
+        else alert('Error: ' + (await response.json()).detail);
+    } catch (error) { alert('Error: ' + error.message); }
+}
+
+async function rejectContent() {
+    const reason = prompt('Archive reason (optional):');
+    const formData = new FormData();
+    if (reason) formData.append('reason', reason);
+    try {
+        const response = await fetch('/admin/governance/content/{{ item.id }}/reject', { method: 'POST', body: formData });
+        if (response.ok) window.location.reload();
+        else alert('Error: ' + (await response.json()).detail);
+    } catch (error) { alert('Error: ' + error.message); }
+}
+</script>
+{% endblock %}

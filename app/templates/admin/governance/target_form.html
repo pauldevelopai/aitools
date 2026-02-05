@@ -1,0 +1,123 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Add Governance Target{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center space-x-4">
+        <a href="/admin/governance/targets" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">Add Governance Target</h1>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <form method="post" action="/admin/governance/targets" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Target Type *</label>
+                    <select name="target_type" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <option value="framework">Framework (Regulation/Guidance)</option>
+                        <option value="tool">Tool (Test & Assess)</option>
+                        <option value="template">Template (Content Generation)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                    <select name="priority" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <option value="1">1 - Highest</option>
+                        <option value="3">3 - High</option>
+                        <option value="5" selected>5 - Normal</option>
+                        <option value="7">7 - Low</option>
+                        <option value="10">10 - Lowest</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Target Name *</label>
+                <input type="text" name="target_name" required
+                    placeholder="e.g., EU AI Act, GDPR, UNESCO AI Guidance, ChatGPT"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <p class="mt-1 text-sm text-gray-500">The name of the framework, regulation, or tool to research</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea name="target_description" rows="3"
+                    placeholder="Optional description or context for this target"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
+
+            <div id="frameworkFields">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jurisdiction</label>
+                        <input type="text" name="jurisdiction"
+                            placeholder="e.g., EU, US, UK, Global"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <div id="toolFields" style="display: none;">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Link to Existing Tool</label>
+                    <select name="tool_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select a tool from catalog --</option>
+                        {% for tool in tools %}
+                        <option value="{{ tool.id }}">{{ tool.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1 text-sm text-gray-500">Optional: link to an existing tool in the catalog</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Search Terms</label>
+                <input type="text" name="search_terms"
+                    placeholder="Comma-separated keywords, e.g., ai act, artificial intelligence regulation, eu ai"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <p class="mt-1 text-sm text-gray-500">Keywords to use when searching for information</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Known URLs</label>
+                <textarea name="known_urls" rows="4"
+                    placeholder="One URL per line, e.g.:
+https://eur-lex.europa.eu/eli/reg/2024/1689
+https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"></textarea>
+                <p class="mt-1 text-sm text-gray-500">URLs to fetch directly for evidence (one per line)</p>
+            </div>
+
+            <div class="flex justify-end space-x-4">
+                <a href="/admin/governance/targets" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Add Target
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.querySelector('select[name="target_type"]').addEventListener('change', function() {
+    const frameworkFields = document.getElementById('frameworkFields');
+    const toolFields = document.getElementById('toolFields');
+
+    if (this.value === 'tool') {
+        frameworkFields.style.display = 'none';
+        toolFields.style.display = 'block';
+    } else {
+        frameworkFields.style.display = 'block';
+        toolFields.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

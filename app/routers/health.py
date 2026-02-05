@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.db import get_db
+from app.workflows import get_workflows_health
 
 router = APIRouter(tags=["health"])
 
@@ -71,3 +72,20 @@ async def ready(response: Response, db: Session = Depends(get_db)):
             "error": str(e),
             "message": "Database connection failed"
         }
+
+
+@router.get("/health/workflows")
+async def workflows_health(response: Response):
+    """
+    Workflows subsystem health check.
+
+    Returns status of LangChain/LangGraph availability and registered workflows.
+    """
+    health_info = get_workflows_health()
+
+    if health_info["status"] == "unhealthy":
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    elif health_info["status"] == "degraded":
+        response.status_code = status.HTTP_200_OK  # Still operational but degraded
+
+    return health_info

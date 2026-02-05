@@ -10,6 +10,9 @@ from app.models.usecase import UseCase
 from app.models.suggested_source import SuggestedSource
 from app.models.tool_suggestion import ToolSuggestion
 from app.models.learning_profile import UserLearningProfile
+from app.models.workflow import WorkflowRun
+from app.models.evidence import EvidenceSource, WebPageSnapshot
+from app.models.mentor import MentorTask, MentorArtifact, MentorSession
 from app.models.directory import (
     MediaOrganization,
     Department,
@@ -38,6 +41,12 @@ __all__ = [
     "SuggestedSource",
     "ToolSuggestion",
     "UserLearningProfile",
+    "WorkflowRun",
+    "EvidenceSource",
+    "WebPageSnapshot",
+    "MentorTask",
+    "MentorArtifact",
+    "MentorSession",
     "MediaOrganization",
     "Department",
     "Team",

@@ -1,0 +1,463 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Mentor Dashboard - {{ engagement.title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-start">
+        <div>
+            <nav class="text-sm text-gray-500 mb-2">
+                <a href="/admin/directory/journalists/{{ engagement.journalist.id }}" class="hover:text-gray-700">{{ engagement.journalist.full_name }}</a>
+                <span class="mx-2">/</span>
+                <a href="/admin/directory/engagements/{{ engagement.id }}" class="hover:text-gray-700">{{ engagement.title }}</a>
+                <span class="mx-2">/</span>
+                <span class="text-gray-700">Mentor Dashboard</span>
+            </nav>
+            <h1 class="text-2xl font-bold text-gray-900">Mentor Dashboard</h1>
+            <p class="text-gray-600 mt-1">{{ engagement.title }} - {{ engagement.journalist.full_name }}</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="/admin/directory/mentor/runs" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+                Workflow Runs
+            </a>
+            <a href="/admin/directory/engagements/{{ engagement.id }}" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                View Engagement
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-purple-600">{{ artifacts|selectattr('artifact_type', 'equalto', 'prototype_charter')|list|length }}</div>
+            <div class="text-sm text-gray-500">Charter Versions</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-blue-600">{{ sessions|length }}</div>
+            <div class="text-sm text-gray-500">Sessions Completed</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-green-600">{{ tasks|selectattr('status', 'equalto', 'completed')|list|length }}/{{ tasks|length }}</div>
+            <div class="text-sm text-gray-500">Tasks Completed</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-gray-600">{{ workflow_runs|length }}</div>
+            <div class="text-sm text-gray-500">Workflow Runs</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="col-span-2 space-y-6">
+            <!-- Prototype Charter -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">Prototype Charter</h2>
+                    <button onclick="showCharterModal()" class="text-purple-600 hover:text-purple-800 text-sm font-medium">
+                        + Generate New
+                    </button>
+                </div>
+                <div class="p-6">
+                    {% set charter = artifacts_by_type.get('prototype_charter', [])|selectattr('is_current')|first %}
+                    {% if charter %}
+                    <div class="prose prose-sm max-w-none">
+                        {{ charter.content|safe }}
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500">
+                        Version {{ charter.version }} - Created {{ charter.created_at.strftime('%b %d, %Y %H:%M') }}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 text-gray-500">
+                        <p>No charter yet. Generate one to get started!</p>
+                        <button onclick="showCharterModal()" class="mt-3 px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">
+                            Generate Prototype Charter
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Prototype Pack -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">Prototype Pack</h2>
+                    <button onclick="showPackModal()" class="text-green-600 hover:text-green-800 text-sm font-medium">
+                        + Generate/Update
+                    </button>
+                </div>
+                <div class="p-6">
+                    {% set pack = artifacts_by_type.get('prototype_pack', [])|selectattr('is_current')|first %}
+                    {% if pack %}
+                    <div class="prose prose-sm max-w-none">
+                        {{ pack.content|safe }}
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500">
+                        Updated after Session {{ pack.version }} - {{ pack.created_at.strftime('%b %d, %Y %H:%M') }}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 text-gray-500">
+                        <p>No prototype pack yet. Generate one after your first session!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Decision Log -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Decision Log</h2>
+                </div>
+                <div class="p-6">
+                    {% set decision_log = artifacts_by_type.get('decision_log', [])|selectattr('is_current')|first %}
+                    {% if decision_log %}
+                    <div class="prose prose-sm max-w-none">
+                        {{ decision_log.content|safe }}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-gray-500">
+                        <p>No decisions logged yet. They'll appear here after post-call processing.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Tasks -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Task Backlog</h2>
+                </div>
+                <div class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                    {% for task in tasks %}
+                    <div class="px-6 py-3">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2">
+                                    {% if task.status == 'completed' %}
+                                    <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    {% else %}
+                                    <div class="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+                                    {% endif %}
+                                    <span class="text-sm font-medium {% if task.status == 'completed' %}text-gray-400 line-through{% else %}text-gray-900{% endif %}">
+                                        {{ task.title }}
+                                    </span>
+                                </div>
+                                <div class="ml-6 flex items-center space-x-2 mt-1">
+                                    <span class="px-2 py-0.5 text-xs rounded {% if task.task_type == 'action' %}bg-blue-100 text-blue-700{% elif task.task_type == 'decision' %}bg-yellow-100 text-yellow-700{% elif task.task_type == 'deliverable' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                                        {{ task.task_type }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">{{ task.assigned_to or 'Unassigned' }}</span>
+                                </div>
+                            </div>
+                            {% if task.status != 'completed' %}
+                            <button onclick="markTaskComplete('{{ task.id }}')" class="text-green-600 hover:text-green-800 text-xs">
+                                Complete
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="px-6 py-8 text-center text-gray-500">
+                        <p>No tasks yet. Generate a charter to create initial backlog.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Sessions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">Sessions</h2>
+                    <button onclick="showAgendaModal()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        + Prep Next
+                    </button>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for session in sessions %}
+                    <div class="px-6 py-3">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="font-medium text-gray-900">Session {{ session.session_number }}</span>
+                                <span class="text-xs text-gray-500 ml-2">{{ session.session_type|title }}</span>
+                            </div>
+                            <span class="px-2 py-1 text-xs rounded {% if session.status == 'completed' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ session.status }}
+                            </span>
+                        </div>
+                        {% if session.actual_date %}
+                        <div class="text-xs text-gray-500 mt-1">
+                            {{ session.actual_date.strftime('%b %d, %Y') }} - {{ session.duration_minutes or '?' }} min
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="px-6 py-4 text-center text-gray-500 text-sm">
+                        No sessions recorded yet.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Session Agendas -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Session Agendas</h2>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for agenda in artifacts_by_type.get('session_agenda', []) %}
+                    <details class="px-6 py-3">
+                        <summary class="cursor-pointer font-medium text-gray-900 text-sm">{{ agenda.title }}</summary>
+                        <div class="mt-2 prose prose-sm max-w-none text-gray-600">
+                            {{ agenda.content|safe }}
+                        </div>
+                    </details>
+                    {% else %}
+                    <div class="px-6 py-4 text-center text-gray-500 text-sm">
+                        No agendas generated yet.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Workflow Runs -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">Recent Runs</h2>
+                    <a href="/admin/directory/mentor/runs" class="text-blue-600 hover:text-blue-800 text-sm">View All</a>
+                </div>
+                <div class="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                    {% for run in workflow_runs[:5] %}
+                    <div class="px-6 py-2 text-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-900">{{ run.workflow_name.replace('mentor_', '')|title }}</span>
+                            <span class="px-2 py-0.5 text-xs rounded {% if run.status == 'completed' %}bg-green-100 text-green-700{% elif run.status == 'failed' %}bg-red-100 text-red-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ run.status }}
+                            </span>
+                        </div>
+                        <div class="text-xs text-gray-500">{{ run.created_at.strftime('%b %d, %H:%M') }}</div>
+                    </div>
+                    {% else %}
+                    <div class="px-6 py-4 text-center text-gray-500 text-sm">
+                        No workflow runs yet.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals (same as engagement_detail) -->
+<!-- Charter Modal -->
+<div id="charter-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Generate Prototype Charter</h3>
+        </div>
+        <form id="charter-form" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Journalist's Goals</label>
+                <textarea name="journalist_goals" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="What do they want to achieve?"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Prototype Idea</label>
+                <textarea name="project_idea" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Initial concept for the prototype"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Current Challenges</label>
+                <textarea name="current_challenges" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Pain points they're facing"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Available Time</label>
+                    <input type="text" name="available_time" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="e.g., 4 hours/week">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Technical Comfort</label>
+                    <select name="technical_comfort" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button type="button" onclick="hideCharterModal()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">Generate Charter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Agenda Modal -->
+<div id="agenda-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Generate Session Agenda</h3>
+        </div>
+        <form id="agenda-form" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Session Number</label>
+                <input type="number" name="session_number" value="{{ (sessions|length) + 1 }}" min="1" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Session Focus (optional)</label>
+                <input type="text" name="session_focus" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="e.g., API integration, UI design">
+            </div>
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button type="button" onclick="hideAgendaModal()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Generate Agenda</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Pack Modal -->
+<div id="pack-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Generate Prototype Pack</h3>
+        </div>
+        <form id="pack-form" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Session Number</label>
+                    <input type="number" name="session_number" value="{{ (sessions|length) + 1 }}" min="1" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+                    <input type="number" name="session_duration" value="60" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Session Notes / Transcript *</label>
+                <textarea name="session_notes" rows="8" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Paste your session notes or transcript here..."></textarea>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button type="button" onclick="hidePackModal()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">Generate Pack</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showCharterModal() { document.getElementById('charter-modal').classList.remove('hidden'); }
+function hideCharterModal() { document.getElementById('charter-modal').classList.add('hidden'); }
+function showAgendaModal() { document.getElementById('agenda-modal').classList.remove('hidden'); }
+function hideAgendaModal() { document.getElementById('agenda-modal').classList.add('hidden'); }
+function showPackModal() { document.getElementById('pack-modal').classList.remove('hidden'); }
+function hidePackModal() { document.getElementById('pack-modal').classList.add('hidden'); }
+
+async function markTaskComplete(taskId) {
+    const formData = new FormData();
+    formData.append('status', 'completed');
+
+    try {
+        const response = await fetch(`/admin/directory/mentor/tasks/${taskId}/status`, {
+            method: 'POST',
+            body: formData
+        });
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to update task');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Form submissions
+document.getElementById('charter-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const btn = this.querySelector('button[type="submit"]');
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/admin/directory/engagements/{{ engagement.id }}/mentor/charter', {
+            method: 'POST', body: formData
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert(`Charter created! ${data.tasks_created} tasks added.`);
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.detail || 'Failed'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.textContent = 'Generate Charter';
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('agenda-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const btn = this.querySelector('button[type="submit"]');
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/admin/directory/engagements/{{ engagement.id }}/mentor/agenda', {
+            method: 'POST', body: formData
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert(`Agenda created with ${data.key_questions} key questions!`);
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.detail || 'Failed'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.textContent = 'Generate Agenda';
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('pack-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const btn = this.querySelector('button[type="submit"]');
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/admin/directory/engagements/{{ engagement.id }}/mentor/pack', {
+            method: 'POST', body: formData
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert(`Prototype Pack created! ${data.tasks_created} new tasks.`);
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.detail || 'Failed'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.textContent = 'Generate Pack';
+        btn.disabled = false;
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideCharterModal();
+        hideAgendaModal();
+        hidePackModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Add Tool to Catalog{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center space-x-4">
+        <a href="/admin/governance/tools" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">Add Tool to Catalog</h1>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <form method="post" action="/admin/governance/tools" class="space-y-6">
+            {% if discovered_tools %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Link to Discovered Tool</label>
+                <select name="discovered_tool_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">-- Or enter details manually below --</option>
+                    {% for dt in discovered_tools %}
+                    <option value="{{ dt.id }}" data-name="{{ dt.name }}" data-url="{{ dt.url }}" data-description="{{ dt.description|truncate(200) }}">
+                        {{ dt.name }} ({{ dt.url|truncate(50) }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="mt-1 text-sm text-gray-500">Select an approved discovered tool to add to the catalog</p>
+            </div>
+
+            <div class="border-t border-gray-200 pt-6">
+                <p class="text-sm text-gray-500 mb-4">Or enter tool details manually:</p>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tool Name *</label>
+                    <input type="text" name="name" id="toolName" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                    <input type="url" name="url" id="toolUrl"
+                        placeholder="https://..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea name="description" id="toolDescription" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Test Frequency</label>
+                    <select name="test_frequency" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <option value="weekly">Weekly</option>
+                        <option value="daily">Daily</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="manual">Manual Only</option>
+                    </select>
+                </div>
+                <div class="flex items-center mt-6">
+                    <input type="checkbox" name="is_testable" id="is_testable" checked
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="is_testable" class="ml-2 text-sm text-gray-700">Tool can be automatically tested</label>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-4">
+                <a href="/admin/governance/tools" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Add to Catalog
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.querySelector('select[name="discovered_tool_id"]')?.addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    if (selected.value) {
+        document.getElementById('toolName').value = selected.dataset.name || '';
+        document.getElementById('toolUrl').value = selected.dataset.url || '';
+        document.getElementById('toolDescription').value = selected.dataset.description || '';
+    }
+});
+</script>
+{% endblock %}

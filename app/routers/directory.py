@@ -23,6 +23,15 @@ from app.models.directory import (
 )
 from app.templates_engine import templates
 from app.products.admin_context import get_admin_context_dict
+from app.workflows.audit import (
+    log_workflow_start,
+    log_workflow_complete,
+    log_workflow_failure,
+    log_content_action,
+    log_rate_limit_hit,
+    WorkflowAuditAction,
+)
+from app.workflows.rate_limit import check_workflow_rate_limit
 
 router = APIRouter(prefix="/admin/directory", tags=["directory"])
 
@@ -1599,3 +1608,1092 @@ Data:
         summary = f"Error: {str(e)}"
 
     return {"summary": summary}
+
+
+# =============================================================================
+# PARTNER INTELLIGENCE - WEB ENRICHMENT
+# =============================================================================
+
+@router.post("/organizations/{org_id}/enrich")
+async def trigger_organization_enrichment(
+    org_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Trigger Partner Intelligence workflow to enrich an organization from the web."""
+    from app.workflows.runtime import WorkflowRuntime
+    from app.workflows.partner_intelligence import WORKFLOW_NAME
+    from app.workflows.partner_intelligence.graph import run_partner_intelligence
+
+    org = db.query(MediaOrganization).filter(MediaOrganization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    if not org.website:
+        raise HTTPException(status_code=400, detail="Organization has no website URL")
+
+    # Check rate limit
+    allowed, retry_after, reason = check_workflow_rate_limit(
+        workflow_name=WORKFLOW_NAME,
+        user_id=str(user.id),
+        resource_id=org_id,
+    )
+    if not allowed:
+        log_rate_limit_hit(
+            workflow_name=WORKFLOW_NAME,
+            actor_id=str(user.id),
+            actor_email=user.email,
+            resource_type="organization",
+            resource_id=org_id,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    # Create workflow run record
+    runtime = WorkflowRuntime(db)
+    workflow_run = runtime.create_run(
+        workflow_name=WORKFLOW_NAME,
+        inputs={
+            "organization_id": str(org.id),
+            "organization_name": org.name,
+            "website_url": org.website,
+        },
+        triggered_by=user.id,
+        tags=["partner_intelligence", "enrichment"],
+    )
+
+    # Log workflow start
+    log_workflow_start(
+        workflow_name=WORKFLOW_NAME,
+        workflow_run_id=str(workflow_run.id),
+        actor_id=str(user.id),
+        actor_email=user.email,
+        resource_type="organization",
+        resource_id=org_id,
+        inputs_summary={"organization_name": org.name, "website": org.website},
+    )
+
+    # Execute the workflow asynchronously (in background)
+    import asyncio
+    import time as time_module
+
+    async def run_enrichment():
+        start_time = time_module.time()
+        try:
+            # Create a new database session for the background task
+            from app.db import SessionLocal
+            bg_db = SessionLocal()
+            try:
+                result = await run_partner_intelligence(
+                    organization_id=str(org.id),
+                    organization_name=org.name,
+                    website_url=org.website,
+                    current_description=org.description,
+                    current_notes=org.notes,
+                    db_session=bg_db,
+                    workflow_run_id=str(workflow_run.id),
+                )
+
+                # Update workflow run with results
+                bg_runtime = WorkflowRuntime(bg_db)
+                run = bg_runtime.get_run(workflow_run.id)
+                if run:
+                    if result.get("needs_review"):
+                        bg_runtime.update_status(
+                            run,
+                            status="needs_review",
+                            outputs=result,
+                            state=result.get("__state__", {}),
+                            review_required=result.get("review_reason"),
+                        )
+                    else:
+                        bg_runtime.update_status(
+                            run,
+                            status="completed",
+                            outputs=result,
+                        )
+
+                # Log workflow completion
+                log_workflow_complete(
+                    workflow_name=WORKFLOW_NAME,
+                    workflow_run_id=str(workflow_run.id),
+                    actor_id=str(user.id),
+                    outputs_summary={"status": result.get("needs_review", False) and "needs_review" or "completed"},
+                    duration_seconds=time_module.time() - start_time,
+                )
+            finally:
+                bg_db.close()
+        except Exception as e:
+            # Log error and update workflow run
+            import traceback
+            traceback.print_exc()
+
+            # Log workflow failure
+            log_workflow_failure(
+                workflow_name=WORKFLOW_NAME,
+                workflow_run_id=str(workflow_run.id),
+                error_message=str(e),
+                actor_id=str(user.id),
+            )
+
+            from app.db import SessionLocal
+            err_db = SessionLocal()
+            try:
+                err_runtime = WorkflowRuntime(err_db)
+                run = err_runtime.get_run(workflow_run.id)
+                if run:
+                    err_runtime.update_status(
+                        run,
+                        status="failed",
+                        error_message=str(e),
+                    )
+            finally:
+                err_db.close()
+
+    # Run in background
+    asyncio.create_task(run_enrichment())
+
+    # Return immediately with workflow run info
+    return {
+        "status": "started",
+        "workflow_run_id": str(workflow_run.id),
+        "message": f"Enrichment started for {org.name}",
+    }
+
+
+@router.get("/organizations/{org_id}/enrichment-status")
+async def get_organization_enrichment_status(
+    org_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Get the latest enrichment status for an organization."""
+    from app.models.workflow import WorkflowRun
+
+    # Find the most recent enrichment workflow run for this org
+    latest_run = (
+        db.query(WorkflowRun)
+        .filter(
+            WorkflowRun.workflow_name == "partner_intelligence",
+            WorkflowRun.inputs["organization_id"].astext == org_id,
+        )
+        .order_by(desc(WorkflowRun.created_at))
+        .first()
+    )
+
+    if not latest_run:
+        return {"status": "none", "message": "No enrichment has been run"}
+
+    return {
+        "status": latest_run.status,
+        "workflow_run_id": str(latest_run.id),
+        "started_at": latest_run.started_at.isoformat() if latest_run.started_at else None,
+        "completed_at": latest_run.completed_at.isoformat() if latest_run.completed_at else None,
+        "error_message": latest_run.error_message,
+        "review_required": latest_run.review_required,
+        "outputs": latest_run.outputs,
+    }
+
+
+@router.get("/enrichment/needs-review", response_class=HTMLResponse)
+async def enrichment_needs_review_queue(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show queue of enrichment runs that need human review."""
+    from app.models.workflow import WorkflowRun
+
+    pending_reviews = (
+        db.query(WorkflowRun)
+        .filter(
+            WorkflowRun.workflow_name == "partner_intelligence",
+            WorkflowRun.status == "needs_review",
+        )
+        .order_by(desc(WorkflowRun.created_at))
+        .all()
+    )
+
+    # Get organization details for each run
+    org_ids = [
+        run.inputs.get("organization_id")
+        for run in pending_reviews
+        if run.inputs and run.inputs.get("organization_id")
+    ]
+    organizations = {}
+    if org_ids:
+        orgs = db.query(MediaOrganization).filter(MediaOrganization.id.in_(org_ids)).all()
+        organizations = {str(o.id): o for o in orgs}
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/enrichment_review.html",
+        {
+            "request": request,
+            "user": user,
+            "pending_reviews": pending_reviews,
+            "organizations": organizations,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/enrichment/{run_id}/approve")
+async def approve_enrichment(
+    run_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Approve a pending enrichment and apply changes."""
+    from app.models.workflow import WorkflowRun
+    from app.workflows.runtime import WorkflowRuntime
+    from app.workflows.partner_intelligence.nodes import CONFIDENCE_THRESHOLD
+
+    run = db.query(WorkflowRun).filter(WorkflowRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+
+    if run.status != "needs_review":
+        raise HTTPException(status_code=400, detail="Run is not pending review")
+
+    # Get the organization
+    org_id = run.inputs.get("organization_id") if run.inputs else None
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organization ID in run")
+
+    org = db.query(MediaOrganization).filter(MediaOrganization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    # Apply enrichment from outputs
+    outputs = run.outputs or {}
+    enrichment = outputs.get("enrichment", {})
+    extracted_fields = outputs.get("extracted_fields", [])
+
+    changes = []
+
+    # Update description
+    new_description = enrichment.get("description")
+    if new_description:
+        if not org.description or len(org.description.strip()) < 50:
+            org.description = new_description
+            changes.append("description")
+
+    # Build enrichment notes
+    enrichment_notes = []
+    if enrichment.get("focus_areas"):
+        enrichment_notes.append(f"Focus Areas: {', '.join(enrichment['focus_areas'])}")
+    if enrichment.get("countries_served"):
+        enrichment_notes.append(f"Countries/Regions: {', '.join(enrichment['countries_served'])}")
+    if enrichment.get("programs"):
+        enrichment_notes.append(f"Programs: {', '.join(enrichment['programs'])}")
+    if enrichment.get("key_people"):
+        people_strs = [f"{p.get('name', '?')} ({p.get('role', '?')})" for p in enrichment["key_people"][:5]]
+        enrichment_notes.append(f"Key People: {', '.join(people_strs)}")
+
+    if enrichment_notes:
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        enrichment_section = f"\n\n--- Auto-enriched {timestamp} (approved) ---\n" + "\n".join(enrichment_notes)
+        if org.notes:
+            if "Auto-enriched" not in org.notes:
+                org.notes = org.notes + enrichment_section
+        else:
+            org.notes = enrichment_section.strip()
+        changes.append("notes")
+
+    # Save evidence sources
+    from app.models.evidence import EvidenceSource
+    for field in extracted_fields:
+        evidence = EvidenceSource(
+            organization_id=org_id,
+            source_url=field.get("source_url", run.inputs.get("website_url", "")),
+            source_type="webpage",
+            field_name=field.get("field_name", ""),
+            extracted_value=str(field.get("value", "")),
+            confidence_score=field.get("confidence"),
+            extraction_method=field.get("extraction_method", "llm"),
+            extraction_model="gpt-4o-mini",
+            workflow_run_id=run.id,
+        )
+        db.add(evidence)
+
+    # Update workflow run status
+    runtime = WorkflowRuntime(db)
+    runtime.submit_review(run, "approved", user.id)
+
+    db.commit()
+
+    return {
+        "status": "approved",
+        "changes": changes,
+        "redirect_url": f"/admin/directory/organizations/{org_id}",
+    }
+
+
+@router.post("/enrichment/{run_id}/reject")
+async def reject_enrichment(
+    run_id: str,
+    reason: str = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Reject a pending enrichment."""
+    from app.models.workflow import WorkflowRun
+    from app.workflows.runtime import WorkflowRuntime
+
+    run = db.query(WorkflowRun).filter(WorkflowRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+
+    if run.status != "needs_review":
+        raise HTTPException(status_code=400, detail="Run is not pending review")
+
+    runtime = WorkflowRuntime(db)
+    run.error_message = f"Rejected: {reason}" if reason else "Rejected by admin"
+    runtime.submit_review(run, "rejected", user.id)
+
+    db.commit()
+
+    return {"status": "rejected"}
+
+
+@router.get("/organizations/{org_id}/evidence", response_class=HTMLResponse)
+async def organization_evidence_sources(
+    org_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show evidence sources for an organization."""
+    from app.models.evidence import EvidenceSource, WebPageSnapshot
+
+    org = db.query(MediaOrganization).filter(MediaOrganization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    evidence_sources = (
+        db.query(EvidenceSource)
+        .filter(EvidenceSource.organization_id == org_id)
+        .order_by(desc(EvidenceSource.created_at))
+        .all()
+    )
+
+    snapshots = (
+        db.query(WebPageSnapshot)
+        .filter(WebPageSnapshot.organization_id == org_id)
+        .order_by(desc(WebPageSnapshot.fetched_at))
+        .all()
+    )
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/organization_evidence.html",
+        {
+            "request": request,
+            "user": user,
+            "organization": org,
+            "evidence_sources": evidence_sources,
+            "snapshots": snapshots,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+# =============================================================================
+# MENTOR WORKFLOW
+# =============================================================================
+
+@router.post("/engagements/{engagement_id}/mentor/charter")
+async def generate_prototype_charter(
+    engagement_id: str,
+    journalist_goals: str = Form(""),
+    project_idea: str = Form(""),
+    current_challenges: str = Form(""),
+    available_time: str = Form(""),
+    technical_comfort: str = Form(""),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Generate Prototype Charter using the Intake workflow."""
+    from app.workflows.runtime import WorkflowRuntime
+    from app.workflows.mentor import run_intake, WORKFLOW_INTAKE
+    from app.models.mentor import MentorArtifact, MentorTask
+    import time as time_module
+
+    engagement = (
+        db.query(Engagement)
+        .options(joinedload(Engagement.journalist).joinedload(Journalist.organization))
+        .filter(Engagement.id == engagement_id)
+        .first()
+    )
+    if not engagement:
+        raise HTTPException(status_code=404, detail="Engagement not found")
+
+    # Check rate limit
+    allowed, retry_after, reason = check_workflow_rate_limit(
+        workflow_name=WORKFLOW_INTAKE,
+        user_id=str(user.id),
+        resource_id=engagement_id,
+    )
+    if not allowed:
+        log_rate_limit_hit(
+            workflow_name=WORKFLOW_INTAKE,
+            actor_id=str(user.id),
+            actor_email=user.email,
+            resource_type="engagement",
+            resource_id=engagement_id,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    journalist = engagement.journalist
+    org = journalist.organization if journalist else None
+
+    # Create workflow run record
+    runtime = WorkflowRuntime(db)
+    workflow_run = runtime.create_run(
+        workflow_name=WORKFLOW_INTAKE,
+        inputs={
+            "engagement_id": str(engagement.id),
+            "journalist_name": journalist.full_name if journalist else "Unknown",
+        },
+        triggered_by=user.id,
+        tags=["mentor", "intake", "charter"],
+    )
+
+    # Log workflow start
+    log_workflow_start(
+        workflow_name=WORKFLOW_INTAKE,
+        workflow_run_id=str(workflow_run.id),
+        actor_id=str(user.id),
+        actor_email=user.email,
+        resource_type="engagement",
+        resource_id=engagement_id,
+        inputs_summary={"journalist": journalist.full_name if journalist else "Unknown"},
+    )
+
+    start_time = time_module.time()
+
+    # Run the intake workflow
+    try:
+        runtime.update_status(workflow_run, "running")
+
+        result = await run_intake(
+            engagement_id=str(engagement.id),
+            journalist_name=journalist.full_name if journalist else "Unknown",
+            journalist_role=journalist.role or "" if journalist else "",
+            journalist_organization=org.name if org else "",
+            journalist_skill_level=journalist.ai_skill_level if journalist else "beginner",
+            engagement_title=engagement.title,
+            engagement_description=engagement.description or "",
+            engagement_topics=engagement.topics_covered or [],
+            journalist_goals=journalist_goals,
+            project_idea=project_idea,
+            current_challenges=current_challenges,
+            available_time=available_time,
+            technical_comfort=technical_comfort,
+            workflow_run_id=str(workflow_run.id),
+        )
+
+        # Save the Prototype Charter artifact
+        charter_content = result.get("charter_content", "")
+        if charter_content:
+            # Check for existing charter and increment version
+            existing = (
+                db.query(MentorArtifact)
+                .filter(
+                    MentorArtifact.engagement_id == engagement_id,
+                    MentorArtifact.artifact_type == "prototype_charter",
+                    MentorArtifact.is_current == True,
+                )
+                .first()
+            )
+
+            if existing:
+                existing.is_current = False
+                version = existing.version + 1
+            else:
+                version = 1
+
+            artifact = MentorArtifact(
+                engagement_id=engagement_id,
+                artifact_type="prototype_charter",
+                title=f"Prototype Charter v{version}",
+                version=version,
+                is_current=True,
+                content=charter_content,
+                content_format="markdown",
+                structured_data=result.get("charter_structured", {}),
+                created_by_workflow="intake",
+                workflow_run_id=workflow_run.id,
+            )
+            db.add(artifact)
+
+        # Save initial tasks
+        initial_tasks = result.get("initial_tasks", [])
+        for i, task_data in enumerate(initial_tasks):
+            task = MentorTask(
+                engagement_id=engagement_id,
+                title=task_data.get("title", "Untitled Task"),
+                description=task_data.get("description", ""),
+                task_type=task_data.get("task_type", "action"),
+                priority=task_data.get("priority", 2),
+                assigned_to=task_data.get("assigned_to", "journalist"),
+                created_by_workflow="intake",
+                workflow_run_id=workflow_run.id,
+                sort_order=i,
+            )
+            db.add(task)
+
+        runtime.update_status(
+            workflow_run,
+            "completed",
+            outputs=result,
+        )
+
+        db.commit()
+
+        # Log workflow completion
+        log_workflow_complete(
+            workflow_name=WORKFLOW_INTAKE,
+            workflow_run_id=str(workflow_run.id),
+            actor_id=str(user.id),
+            outputs_summary={"charter_created": bool(charter_content), "tasks_created": len(initial_tasks)},
+            duration_seconds=time_module.time() - start_time,
+        )
+
+        return {
+            "status": "completed",
+            "charter_created": bool(charter_content),
+            "tasks_created": len(initial_tasks),
+            "workflow_run_id": str(workflow_run.id),
+        }
+
+    except Exception as e:
+        import traceback
+
+        # Log workflow failure
+        log_workflow_failure(
+            workflow_name=WORKFLOW_INTAKE,
+            workflow_run_id=str(workflow_run.id),
+            error_message=str(e),
+            actor_id=str(user.id),
+        )
+
+        runtime.update_status(
+            workflow_run,
+            "failed",
+            error_message=str(e),
+        )
+        workflow_run.error_traceback = traceback.format_exc()
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/engagements/{engagement_id}/mentor/agenda")
+async def generate_session_agenda(
+    engagement_id: str,
+    session_number: int = Form(1),
+    session_focus: str = Form(""),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Generate session agenda using the Pre-Call workflow."""
+    from app.workflows.runtime import WorkflowRuntime
+    from app.workflows.mentor import run_pre_call, WORKFLOW_PRE_CALL
+    from app.models.mentor import MentorArtifact, MentorTask
+
+    engagement = (
+        db.query(Engagement)
+        .options(joinedload(Engagement.journalist).joinedload(Journalist.organization))
+        .filter(Engagement.id == engagement_id)
+        .first()
+    )
+    if not engagement:
+        raise HTTPException(status_code=404, detail="Engagement not found")
+
+    journalist = engagement.journalist
+    org = journalist.organization if journalist else None
+
+    # Get existing charter
+    charter = (
+        db.query(MentorArtifact)
+        .filter(
+            MentorArtifact.engagement_id == engagement_id,
+            MentorArtifact.artifact_type == "prototype_charter",
+            MentorArtifact.is_current == True,
+        )
+        .first()
+    )
+
+    # Get open and completed tasks
+    open_tasks = (
+        db.query(MentorTask)
+        .filter(
+            MentorTask.engagement_id == engagement_id,
+            MentorTask.status.in_(["pending", "in_progress"]),
+        )
+        .order_by(MentorTask.priority, MentorTask.sort_order)
+        .all()
+    )
+    completed_tasks = (
+        db.query(MentorTask)
+        .filter(
+            MentorTask.engagement_id == engagement_id,
+            MentorTask.status == "completed",
+        )
+        .order_by(desc(MentorTask.completed_at))
+        .limit(10)
+        .all()
+    )
+
+    # Create workflow run record
+    runtime = WorkflowRuntime(db)
+    workflow_run = runtime.create_run(
+        workflow_name=WORKFLOW_PRE_CALL,
+        inputs={
+            "engagement_id": str(engagement.id),
+            "session_number": session_number,
+        },
+        triggered_by=user.id,
+        tags=["mentor", "pre_call", "agenda"],
+    )
+
+    try:
+        runtime.update_status(workflow_run, "running")
+
+        result = await run_pre_call(
+            engagement_id=str(engagement.id),
+            session_number=session_number,
+            journalist_name=journalist.full_name if journalist else "Unknown",
+            journalist_organization=org.name if org else "",
+            charter_content=charter.content if charter else "",
+            previous_decisions=[],  # TODO: Get from decision log artifact
+            open_tasks=[{"title": t.title, "description": t.description, "priority": t.priority} for t in open_tasks],
+            completed_tasks=[{"title": t.title} for t in completed_tasks],
+            previous_session_notes=engagement.notes or "",
+            session_focus=session_focus,
+            workflow_run_id=str(workflow_run.id),
+        )
+
+        # Save the agenda artifact
+        agenda_content = result.get("agenda_content", "")
+        if agenda_content:
+            artifact = MentorArtifact(
+                engagement_id=engagement_id,
+                artifact_type="session_agenda",
+                title=f"Session {session_number} Agenda",
+                version=1,
+                is_current=True,
+                content=agenda_content,
+                content_format="markdown",
+                structured_data={
+                    "session_number": session_number,
+                    "key_questions": result.get("key_questions", []),
+                    "suggested_topics": result.get("suggested_topics", []),
+                    "time_allocations": result.get("time_allocations", {}),
+                },
+                created_by_workflow="pre_call",
+                workflow_run_id=workflow_run.id,
+            )
+            db.add(artifact)
+
+        runtime.update_status(
+            workflow_run,
+            "completed",
+            outputs=result,
+        )
+
+        db.commit()
+
+        return {
+            "status": "completed",
+            "agenda_created": bool(agenda_content),
+            "key_questions": len(result.get("key_questions", [])),
+            "workflow_run_id": str(workflow_run.id),
+        }
+
+    except Exception as e:
+        import traceback
+        runtime.update_status(
+            workflow_run,
+            "failed",
+            error_message=str(e),
+        )
+        workflow_run.error_traceback = traceback.format_exc()
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/engagements/{engagement_id}/mentor/pack")
+async def generate_prototype_pack(
+    engagement_id: str,
+    session_number: int = Form(1),
+    session_notes: str = Form(""),
+    session_duration: int = Form(60),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Generate Prototype Pack using the Post-Call workflow."""
+    from app.workflows.runtime import WorkflowRuntime
+    from app.workflows.mentor import run_post_call, WORKFLOW_POST_CALL
+    from app.models.mentor import MentorArtifact, MentorTask, MentorSession
+
+    if not session_notes:
+        raise HTTPException(status_code=400, detail="Session notes are required")
+
+    engagement = (
+        db.query(Engagement)
+        .options(joinedload(Engagement.journalist).joinedload(Journalist.organization))
+        .filter(Engagement.id == engagement_id)
+        .first()
+    )
+    if not engagement:
+        raise HTTPException(status_code=404, detail="Engagement not found")
+
+    journalist = engagement.journalist
+    org = journalist.organization if journalist else None
+
+    # Get existing charter
+    charter = (
+        db.query(MentorArtifact)
+        .filter(
+            MentorArtifact.engagement_id == engagement_id,
+            MentorArtifact.artifact_type == "prototype_charter",
+            MentorArtifact.is_current == True,
+        )
+        .first()
+    )
+
+    # Get current tasks
+    current_tasks = (
+        db.query(MentorTask)
+        .filter(MentorTask.engagement_id == engagement_id)
+        .order_by(MentorTask.priority, MentorTask.sort_order)
+        .all()
+    )
+
+    # Create workflow run record
+    runtime = WorkflowRuntime(db)
+    workflow_run = runtime.create_run(
+        workflow_name=WORKFLOW_POST_CALL,
+        inputs={
+            "engagement_id": str(engagement.id),
+            "session_number": session_number,
+        },
+        triggered_by=user.id,
+        tags=["mentor", "post_call", "pack"],
+    )
+
+    try:
+        runtime.update_status(workflow_run, "running")
+
+        result = await run_post_call(
+            engagement_id=str(engagement.id),
+            session_number=session_number,
+            journalist_name=journalist.full_name if journalist else "Unknown",
+            journalist_organization=org.name if org else "",
+            session_notes=session_notes,
+            session_duration=session_duration,
+            charter_content=charter.content if charter else "",
+            previous_decisions=[],
+            current_tasks=[{"title": t.title, "id": str(t.id)} for t in current_tasks],
+            workflow_run_id=str(workflow_run.id),
+        )
+
+        # Save the session notes as an artifact
+        notes_artifact = MentorArtifact(
+            engagement_id=engagement_id,
+            artifact_type="notes",
+            title=f"Session {session_number} Notes",
+            version=1,
+            is_current=True,
+            content=session_notes,
+            content_format="text",
+            created_by_workflow="post_call",
+            workflow_run_id=workflow_run.id,
+        )
+        db.add(notes_artifact)
+
+        # Save the Prototype Pack artifact
+        pack_content = result.get("prototype_pack_content", "")
+        if pack_content:
+            # Mark previous packs as not current
+            db.query(MentorArtifact).filter(
+                MentorArtifact.engagement_id == engagement_id,
+                MentorArtifact.artifact_type == "prototype_pack",
+                MentorArtifact.is_current == True,
+            ).update({"is_current": False})
+
+            pack_artifact = MentorArtifact(
+                engagement_id=engagement_id,
+                artifact_type="prototype_pack",
+                title=f"Prototype Pack (Session {session_number})",
+                version=session_number,
+                is_current=True,
+                content=pack_content,
+                content_format="markdown",
+                structured_data=result.get("prototype_pack_structured", {}),
+                source_notes=session_notes,
+                created_by_workflow="post_call",
+                workflow_run_id=workflow_run.id,
+            )
+            db.add(pack_artifact)
+
+        # Save decision log update
+        decision_log = result.get("decision_log_update", "")
+        if decision_log:
+            # Append to existing decision log or create new
+            existing_log = (
+                db.query(MentorArtifact)
+                .filter(
+                    MentorArtifact.engagement_id == engagement_id,
+                    MentorArtifact.artifact_type == "decision_log",
+                    MentorArtifact.is_current == True,
+                )
+                .first()
+            )
+
+            if existing_log:
+                existing_log.content = existing_log.content + "\n\n" + decision_log
+            else:
+                log_artifact = MentorArtifact(
+                    engagement_id=engagement_id,
+                    artifact_type="decision_log",
+                    title="Decision Log",
+                    version=1,
+                    is_current=True,
+                    content=decision_log,
+                    content_format="markdown",
+                    created_by_workflow="post_call",
+                    workflow_run_id=workflow_run.id,
+                )
+                db.add(log_artifact)
+
+        # Update completed tasks
+        completed_titles = result.get("completed_task_ids", [])
+        for task in current_tasks:
+            if task.title in completed_titles:
+                task.status = "completed"
+                task.completed_at = datetime.now(timezone)
+
+        # Add new tasks
+        next_tasks = result.get("next_tasks", [])
+        for i, task_data in enumerate(next_tasks):
+            task = MentorTask(
+                engagement_id=engagement_id,
+                title=task_data.get("title", "Untitled Task"),
+                description=task_data.get("description", ""),
+                task_type=task_data.get("task_type", "action"),
+                priority=task_data.get("priority", 2),
+                assigned_to=task_data.get("assigned_to", "journalist"),
+                created_by_workflow="post_call",
+                workflow_run_id=workflow_run.id,
+                sort_order=len(current_tasks) + i,
+            )
+            db.add(task)
+
+        # Create mentor session record
+        session = MentorSession(
+            engagement_id=engagement_id,
+            session_number=session_number,
+            session_type="regular" if session_number > 0 else "intake",
+            actual_date=datetime.now(timezone),
+            duration_minutes=session_duration,
+            status="completed",
+            notes=session_notes,
+            key_decisions=result.get("new_decisions", []),
+            action_items=[t.get("title") for t in next_tasks],
+            workflow_run_id=workflow_run.id,
+        )
+        db.add(session)
+
+        runtime.update_status(
+            workflow_run,
+            "completed",
+            outputs=result,
+        )
+
+        db.commit()
+
+        return {
+            "status": "completed",
+            "pack_created": bool(pack_content),
+            "tasks_created": len(next_tasks),
+            "decisions_logged": len(result.get("new_decisions", [])),
+            "workflow_run_id": str(workflow_run.id),
+        }
+
+    except Exception as e:
+        import traceback
+        runtime.update_status(
+            workflow_run,
+            "failed",
+            error_message=str(e),
+        )
+        workflow_run.error_traceback = traceback.format_exc()
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/engagements/{engagement_id}/mentor", response_class=HTMLResponse)
+async def engagement_mentor_dashboard(
+    engagement_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show mentor workflow dashboard for an engagement."""
+    from app.models.mentor import MentorArtifact, MentorTask, MentorSession
+    from app.models.workflow import WorkflowRun
+
+    engagement = (
+        db.query(Engagement)
+        .options(
+            joinedload(Engagement.journalist).joinedload(Journalist.organization),
+            joinedload(Engagement.documents),
+        )
+        .filter(Engagement.id == engagement_id)
+        .first()
+    )
+    if not engagement:
+        raise HTTPException(status_code=404, detail="Engagement not found")
+
+    # Get artifacts
+    artifacts = (
+        db.query(MentorArtifact)
+        .filter(MentorArtifact.engagement_id == engagement_id)
+        .order_by(desc(MentorArtifact.created_at))
+        .all()
+    )
+
+    # Get tasks
+    tasks = (
+        db.query(MentorTask)
+        .filter(MentorTask.engagement_id == engagement_id)
+        .order_by(MentorTask.priority, MentorTask.sort_order)
+        .all()
+    )
+
+    # Get sessions
+    sessions = (
+        db.query(MentorSession)
+        .filter(MentorSession.engagement_id == engagement_id)
+        .order_by(MentorSession.session_number)
+        .all()
+    )
+
+    # Get workflow runs
+    workflow_runs = (
+        db.query(WorkflowRun)
+        .filter(WorkflowRun.workflow_name.in_(["mentor_intake", "mentor_pre_call", "mentor_post_call"]))
+        .filter(WorkflowRun.inputs["engagement_id"].astext == engagement_id)
+        .order_by(desc(WorkflowRun.created_at))
+        .limit(20)
+        .all()
+    )
+
+    # Group artifacts by type
+    artifacts_by_type = {}
+    for a in artifacts:
+        if a.artifact_type not in artifacts_by_type:
+            artifacts_by_type[a.artifact_type] = []
+        artifacts_by_type[a.artifact_type].append(a)
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/engagement_mentor.html",
+        {
+            "request": request,
+            "user": user,
+            "engagement": engagement,
+            "artifacts": artifacts,
+            "artifacts_by_type": artifacts_by_type,
+            "tasks": tasks,
+            "sessions": sessions,
+            "workflow_runs": workflow_runs,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/mentor/tasks/{task_id}/status")
+async def update_mentor_task_status(
+    task_id: str,
+    status: str = Form(...),
+    completion_notes: str = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Update a mentor task's status."""
+    from app.models.mentor import MentorTask
+
+    task = db.query(MentorTask).filter(MentorTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task.status = status
+    if status == "completed":
+        task.completed_at = datetime.now(timezone)
+        task.completion_notes = completion_notes
+
+    db.commit()
+
+    return {"status": "updated", "task_status": status}
+
+
+@router.get("/mentor/runs", response_class=HTMLResponse)
+async def mentor_workflow_runs(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show audit view of all mentor workflow runs."""
+    from app.models.workflow import WorkflowRun
+
+    runs = (
+        db.query(WorkflowRun)
+        .filter(WorkflowRun.workflow_name.in_(["mentor_intake", "mentor_pre_call", "mentor_post_call"]))
+        .order_by(desc(WorkflowRun.created_at))
+        .limit(100)
+        .all()
+    )
+
+    # Get engagement details for each run
+    engagement_ids = [
+        run.inputs.get("engagement_id")
+        for run in runs
+        if run.inputs and run.inputs.get("engagement_id")
+    ]
+    engagements = {}
+    if engagement_ids:
+        engs = (
+            db.query(Engagement)
+            .options(joinedload(Engagement.journalist))
+            .filter(Engagement.id.in_(engagement_ids))
+            .all()
+        )
+        engagements = {str(e.id): e for e in engs}
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/mentor_runs.html",
+        {
+            "request": request,
+            "user": user,
+            "runs": runs,
+            "engagements": engagements,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )

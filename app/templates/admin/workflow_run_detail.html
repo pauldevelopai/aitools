@@ -1,0 +1,248 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Workflow Run - {{ run.workflow_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center space-x-4">
+        <a href="/admin/workflows/runs" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <div class="flex-1">
+            <h1 class="text-2xl font-bold text-gray-900">{{ run.workflow_name|replace('_', ' ')|title }}</h1>
+            <p class="text-gray-500 text-sm font-mono">{{ run.id }}</p>
+        </div>
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+            {% if run.status == 'completed' %}bg-green-100 text-green-800
+            {% elif run.status == 'running' %}bg-blue-100 text-blue-800
+            {% elif run.status == 'needs_review' %}bg-yellow-100 text-yellow-800
+            {% elif run.status == 'failed' %}bg-red-100 text-red-800
+            {% else %}bg-gray-100 text-gray-800{% endif %}">
+            {{ run.status|replace('_', ' ')|title }}
+        </span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Error Message (if any) -->
+            {% if run.error_message %}
+            <div class="bg-red-50 rounded-lg border border-red-200 p-6">
+                <h2 class="text-lg font-semibold text-red-800 mb-2">Error</h2>
+                <pre class="text-sm text-red-700 whitespace-pre-wrap font-mono">{{ run.error_message }}</pre>
+                {% if run.error_traceback %}
+                <details class="mt-4">
+                    <summary class="text-sm text-red-600 cursor-pointer">Show Traceback</summary>
+                    <pre class="mt-2 text-xs text-red-600 overflow-x-auto bg-red-100 p-2 rounded">{{ run.error_traceback }}</pre>
+                </details>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Review Required -->
+            {% if run.review_required %}
+            <div class="bg-yellow-50 rounded-lg border border-yellow-200 p-6">
+                <h2 class="text-lg font-semibold text-yellow-800 mb-2">Review Required</h2>
+                <p class="text-yellow-700">{{ run.review_required }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Inputs -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Inputs</h2>
+                {% if run.inputs %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <tbody class="divide-y divide-gray-200">
+                            {% for key, value in run.inputs.items() %}
+                            <tr>
+                                <td class="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">{{ key }}</td>
+                                <td class="py-2 text-gray-600">
+                                    {% if value is iterable and value is not string %}
+                                    <span class="text-xs text-gray-400">[{{ value|length }} items]</span>
+                                    {{ value|truncate(100) }}
+                                    {% else %}
+                                    {{ value|truncate(100) if value else '-' }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <details class="mt-4">
+                    <summary class="text-sm text-gray-500 cursor-pointer">View Raw JSON</summary>
+                    <pre class="mt-2 text-xs text-gray-600 overflow-x-auto bg-gray-50 p-3 rounded">{{ run.inputs|tojson(indent=2) }}</pre>
+                </details>
+                {% else %}
+                <p class="text-gray-500">No inputs recorded</p>
+                {% endif %}
+            </div>
+
+            <!-- Outputs -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Outputs</h2>
+                {% if run.outputs %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <tbody class="divide-y divide-gray-200">
+                            {% for key, value in run.outputs.items() %}
+                            <tr>
+                                <td class="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">{{ key }}</td>
+                                <td class="py-2 text-gray-600">
+                                    {% if value is iterable and value is not string %}
+                                    <span class="text-xs text-gray-400">[{{ value|length }} items]</span>
+                                    {% if value|length > 0 %}
+                                    {{ value[:3]|tojson|truncate(100) }}
+                                    {% endif %}
+                                    {% else %}
+                                    {{ value|truncate(100) if value else '-' }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <details class="mt-4">
+                    <summary class="text-sm text-gray-500 cursor-pointer">View Raw JSON</summary>
+                    <pre class="mt-2 text-xs text-gray-600 overflow-x-auto bg-gray-50 p-3 rounded">{{ run.outputs|tojson(indent=2) }}</pre>
+                </details>
+                {% else %}
+                <p class="text-gray-500">No outputs recorded{% if run.status == 'running' %} (workflow still running){% endif %}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Timeline -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Timeline</h3>
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <div class="text-sm font-medium text-gray-900">Queued</div>
+                            <div class="text-xs text-gray-500">{{ run.queued_at.strftime('%b %d, %Y %H:%M:%S') if run.queued_at else '-' }}</div>
+                        </div>
+                    </div>
+                    {% if run.started_at %}
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <div class="text-sm font-medium text-gray-900">Started</div>
+                            <div class="text-xs text-gray-500">{{ run.started_at.strftime('%b %d, %Y %H:%M:%S') }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if run.completed_at %}
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-8 h-8 {% if run.status == 'completed' %}bg-green-100{% elif run.status == 'failed' %}bg-red-100{% else %}bg-yellow-100{% endif %} rounded-full flex items-center justify-center">
+                            {% if run.status == 'completed' %}
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            {% elif run.status == 'failed' %}
+                            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            {% else %}
+                            <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/>
+                            </svg>
+                            {% endif %}
+                        </div>
+                        <div class="ml-3">
+                            <div class="text-sm font-medium text-gray-900">{{ run.status|replace('_', ' ')|title }}</div>
+                            <div class="text-xs text-gray-500">{{ run.completed_at.strftime('%b %d, %Y %H:%M:%S') }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if run.started_at and run.completed_at %}
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="text-sm text-gray-500">Total Duration</div>
+                    {% set duration = (run.completed_at - run.started_at).total_seconds() %}
+                    <div class="text-lg font-medium text-gray-900">
+                        {% if duration < 60 %}
+                        {{ duration|int }} seconds
+                        {% elif duration < 3600 %}
+                        {{ (duration / 60)|int }}m {{ (duration % 60)|int }}s
+                        {% else %}
+                        {{ (duration / 3600)|int }}h {{ ((duration % 3600) / 60)|int }}m
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Triggered By -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Triggered By</h3>
+                {% if run.triggerer %}
+                <div class="text-sm text-gray-900">{{ run.triggerer.email }}</div>
+                <div class="text-xs text-gray-500">{{ run.triggerer.name if run.triggerer.name else 'User' }}</div>
+                {% else %}
+                <div class="text-sm text-gray-500">System (automated)</div>
+                {% endif %}
+            </div>
+
+            <!-- Linked Entity -->
+            {% if linked_entity %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Linked {{ linked_entity_type|replace('_', ' ')|title }}</h3>
+                <a href="{{ linked_entity_url }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                    {% if linked_entity_type == 'organization' %}
+                    {{ linked_entity.name }}
+                    {% elif linked_entity_type == 'engagement' %}
+                    {{ linked_entity.title or 'Engagement' }}
+                    {% elif linked_entity_type == 'governance_target' %}
+                    {{ linked_entity.target_name }}
+                    {% endif %}
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Metadata -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-md font-semibold text-gray-900 mb-4">Metadata</h3>
+                <dl class="space-y-3 text-sm">
+                    <div>
+                        <dt class="text-gray-500">Workflow Version</dt>
+                        <dd class="text-gray-900">{{ run.workflow_version or '-' }}</dd>
+                    </div>
+                    {% if run.tags %}
+                    <div>
+                        <dt class="text-gray-500">Tags</dt>
+                        <dd class="flex flex-wrap gap-1 mt-1">
+                            {% for tag in run.tags %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                {{ tag }}
+                            </span>
+                            {% endfor %}
+                        </dd>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <dt class="text-gray-500">Created</dt>
+                        <dd class="text-gray-900">{{ run.created_at.strftime('%b %d, %Y %H:%M:%S') }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

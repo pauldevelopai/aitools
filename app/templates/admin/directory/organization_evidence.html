@@ -1,0 +1,115 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Evidence Sources - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-start">
+        <div>
+            <nav class="text-sm text-gray-500 mb-2">
+                <a href="/admin/directory/organizations" class="hover:text-gray-700">Organizations</a>
+                <span class="mx-2">/</span>
+                <a href="/admin/directory/organizations/{{ organization.id }}" class="hover:text-gray-700">{{ organization.name }}</a>
+                <span class="mx-2">/</span>
+                <span class="text-gray-700">Evidence</span>
+            </nav>
+            <h1 class="text-2xl font-bold text-gray-900">Evidence Sources</h1>
+            <p class="text-gray-500 mt-1">Audit trail for enrichment data about {{ organization.name }}</p>
+        </div>
+        <a href="/admin/directory/organizations/{{ organization.id }}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+            Back to Organization
+        </a>
+    </div>
+
+    <!-- Evidence Sources -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Extracted Fields</h2>
+            <p class="text-sm text-gray-500">Data extracted from web pages with confidence scores</p>
+        </div>
+
+        {% if evidence_sources %}
+        <div class="divide-y divide-gray-100">
+            {% for evidence in evidence_sources %}
+            <div class="px-6 py-4">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="font-medium text-gray-900">{{ evidence.field_name|replace('_', ' ')|title }}</span>
+                        {% if evidence.confidence_score %}
+                        <span class="ml-2 px-2 py-0.5 rounded text-xs {% if evidence.confidence_score >= 0.7 %}bg-green-100 text-green-800{% elif evidence.confidence_score >= 0.5 %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ (evidence.confidence_score * 100)|int }}% confidence
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span class="text-xs text-gray-500">{{ evidence.retrieved_at.strftime('%b %d, %Y %H:%M') }}</span>
+                </div>
+
+                <div class="text-sm text-gray-600 mb-2">
+                    {% if evidence.extracted_value|length > 300 %}
+                    {{ evidence.extracted_value[:300] }}...
+                    {% else %}
+                    {{ evidence.extracted_value }}
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center space-x-4 text-xs text-gray-500">
+                    <span>Source: <a href="{{ evidence.source_url }}" target="_blank" class="text-blue-600 hover:underline">{{ evidence.source_url|truncate(50) }}</a></span>
+                    <span>Method: {{ evidence.extraction_method or 'N/A' }}</span>
+                    {% if evidence.extraction_model %}
+                    <span>Model: {{ evidence.extraction_model }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center text-gray-500">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="mt-4">No evidence sources recorded yet.</p>
+            <p class="mt-2 text-sm">Run "Enrich from Web" to gather data about this organization.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Web Page Snapshots -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Page Snapshots</h2>
+            <p class="text-sm text-gray-500">Cached web pages used for data extraction</p>
+        </div>
+
+        {% if snapshots %}
+        <div class="divide-y divide-gray-100">
+            {% for snapshot in snapshots %}
+            <div class="px-6 py-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-medium text-gray-900">{{ snapshot.title or 'Untitled' }}</div>
+                        <a href="{{ snapshot.url }}" target="_blank" class="text-sm text-blue-600 hover:underline">{{ snapshot.url|truncate(80) }}</a>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">{{ snapshot.page_type or 'page' }}</span>
+                        <div class="text-xs text-gray-500 mt-1">{{ snapshot.fetched_at.strftime('%b %d, %Y %H:%M') }}</div>
+                    </div>
+                </div>
+
+                {% if snapshot.text_content %}
+                <details class="mt-2">
+                    <summary class="text-sm text-gray-500 cursor-pointer hover:text-gray-700">View extracted text ({{ snapshot.text_content|length }} chars)</summary>
+                    <pre class="mt-2 p-3 bg-gray-50 rounded text-xs text-gray-600 overflow-x-auto max-h-48 overflow-y-auto">{{ snapshot.text_content[:2000] }}{% if snapshot.text_content|length > 2000 %}...{% endif %}</pre>
+                </details>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center text-gray-500">
+            <p>No page snapshots recorded yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
