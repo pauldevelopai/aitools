@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Library - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Reference Library</h1>
+        <p class="mt-2 text-gray-600 max-w-2xl">
+            Browse real-world policies, regulations, guidance, and standards.
+            Use these as reference or copy them into your own drafts.
+        </p>
+    </div>
+
+    <!-- Filter Bar -->
+    <form method="GET" action="/library" class="mb-6 bg-white rounded-lg shadow p-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+                <label for="jurisdiction" class="block text-xs font-medium text-gray-500 mb-1">Jurisdiction</label>
+                <select name="jurisdiction" id="jurisdiction"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                    <option value="">All Jurisdictions</option>
+                    {% for j in jurisdictions %}
+                    <option value="{{ j.key }}" {% if jurisdiction == j.key %}selected{% endif %}>{{ j.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="document_type" class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                <select name="document_type" id="document_type"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                    <option value="">All Types</option>
+                    {% for dt in document_types %}
+                    <option value="{{ dt.key }}" {% if document_type == dt.key %}selected{% endif %}>{{ dt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="q" class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+                <input type="text" name="q" id="q" value="{{ q }}" placeholder="Search documents..."
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+            <div class="flex items-end">
+                <button type="submit"
+                        class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                    Filter
+                </button>
+            </div>
+        </div>
+        {% if jurisdiction or document_type or q %}
+        <div class="mt-2 text-right">
+            <a href="/library" class="text-xs text-gray-500 hover:text-gray-700">Clear filters</a>
+        </div>
+        {% endif %}
+    </form>
+
+    {% if items %}
+    <!-- Results -->
+    <div class="space-y-4 mb-8">
+        {% for item in items %}
+        <a href="/library/{{ item.slug }}" class="block bg-white rounded-lg shadow hover:shadow-md transition p-6">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-1">{{ item.title }}</h3>
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                            {{ document_type_map.get(item.document_type, {}).get('label', item.document_type) | title }}
+                        </span>
+                        {% if item.jurisdiction %}
+                        <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                            {{ jurisdiction_map.get(item.jurisdiction, {}).get('label', item.jurisdiction) }}
+                        </span>
+                        {% endif %}
+                        {% if item.publisher %}
+                        <span class="text-xs text-gray-500">{{ item.publisher }}</span>
+                        {% endif %}
+                        {% if item.publication_date %}
+                        <span class="text-xs text-gray-400">{{ item.publication_date.strftime('%Y-%m-%d') }}</span>
+                        {% endif %}
+                    </div>
+                    {% if item.summary %}
+                    <p class="text-sm text-gray-600">
+                        {{ item.summary[:200] }}{% if item.summary|length > 200 %}...{% endif %}
+                    </p>
+                    {% endif %}
+                    {% if item.tags %}
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        {% for tag in item.tags[:5] %}
+                        <span class="inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <svg class="w-5 h-5 text-gray-400 ml-4 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <nav class="flex items-center justify-between bg-white rounded-lg shadow px-6 py-3">
+        <div>
+            {% if page > 1 %}
+            <a href="/library?page={{ page - 1 }}{% if jurisdiction %}&jurisdiction={{ jurisdiction }}{% endif %}{% if document_type %}&document_type={{ document_type }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+               class="text-sm font-medium text-blue-600 hover:text-blue-800">&larr; Previous</a>
+            {% else %}
+            <span class="text-sm text-gray-400">&larr; Previous</span>
+            {% endif %}
+        </div>
+        <div class="text-sm text-gray-700">
+            Page {{ page }} of {{ total_pages }} ({{ total }} items)
+        </div>
+        <div>
+            {% if page < total_pages %}
+            <a href="/library?page={{ page + 1 }}{% if jurisdiction %}&jurisdiction={{ jurisdiction }}{% endif %}{% if document_type %}&document_type={{ document_type }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+               class="text-sm font-medium text-blue-600 hover:text-blue-800">Next &rarr;</a>
+            {% else %}
+            <span class="text-sm text-gray-400">Next &rarr;</span>
+            {% endif %}
+        </div>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-16 bg-white rounded-lg shadow">
+        <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        <h2 class="mt-4 text-xl font-semibold text-gray-900">No documents found</h2>
+        <p class="mt-2 text-gray-500 max-w-md mx-auto">
+            {% if jurisdiction or document_type or q %}
+            Try adjusting your filters or search terms.
+            {% else %}
+            The library is being populated. Check back soon.
+            {% endif %}
+        </p>
+        {% if jurisdiction or document_type or q %}
+        <a href="/library" class="mt-4 inline-block text-sm text-blue-600 hover:text-blue-800">Clear filters</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

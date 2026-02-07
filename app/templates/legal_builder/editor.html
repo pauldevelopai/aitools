@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Framework - {{ framework.title }} - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4">
+            <a href="/legal-builder" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </a>
+            <div>
+                <input
+                    type="text"
+                    id="framework-title"
+                    value="{{ framework.title }}"
+                    class="text-2xl font-bold text-gray-900 bg-transparent border-0 border-b-2 border-transparent hover:border-gray-300 focus:border-indigo-500 focus:ring-0 px-0 py-1 w-96"
+                    placeholder="Framework Title"
+                >
+                <p class="text-sm text-gray-500 mt-1">
+                    Draft v{{ version.version_number }}
+                    &middot; <span id="save-status" class="text-gray-400">Ready</span>
+                </p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <a href="/legal-builder/{{ framework.id }}/versions" class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition">
+                History
+            </a>
+            <form method="POST" action="/legal-builder/{{ framework.id }}/publish" class="inline">
+                <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition" onclick="return confirm('Publish this framework? It will become the current published version.')">
+                    Publish
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex gap-6">
+            <button id="tab-narrative" class="tab-btn border-b-2 border-indigo-500 text-indigo-600 pb-3 px-1 text-sm font-medium" data-tab="narrative">
+                Narrative Summary
+            </button>
+            <button id="tab-checklist" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 pb-3 px-1 text-sm font-medium" data-tab="checklist">
+                Compliance Checklist
+                <span class="ml-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full" id="checklist-count">{{ (version.checklist_items or []) | length }}</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Narrative Tab -->
+    <div id="panel-narrative" class="tab-panel">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <h4 class="text-sm font-semibold text-blue-900 mb-1">Narrative Summary</h4>
+            <p class="text-sm text-blue-700">
+                This is your organisation's written summary of legal obligations. Edit it to reflect
+                your specific circumstances, adding detail about how you interpret and comply with each regulation.
+            </p>
+        </div>
+        <div class="bg-white rounded-lg shadow">
+            <textarea
+                id="narrative-editor"
+                rows="24"
+                class="w-full p-6 text-sm text-gray-800 font-mono border-0 rounded-lg focus:ring-2 focus:ring-indigo-500 resize-y"
+                placeholder="Write your legal framework narrative here..."
+            >{{ version.narrative_markdown or '' }}</textarea>
+        </div>
+    </div>
+
+    <!-- Checklist Tab -->
+    <div id="panel-checklist" class="tab-panel hidden">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <h4 class="text-sm font-semibold text-blue-900 mb-1">Compliance Checklist</h4>
+            <p class="text-sm text-blue-700">
+                Track your compliance status for each legal obligation. Update the status as you implement
+                each requirement and add evidence links to supporting documents.
+            </p>
+        </div>
+
+        <!-- Status Summary -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl font-bold text-gray-400" id="count-not-applicable">0</div>
+                <div class="text-xs text-gray-500 mt-1">Not Applicable</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl font-bold text-yellow-600" id="count-planned">0</div>
+                <div class="text-xs text-gray-500 mt-1">Planned</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl font-bold text-green-600" id="count-implemented">0</div>
+                <div class="text-xs text-gray-500 mt-1">Implemented</div>
+            </div>
+        </div>
+
+        <!-- Checklist Items -->
+        <div id="checklist-items" class="space-y-3">
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const frameworkId = "{{ framework.id }}";
+    const checklistItems = {{ version.checklist_items | tojson if version.checklist_items else '[]' }};
+    const categories = {{ categories | tojson }};
+    const statuses = {{ statuses | tojson }};
+
+    let narrativeTimer = null;
+    let titleTimer = null;
+
+    const narrativeEditor = document.getElementById('narrative-editor');
+    const saveStatus = document.getElementById('save-status');
+    const titleInput = document.getElementById('framework-title');
+    const checklistContainer = document.getElementById('checklist-items');
+
+    const categoryMap = {};
+    categories.forEach(c => { categoryMap[c.key] = c.label; });
+
+    const statusLabels = {
+        'not_applicable': 'N/A',
+        'planned': 'Planned',
+        'implemented': 'Done'
+    };
+
+    // ---- Tabs ----
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('border-indigo-500', 'text-indigo-600');
+                b.classList.add('border-transparent', 'text-gray-500');
+            });
+            btn.classList.add('border-indigo-500', 'text-indigo-600');
+            btn.classList.remove('border-transparent', 'text-gray-500');
+
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            document.getElementById('panel-' + tab).classList.remove('hidden');
+        });
+    });
+
+    // ---- Narrative Autosave ----
+    function saveNarrative() {
+        saveStatus.textContent = 'Saving...';
+        saveStatus.className = 'text-yellow-600';
+
+        fetch(`/legal-builder/${frameworkId}/autosave-narrative`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: narrativeEditor.value }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                saveStatus.textContent = 'Saved';
+                saveStatus.className = 'text-green-600';
+                setTimeout(() => {
+                    if (saveStatus.textContent === 'Saved') {
+                        saveStatus.textContent = 'Ready';
+                        saveStatus.className = 'text-gray-400';
+                    }
+                }, 3000);
+            } else {
+                saveStatus.textContent = 'Error saving';
+                saveStatus.className = 'text-red-600';
+            }
+        })
+        .catch(() => {
+            saveStatus.textContent = 'Error saving';
+            saveStatus.className = 'text-red-600';
+        });
+    }
+
+    narrativeEditor.addEventListener('input', () => {
+        clearTimeout(narrativeTimer);
+        saveStatus.textContent = 'Editing...';
+        saveStatus.className = 'text-gray-400';
+        narrativeTimer = setTimeout(saveNarrative, 1500);
+    });
+
+    // ---- Title Autosave ----
+    function saveTitle() {
+        const title = titleInput.value.trim();
+        if (!title) return;
+        fetch(`/legal-builder/${frameworkId}/title`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title }),
+        });
+    }
+
+    titleInput.addEventListener('input', () => {
+        clearTimeout(titleTimer);
+        titleTimer = setTimeout(saveTitle, 1500);
+    });
+
+    // ---- Checklist Autosave ----
+    function saveChecklistField(itemId, field, value) {
+        saveStatus.textContent = 'Saving...';
+        saveStatus.className = 'text-yellow-600';
+
+        fetch(`/legal-builder/${frameworkId}/autosave-checklist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: itemId, field: field, value: value }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                saveStatus.textContent = 'Saved';
+                saveStatus.className = 'text-green-600';
+                setTimeout(() => {
+                    if (saveStatus.textContent === 'Saved') {
+                        saveStatus.textContent = 'Ready';
+                        saveStatus.className = 'text-gray-400';
+                    }
+                }, 3000);
+            } else {
+                saveStatus.textContent = 'Error';
+                saveStatus.className = 'text-red-600';
+            }
+        })
+        .catch(() => {
+            saveStatus.textContent = 'Error';
+            saveStatus.className = 'text-red-600';
+        });
+    }
+
+    // ---- Render Checklist ----
+    function updateStatusCounts() {
+        let na = 0, planned = 0, impl = 0;
+        checklistItems.forEach(item => {
+            if (item.status === 'not_applicable') na++;
+            else if (item.status === 'planned') planned++;
+            else if (item.status === 'implemented') impl++;
+        });
+        document.getElementById('count-not-applicable').textContent = na;
+        document.getElementById('count-planned').textContent = planned;
+        document.getElementById('count-implemented').textContent = impl;
+    }
+
+    function renderChecklist() {
+        checklistContainer.innerHTML = '';
+        checklistItems.forEach((item, idx) => {
+            const statusColors = {
+                'not_applicable': 'border-gray-300',
+                'planned': 'border-yellow-400',
+                'implemented': 'border-green-500',
+            };
+            const borderColor = statusColors[item.status] || 'border-gray-300';
+
+            const evidenceHtml = (item.evidence_links || []).map((link, li) =>
+                `<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded">
+                    <a href="${link.url}" target="_blank" rel="noopener" class="hover:underline">${link.label || link.url}</a>
+                    <button data-item-id="${item.id}" data-link-index="${li}" class="remove-evidence text-blue-400 hover:text-red-500 ml-1">&times;</button>
+                </span>`
+            ).join(' ');
+
+            const div = document.createElement('div');
+            div.className = `bg-white rounded-lg shadow p-5 border-l-4 ${borderColor}`;
+            div.innerHTML = `
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded">${categoryMap[item.category] || item.category}</span>
+                            <span class="text-xs text-gray-400">${item.framework_ref || ''}</span>
+                        </div>
+                        <h4 class="text-sm font-semibold text-gray-900">${item.obligation}</h4>
+                        <p class="text-xs text-gray-500 mt-1">${item.description || ''}</p>
+                        ${evidenceHtml ? `<div class="mt-2 flex flex-wrap gap-1">${evidenceHtml}</div>` : ''}
+                        <div class="mt-2 flex items-center gap-2">
+                            <button data-item-id="${item.id}" class="add-evidence text-xs text-blue-600 hover:text-blue-800">+ Add Evidence</button>
+                        </div>
+                        <div class="mt-2">
+                            <textarea data-item-id="${item.id}" data-field="notes" rows="1"
+                                class="item-notes w-full text-xs text-gray-600 border-0 border-b border-gray-200 focus:border-indigo-400 focus:ring-0 px-0 py-1 resize-none bg-transparent"
+                                placeholder="Notes...">${item.notes || ''}</textarea>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <select data-item-id="${item.id}" data-field="status"
+                            class="item-status text-xs rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            ${statuses.map(s => `<option value="${s}" ${item.status === s ? 'selected' : ''}>${statusLabels[s] || s}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+            `;
+            checklistContainer.appendChild(div);
+        });
+
+        // Bind events
+        document.querySelectorAll('.item-status').forEach(sel => {
+            sel.addEventListener('change', function() {
+                const itemId = this.dataset.itemId;
+                const item = checklistItems.find(i => i.id === itemId);
+                if (item) {
+                    item.status = this.value;
+                    updateStatusCounts();
+                    // Update border color
+                    const card = this.closest('.bg-white');
+                    card.classList.remove('border-gray-300', 'border-yellow-400', 'border-green-500');
+                    const colors = {'not_applicable': 'border-gray-300', 'planned': 'border-yellow-400', 'implemented': 'border-green-500'};
+                    card.classList.add(colors[this.value] || 'border-gray-300');
+                }
+                saveChecklistField(itemId, 'status', this.value);
+            });
+        });
+
+        let notesTimers = {};
+        document.querySelectorAll('.item-notes').forEach(ta => {
+            ta.addEventListener('input', function() {
+                const itemId = this.dataset.itemId;
+                const item = checklistItems.find(i => i.id === itemId);
+                if (item) item.notes = this.value;
+                clearTimeout(notesTimers[itemId]);
+                notesTimers[itemId] = setTimeout(() => {
+                    saveChecklistField(itemId, 'notes', this.value);
+                }, 1500);
+            });
+        });
+
+        document.querySelectorAll('.add-evidence').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const itemId = this.dataset.itemId;
+                const url = prompt('Enter evidence URL:');
+                if (!url) return;
+                const label = prompt('Enter a label for this evidence:', '') || url;
+                const item = checklistItems.find(i => i.id === itemId);
+                if (item) {
+                    if (!item.evidence_links) item.evidence_links = [];
+                    item.evidence_links.push({ url, label });
+                    saveChecklistField(itemId, 'evidence_links', item.evidence_links);
+                    renderChecklist();
+                }
+            });
+        });
+
+        document.querySelectorAll('.remove-evidence').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const itemId = this.dataset.itemId;
+                const linkIndex = parseInt(this.dataset.linkIndex);
+                const item = checklistItems.find(i => i.id === itemId);
+                if (item && item.evidence_links) {
+                    item.evidence_links.splice(linkIndex, 1);
+                    saveChecklistField(itemId, 'evidence_links', item.evidence_links);
+                    renderChecklist();
+                }
+            });
+        });
+
+        updateStatusCounts();
+    }
+
+    renderChecklist();
+})();
+</script>
+{% endblock %}

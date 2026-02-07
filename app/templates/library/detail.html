@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.title }} - Library - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+
+    <!-- Back Link -->
+    <div class="mb-4">
+        <a href="/library" class="text-sm text-blue-600 hover:text-blue-800">&larr; Back to Library</a>
+    </div>
+
+    <!-- Document Header -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ item.title }}</h1>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+            <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
+                {{ document_type_map.get(item.document_type, {}).get('label', item.document_type) | title }}
+            </span>
+            {% if item.jurisdiction %}
+            <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                {{ jurisdiction_map.get(item.jurisdiction, {}).get('label', item.jurisdiction) }}
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
+            {% if item.publisher %}
+            <div>
+                <span class="font-medium text-gray-700">Publisher:</span> {{ item.publisher }}
+            </div>
+            {% endif %}
+            {% if item.publication_date %}
+            <div>
+                <span class="font-medium text-gray-700">Published:</span> {{ item.publication_date.strftime('%d %B %Y') }}
+            </div>
+            {% endif %}
+            {% if item.source_url %}
+            <div>
+                <span class="font-medium text-gray-700">Source:</span>
+                <a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800">
+                    View original &rarr;
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if item.tags %}
+        <div class="mt-4 flex flex-wrap gap-1">
+            {% for tag in item.tags %}
+            <span class="inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Copy to Draft Buttons (logged in) -->
+    {% if user %}
+    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <h3 class="text-sm font-semibold text-indigo-900">Use this document as a starting point</h3>
+                <p class="text-xs text-indigo-700">Copy the content into your own draft to customise it for your needs.</p>
+            </div>
+            <div class="flex gap-2">
+                {% if feature_ethics_builder %}
+                <button onclick="copyToDraft('ethics')"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium whitespace-nowrap">
+                    Copy to Ethics Policy
+                </button>
+                {% endif %}
+                {% if feature_legal_builder %}
+                <button onclick="copyToDraft('legal')"
+                        class="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium whitespace-nowrap">
+                    Copy to Legal Framework
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <div id="copy-status" class="hidden mt-2 text-sm"></div>
+    </div>
+    {% endif %}
+
+    <!-- Login Prompt (logged out) -->
+    {% if requires_login %}
+    <div class="mb-6">
+        {% include "components/login_prompt.html" %}
+    </div>
+    {% endif %}
+
+    <!-- Summary -->
+    {% if item.summary %}
+    <div class="bg-gray-50 rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 class="text-sm font-semibold text-gray-700 mb-2">Summary</h2>
+        <p class="text-gray-700">{{ item.summary }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="prose prose-sm max-w-none">
+            {{ item.content_markdown | markdown }}
+        </div>
+    </div>
+
+    <!-- Sections -->
+    {% if item.sections %}
+    <div class="space-y-4 mb-6">
+        {% for section in item.sections %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">{{ section.heading }}</h3>
+            <div class="prose prose-sm max-w-none">
+                {{ section.content | markdown }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function copyToDraft(type) {
+    var statusEl = document.getElementById('copy-status');
+    statusEl.classList.remove('hidden');
+    statusEl.textContent = 'Creating draft...';
+    statusEl.className = 'mt-2 text-sm text-indigo-700';
+
+    var url = '/library/{{ item.slug }}/copy-to-' + type;
+    var csrfToken = document.cookie.split('; ').find(function(c) { return c.startsWith('csrf_token='); });
+    var token = csrfToken ? csrfToken.split('=')[1] : '';
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token
+        },
+        credentials: 'same-origin'
+    })
+    .then(function(resp) {
+        if (!resp.ok) throw new Error('Failed to create draft');
+        return resp.json();
+    })
+    .then(function(data) {
+        if (data.redirect_url) {
+            statusEl.textContent = 'Draft created! Redirecting...';
+            statusEl.className = 'mt-2 text-sm text-green-700';
+            window.location.href = data.redirect_url;
+        }
+    })
+    .catch(function(err) {
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.className = 'mt-2 text-sm text-red-700';
+    });
+}
+</script>
+{% endblock %}

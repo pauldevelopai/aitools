@@ -90,6 +90,36 @@ AITOOLKIT_PRODUCT = Product(
             icon="target",
             requires_auth=False,
         ),
+        NavigationItem(
+            label="Ethics",
+            route="/ethics-policy",
+            icon="shield",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Legal",
+            route="/legal-framework",
+            icon="scale",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Policy Builder",
+            route="/ethics-builder",
+            icon="document-text",
+            requires_auth=True,
+        ),
+        NavigationItem(
+            label="Legal Builder",
+            route="/legal-builder",
+            icon="scale",
+            requires_auth=True,
+        ),
+        NavigationItem(
+            label="Library",
+            route="/library",
+            icon="book-open",
+            requires_auth=False,
+        ),
     ],
     content_scope=ContentScope.TOOLS,
     is_active=True,
@@ -130,6 +160,11 @@ AITOOLKIT_V1_FEATURES = FeatureFlags(
     # =========================================================================
     foundations_enabled=True,
     playbooks_enabled=False,  # Playbooks were not in V1
+    ethics_policy_enabled=False,  # Ethics policy was not in V1
+    legal_framework_enabled=False,  # Legal framework was not in V1
+    ethics_builder_enabled=False,  # Ethics builder was not in V1
+    legal_builder_enabled=False,  # Legal builder was not in V1
+    library_enabled=False,  # Library was not in V1
 
     # =========================================================================
     # PERSONALIZATION - V1 had no personalization features
@@ -207,6 +242,11 @@ AITOOLKIT_V2_FEATURES = FeatureFlags(
     # =========================================================================
     foundations_enabled=True,
     playbooks_enabled=True,
+    ethics_policy_enabled=False,  # Ethics policy was not in V2
+    legal_framework_enabled=False,  # Legal framework was not in V2
+    ethics_builder_enabled=False,  # Ethics builder was not in V2
+    legal_builder_enabled=False,  # Legal builder was not in V2
+    library_enabled=False,  # Library was not in V2
 
     # =========================================================================
     # PERSONALIZATION - All enabled
@@ -285,6 +325,11 @@ AITOOLKIT_V3_FEATURES = FeatureFlags(
     # =========================================================================
     foundations_enabled=True,
     playbooks_enabled=True,
+    ethics_policy_enabled=True,
+    legal_framework_enabled=True,
+    ethics_builder_enabled=True,
+    legal_builder_enabled=True,
+    library_enabled=True,
 
     # =========================================================================
     # PERSONALIZATION - All enabled

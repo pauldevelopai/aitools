@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Legal Builder - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">AI Legal Framework Builder</h1>
+        <p class="mt-2 text-gray-600 max-w-2xl">
+            Map the laws and regulations affecting your AI use and build an actionable compliance checklist.
+        </p>
+    </div>
+
+    {% if requires_login %}
+    {% include "components/login_prompt.html" %}
+    {% else %}
+
+    <!-- Create New -->
+    <div class="mb-8">
+        <a href="/legal-builder/setup" class="inline-flex items-center px-5 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition shadow">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Start New Framework
+        </a>
+    </div>
+
+    {% if frameworks %}
+    <!-- Framework List -->
+    <div class="space-y-4">
+        {% for fw in frameworks %}
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 {% if fw._published %}border-green-500{% elif fw._draft %}border-yellow-500{% else %}border-gray-300{% endif %}">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">{{ fw.title }}</h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Created {{ fw.created_at.strftime('%d %b %Y') }}
+                        {% if fw._published %}
+                            &middot; <span class="text-green-700 font-medium">Published</span>
+                        {% elif fw._draft %}
+                            &middot; <span class="text-yellow-700 font-medium">Draft v{{ fw._draft.version_number }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    {% if fw._draft %}
+                    <a href="/legal-builder/{{ fw.id }}/edit" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition">
+                        Edit Draft
+                    </a>
+                    {% endif %}
+                    {% if fw._published %}
+                    <a href="/legal-builder/{{ fw.id }}" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 rounded-md hover:bg-green-100 transition">
+                        View
+                    </a>
+                    {% endif %}
+                    <a href="/legal-builder/{{ fw.id }}/versions" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 transition">
+                        History
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-16 bg-white rounded-lg shadow">
+        <svg class="mx-auto h-16 w-16 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+        </svg>
+        <h2 class="mt-4 text-xl font-semibold text-gray-900">No Frameworks Yet</h2>
+        <p class="mt-2 text-gray-500 max-w-md mx-auto">
+            Create your first AI legal framework. Our setup wizard helps you select
+            jurisdictions, sector, and use cases to generate a tailored compliance checklist.
+        </p>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end requires_login #}
+</div>
+{% endblock %}

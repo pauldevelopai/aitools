@@ -3,7 +3,7 @@ import logging
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db import get_db
 from app.models.auth import User
@@ -27,8 +27,10 @@ async def profile_page(
     """Profile page."""
     csrf_token = CSRFProtectionMiddleware.generate_token()
 
-    # Re-fetch user from current db session to get latest data
-    db_user = db.query(User).filter(User.id == user.id).first()
+    # Re-fetch user from current db session to get latest data (with org)
+    db_user = db.query(User).options(
+        joinedload(User.organization_profile)
+    ).filter(User.id == user.id).first()
     if not db_user:
         db_user = user  # Fallback to session user
 

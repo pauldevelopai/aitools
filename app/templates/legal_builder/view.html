@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}{{ framework.title }} - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-8">
+        <div>
+            <a href="/legal-builder" class="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">&larr; Back to frameworks</a>
+            <h1 class="text-3xl font-bold text-gray-900">{{ framework.title }}</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                Version {{ version.version_number }}
+                &middot;
+                {% if version.status == 'published' %}
+                    <span class="text-green-700 font-medium">Published</span>
+                    {% if version.published_at %}
+                        {{ version.published_at.strftime('%d %b %Y') }}
+                    {% endif %}
+                {% elif version.status == 'draft' %}
+                    <span class="text-yellow-700 font-medium">Draft</span>
+                {% else %}
+                    <span class="text-gray-500">{{ version.status | title }}</span>
+                {% endif %}
+            </p>
+        </div>
+        {% if is_owner %}
+        <div class="flex gap-2">
+            {% if version.status == 'draft' %}
+            <a href="/legal-builder/{{ framework.id }}/edit" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition">
+                Edit
+            </a>
+            {% elif version.status == 'published' %}
+            <form method="POST" action="/legal-builder/{{ framework.id }}/new-draft" class="inline">
+                <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-300 rounded-md hover:bg-indigo-100 transition">
+                    New Draft
+                </button>
+            </form>
+            {% endif %}
+            <a href="/legal-builder/{{ framework.id }}/export" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition">
+                Export
+            </a>
+            <a href="/legal-builder/{{ framework.id }}/versions" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition">
+                History
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Narrative -->
+    {% if version.narrative_markdown %}
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div class="prose prose-sm max-w-none">
+            {{ version.narrative_markdown | markdown }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Checklist -->
+    {% if version.checklist_items %}
+    <h2 class="text-xl font-bold text-gray-900 mb-4">Compliance Checklist</h2>
+
+    <!-- Status Summary -->
+    {% set ns = namespace(na=0, planned=0, impl=0) %}
+    {% for item in version.checklist_items %}
+        {% if item.status == 'not_applicable' %}{% set ns.na = ns.na + 1 %}
+        {% elif item.status == 'planned' %}{% set ns.planned = ns.planned + 1 %}
+        {% elif item.status == 'implemented' %}{% set ns.impl = ns.impl + 1 %}
+        {% endif %}
+    {% endfor %}
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-3 text-center">
+            <div class="text-xl font-bold text-gray-400">{{ ns.na }}</div>
+            <div class="text-xs text-gray-500">N/A</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-3 text-center">
+            <div class="text-xl font-bold text-yellow-600">{{ ns.planned }}</div>
+            <div class="text-xs text-gray-500">Planned</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-3 text-center">
+            <div class="text-xl font-bold text-green-600">{{ ns.impl }}</div>
+            <div class="text-xs text-gray-500">Implemented</div>
+        </div>
+    </div>
+
+    <div class="space-y-3">
+        {% for item in version.checklist_items %}
+        {% set status_border = 'border-gray-300' %}
+        {% if item.status == 'planned' %}{% set status_border = 'border-yellow-400' %}{% endif %}
+        {% if item.status == 'implemented' %}{% set status_border = 'border-green-500' %}{% endif %}
+
+        <div class="bg-white rounded-lg shadow p-5 border-l-4 {{ status_border }}">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        {% for cat in categories %}
+                            {% if cat.key == item.category %}
+                            <span class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{{ cat.label }}</span>
+                            {% endif %}
+                        {% endfor %}
+                        {% if item.framework_ref %}
+                        <span class="text-xs text-gray-400">{{ item.framework_ref }}</span>
+                        {% endif %}
+                    </div>
+                    <h4 class="text-sm font-semibold text-gray-900">{{ item.obligation }}</h4>
+                    {% if item.description %}
+                    <p class="text-xs text-gray-500 mt-1">{{ item.description }}</p>
+                    {% endif %}
+                    {% if item.evidence_links %}
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        {% for link in item.evidence_links %}
+                        <a href="{{ link.url }}" target="_blank" rel="noopener" class="inline-flex items-center bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded hover:underline">
+                            {{ link.label or link.url }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if item.notes %}
+                    <p class="text-xs text-gray-600 mt-2 italic">{{ item.notes }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex-shrink-0">
+                    {% if item.status == 'implemented' %}
+                    <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Implemented</span>
+                    {% elif item.status == 'planned' %}
+                    <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Planned</span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-500 rounded-full">N/A</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

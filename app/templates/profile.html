@@ -21,6 +21,25 @@
     </div>
     {% endif %}
 
+    {% if user.organization_profile %}
+    <!-- Organization Context -->
+    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center">
+            <svg class="h-5 w-5 text-indigo-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+            </svg>
+            <div>
+                <p class="text-sm font-semibold text-indigo-900">{{ user.organization_profile.name }}</p>
+                <p class="text-xs text-indigo-700">
+                    {% if user.organization_profile.sector %}{{ user.organization_profile.sector | title }}{% endif %}
+                    {% if user.organization_profile.country %} &middot; {{ user.organization_profile.country }}{% endif %}
+                    {% if user.organization_profile.size %} &middot; {{ user.organization_profile.size | title }}{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <form method="POST" action="/profile/update" class="bg-white rounded-lg shadow p-8 space-y-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 

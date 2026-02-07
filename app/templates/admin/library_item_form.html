@@ -1,0 +1,121 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if item %}Edit{% else %}Create{% endif %} Library Item{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">{% if item %}Edit Library Item{% else %}Create Library Item{% endif %}</h1>
+            <p class="text-sm text-gray-600 mt-1">
+                {% if item %}Update "{{ item.title }}"{% else %}Add a new reference document to the library{% endif %}
+            </p>
+        </div>
+        <a href="/admin/library" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Library</a>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <form action="{% if item %}/admin/library/{{ item.id }}/edit{% else %}/admin/library/create{% endif %}" method="POST" class="space-y-6">
+
+            <!-- Title -->
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700">Title *</label>
+                <input type="text" name="title" id="title" required
+                       value="{{ item.title if item else '' }}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Type + Jurisdiction row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="document_type" class="block text-sm font-medium text-gray-700">Document Type *</label>
+                    <select name="document_type" id="document_type" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                        {% for dt in document_types %}
+                        <option value="{{ dt.key }}" {% if item and item.document_type == dt.key %}selected{% endif %}>
+                            {{ dt.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="jurisdiction" class="block text-sm font-medium text-gray-700">Jurisdiction</label>
+                    <select name="jurisdiction" id="jurisdiction"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                        <option value="">-- None --</option>
+                        {% for j in jurisdictions %}
+                        <option value="{{ j.key }}" {% if item and item.jurisdiction == j.key %}selected{% endif %}>
+                            {{ j.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Publisher + Publication Date + Source URL -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="publisher" class="block text-sm font-medium text-gray-700">Publisher</label>
+                    <input type="text" name="publisher" id="publisher"
+                           value="{{ item.publisher if item and item.publisher else '' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+                <div>
+                    <label for="publication_date" class="block text-sm font-medium text-gray-700">Publication Date</label>
+                    <input type="date" name="publication_date" id="publication_date"
+                           value="{{ item.publication_date.isoformat() if item and item.publication_date else '' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+                <div>
+                    <label for="source_url" class="block text-sm font-medium text-gray-700">Source URL</label>
+                    <input type="url" name="source_url" id="source_url"
+                           value="{{ item.source_url if item and item.source_url else '' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div>
+                <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+                <input type="text" name="tags" id="tags"
+                       value="{{ tags_str if tags_str is defined else '' }}"
+                       placeholder="gdpr, ai-act, transparency"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Summary -->
+            <div>
+                <label for="summary" class="block text-sm font-medium text-gray-700">Summary</label>
+                <textarea name="summary" id="summary" rows="3"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">{{ item.summary if item and item.summary else '' }}</textarea>
+            </div>
+
+            <!-- Content Markdown -->
+            <div>
+                <label for="content_markdown" class="block text-sm font-medium text-gray-700">Content (Markdown) *</label>
+                <textarea name="content_markdown" id="content_markdown" rows="16" required
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2 font-mono text-sm">{{ item.content_markdown if item else '' }}</textarea>
+            </div>
+
+            <!-- Sections JSON -->
+            <div>
+                <label for="sections" class="block text-sm font-medium text-gray-700">Sections (JSON, optional)</label>
+                <p class="text-xs text-gray-500 mb-1">Array of objects: [{"heading": "...", "content": "..."}]</p>
+                <textarea name="sections" id="sections" rows="6"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2 font-mono text-sm">{{ sections_str if sections_str is defined else '' }}</textarea>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                <a href="/admin/library" class="text-sm text-gray-500 hover:text-gray-700">Cancel</a>
+                <button type="submit"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                    {% if item %}Save Changes{% else %}Create Item{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

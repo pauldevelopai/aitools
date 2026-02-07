@@ -932,6 +932,90 @@ async def edit_content(
 
 
 # =============================================================================
+# ETHICS POLICY ADMIN
+# =============================================================================
+
+@router.get("/ethics-policy", response_class=HTMLResponse)
+async def admin_ethics_policy(
+    request: Request,
+    status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin view for Ethics Policy content items."""
+    query = db.query(ContentItem).filter(ContentItem.section == "ethics_policy")
+
+    if status:
+        query = query.filter(ContentItem.status == status)
+    if search:
+        query = query.filter(
+            or_(
+                ContentItem.title.ilike(f"%{search}%"),
+                ContentItem.slug.ilike(f"%{search}%"),
+            )
+        )
+
+    content_items = query.order_by(desc(ContentItem.created_at)).all()
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/governance/content.html",
+        {
+            "request": request,
+            "user": user,
+            "content_items": content_items,
+            "filters": {"status": status, "section": "ethics_policy", "search": search},
+            "section_title": "AI Ethics Policy",
+            **admin_context,
+            "active_admin_page": "ethics_policy",
+        }
+    )
+
+
+# =============================================================================
+# LEGAL FRAMEWORK ADMIN
+# =============================================================================
+
+@router.get("/legal-framework", response_class=HTMLResponse)
+async def admin_legal_framework(
+    request: Request,
+    status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin view for Legal Framework content items."""
+    query = db.query(ContentItem).filter(ContentItem.section == "legal_framework")
+
+    if status:
+        query = query.filter(ContentItem.status == status)
+    if search:
+        query = query.filter(
+            or_(
+                ContentItem.title.ilike(f"%{search}%"),
+                ContentItem.slug.ilike(f"%{search}%"),
+            )
+        )
+
+    content_items = query.order_by(desc(ContentItem.created_at)).all()
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/governance/content.html",
+        {
+            "request": request,
+            "user": user,
+            "content_items": content_items,
+            "filters": {"status": status, "section": "legal_framework", "search": search},
+            "section_title": "AI Legal Framework",
+            **admin_context,
+            "active_admin_page": "legal_framework",
+        }
+    )
+
+
+# =============================================================================
 # WORKFLOW RUNS
 # =============================================================================
 

@@ -204,6 +204,31 @@ def require_foundations():
     return require_feature("foundations")
 
 
+def require_ethics_policy():
+    """Require ethics policy feature."""
+    return require_feature("ethics_policy")
+
+
+def require_legal_framework():
+    """Require legal framework feature."""
+    return require_feature("legal_framework")
+
+
+def require_ethics_builder():
+    """Require ethics builder feature."""
+    return require_feature("ethics_builder")
+
+
+def require_legal_builder():
+    """Require legal builder feature."""
+    return require_feature("legal_builder")
+
+
+def require_library():
+    """Require library feature."""
+    return require_feature("library")
+
+
 def require_playbooks():
     """Require playbooks feature."""
     return require_feature("playbooks")

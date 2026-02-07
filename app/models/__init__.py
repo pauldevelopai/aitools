@@ -22,6 +22,11 @@ from app.models.directory import (
     JournalistNote,
     EngagementDocument,
 )
+from app.models.organization_profile import OrganizationProfile
+from app.models.policy_document import PolicyDocument, PolicyDocumentVersion
+from app.models.ethics_builder import EthicsPolicy, EthicsPolicyVersion
+from app.models.legal_builder import LegalFrameworkDoc, LegalFrameworkVersion
+from app.models.library_item import LibraryItem
 
 __all__ = [
     "User",
@@ -54,4 +59,12 @@ __all__ = [
     "Engagement",
     "JournalistNote",
     "EngagementDocument",
+    "OrganizationProfile",
+    "PolicyDocument",
+    "PolicyDocumentVersion",
+    "EthicsPolicy",
+    "EthicsPolicyVersion",
+    "LegalFrameworkDoc",
+    "LegalFrameworkVersion",
+    "LibraryItem",
 ]

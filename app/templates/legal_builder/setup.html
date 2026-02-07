@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Legal Framework - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="/legal-builder" class="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">&larr; Back to frameworks</a>
+        <h1 class="text-3xl font-bold text-gray-900">Setup Your Legal Framework</h1>
+        <p class="mt-2 text-gray-600">
+            Tell us about your organisation and how you use AI. We'll generate a tailored
+            compliance framework with relevant legal obligations.
+        </p>
+    </div>
+
+    <form method="POST" action="/legal-builder/create" class="space-y-8">
+
+        <!-- Title -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <label for="title" class="block text-sm font-semibold text-gray-900 mb-2">Framework Title</label>
+            <input type="text" name="title" id="title" value="AI Legal Framework"
+                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                   placeholder="e.g. Newsroom AI Legal Framework 2026">
+        </div>
+
+        <!-- Jurisdictions -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-1">Jurisdictions</h2>
+            <p class="text-sm text-gray-500 mb-4">Select all jurisdictions whose laws and regulations affect your AI use. Select at least one.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {% for j in jurisdictions %}
+                <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                    <input type="checkbox" name="jurisdictions" value="{{ j.key }}"
+                           class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-sm font-medium text-gray-900">{{ j.label }}</div>
+                        <div class="text-xs text-gray-500">{{ j.description }}</div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Sector -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-1">Sector</h2>
+            <p class="text-sm text-gray-500 mb-4">What type of organisation are you?</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {% for s in sectors %}
+                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                    <input type="radio" name="sector" value="{{ s.key }}"
+                           class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                           {% if loop.first %}checked{% endif %}>
+                    <span class="text-sm font-medium text-gray-900">{{ s.label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Use Cases -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-1">AI Use Cases</h2>
+            <p class="text-sm text-gray-500 mb-4">Select the AI use cases that apply to your organisation.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {% for u in use_cases %}
+                <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                    <input type="checkbox" name="use_cases" value="{{ u.key }}"
+                           class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-sm font-medium text-gray-900">{{ u.label }}</div>
+                        <div class="text-xs text-gray-500">{{ u.description }}</div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="flex justify-end">
+            <button type="submit" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition shadow">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+                Generate Framework
+            </button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

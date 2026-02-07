@@ -142,10 +142,10 @@
     </nav>
 
     {# ── Active-page group helpers ── #}
-    {% set _content_pages = ['documents', 'sources', 'training', 'playbooks', 'governance_content'] %}
+    {% set _content_pages = ['documents', 'sources', 'training', 'playbooks', 'governance_content', 'ethics_policy', 'legal_framework', 'library'] %}
     {% set _tools_pages   = ['discovery', 'approved_tools', 'tool_suggestions', 'reviews', 'governance_tools'] %}
     {% set _dir_pages     = ['directory', 'governance', 'sync'] %}
-    {% set _system_pages  = ['users', 'analytics', 'feedback'] %}
+    {% set _system_pages  = ['users', 'organizations', 'analytics', 'feedback'] %}
 
     <!-- Admin Navigation -->
     <div class="bg-white border-b border-gray-200">
@@ -219,6 +219,11 @@
                         <a href="/admin/playbooks"  class="block px-4 py-2 text-sm {% if active_admin_page == 'playbooks' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Use Cases</a>
                         <div class="border-t border-gray-100 my-1"></div>
                         <a href="/admin/governance/content" class="block px-4 py-2 text-sm {% if active_admin_page == 'governance_content' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Generated Content</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="/admin/governance/ethics-policy" class="block px-4 py-2 text-sm {% if active_admin_page == 'ethics_policy' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Ethics Policy</a>
+                        <a href="/admin/governance/legal-framework" class="block px-4 py-2 text-sm {% if active_admin_page == 'legal_framework' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Legal Framework</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="/admin/library" class="block px-4 py-2 text-sm {% if active_admin_page == 'library' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Library</a>
                     </div>
                 </div>
 
@@ -232,6 +237,8 @@
                     </button>
                     <div class="hidden absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40" data-dropdown-menu>
                         <a href="/admin/users"          class="block px-4 py-2 text-sm {% if active_admin_page == 'users' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Users</a>
+                        <a href="/admin/organizations"  class="block px-4 py-2 text-sm {% if active_admin_page == 'organizations' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Organizations</a>
+                        <div class="border-t border-gray-100 my-1"></div>
                         <a href="/admin/analytics"      class="block px-4 py-2 text-sm {% if active_admin_page == 'analytics' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Analytics</a>
                         <a href="/admin/feedback"       class="block px-4 py-2 text-sm {% if active_admin_page == 'feedback' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Feedback</a>
                     </div>

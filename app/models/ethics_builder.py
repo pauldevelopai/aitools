@@ -1,0 +1,477 @@
+"""AI Ethics Policy Builder models with versioning and guided sections.
+
+Two-table versioning pattern:
+- EthicsPolicy: per-user policy identity, current version pointer
+- EthicsPolicyVersion: immutable version snapshots with JSONB section data
+
+Status workflow: draft -> published -> archived
+Sections: 10 guided sections stored as JSONB in sections_data
+"""
+from datetime import datetime, timezone
+from typing import Optional
+from sqlalchemy import (
+    Column, String, DateTime, Text, ForeignKey, Integer,
+    CheckConstraint, UniqueConstraint, Index,
+)
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship, Session
+from sqlalchemy.orm.attributes import flag_modified
+import uuid
+
+from app.db import Base
+
+
+# =============================================================================
+# SECTION DEFINITIONS
+# =============================================================================
+
+ETHICS_SECTIONS = [
+    {
+        "key": "principles",
+        "title": "Core Principles",
+        "guidance": (
+            "Define the foundational ethical principles that guide your organisation's use of AI. "
+            "Consider values like transparency, accountability, fairness, and human dignity."
+        ),
+        "starter": (
+            "## Core Principles\n\n"
+            "Our organisation is committed to the responsible and ethical use of artificial intelligence. "
+            "The following principles guide all AI-related activities:\n\n"
+            "1. **Transparency** — We are open about when and how AI is used.\n"
+            "2. **Accountability** — Clear ownership exists for all AI outputs.\n"
+            "3. **Fairness** — We actively work to identify and mitigate bias.\n"
+            "4. **Human Dignity** — AI augments human capabilities; it does not replace human judgement on matters of significance.\n"
+        ),
+    },
+    {
+        "key": "allowed_uses",
+        "title": "Allowed Uses",
+        "guidance": (
+            "Specify the approved use cases for AI within your organisation. "
+            "Be specific about which tasks, workflows, and tools are permitted."
+        ),
+        "starter": (
+            "## Allowed Uses\n\n"
+            "AI tools may be used for the following purposes:\n\n"
+            "- **Research assistance** — Summarising background material, identifying sources\n"
+            "- **Drafting support** — Generating initial drafts for review and editing\n"
+            "- **Data analysis** — Processing structured data to identify patterns\n"
+            "- **Translation** — Assisting with multilingual content\n"
+            "- **Transcription** — Converting audio/video to text\n"
+        ),
+    },
+    {
+        "key": "prohibited_uses",
+        "title": "Prohibited Uses",
+        "guidance": (
+            "Clearly state what is not allowed. This protects your organisation "
+            "and sets clear boundaries for staff."
+        ),
+        "starter": (
+            "## Prohibited Uses\n\n"
+            "The following uses of AI are strictly prohibited:\n\n"
+            "- Publishing AI-generated content without human review and verification\n"
+            "- Using AI to fabricate quotes, sources, or events\n"
+            "- Generating synthetic media (deepfakes) without clear labelling\n"
+            "- Using AI to make consequential decisions about individuals without human oversight\n"
+            "- Inputting confidential or sensitive personal data into public AI services\n"
+        ),
+    },
+    {
+        "key": "editorial_requirements",
+        "title": "Editorial & Verification Requirements",
+        "guidance": (
+            "Define the editorial standards that apply when AI is used in content creation. "
+            "Include fact-checking requirements and approval workflows."
+        ),
+        "starter": (
+            "## Editorial & Verification Requirements\n\n"
+            "All AI-assisted content must meet the following standards:\n\n"
+            "- **Fact-checking** — All AI-generated claims must be independently verified\n"
+            "- **Source verification** — AI-suggested sources must be confirmed by a human\n"
+            "- **Editorial review** — AI-assisted drafts require the same editorial review as human-written content\n"
+            "- **Accuracy standards** — AI output must meet the same accuracy standards as all other content\n"
+        ),
+    },
+    {
+        "key": "disclosure",
+        "title": "Disclosure & Labelling",
+        "guidance": (
+            "Describe how and when AI use should be disclosed to audiences. "
+            "Consider different levels of disclosure for different use cases."
+        ),
+        "starter": (
+            "## Disclosure & Labelling\n\n"
+            "We believe in transparency about AI use:\n\n"
+            "- **Significant AI contribution** — Content substantially generated by AI must be clearly labelled\n"
+            "- **AI-assisted research** — Disclosure is recommended when AI played a significant role in research\n"
+            "- **Routine use** — Minor uses (spell-checking, grammar) do not require disclosure\n"
+            "- **Synthetic media** — All AI-generated images, audio, or video must be clearly marked\n"
+        ),
+    },
+    {
+        "key": "privacy",
+        "title": "Privacy & Data Protection",
+        "guidance": (
+            "Address how personal data and sensitive information should be handled "
+            "when using AI tools. Consider GDPR and other regulatory requirements."
+        ),
+        "starter": (
+            "## Privacy & Data Protection\n\n"
+            "When using AI tools, the following data protection measures apply:\n\n"
+            "- **Personal data** — Do not input personal data into AI tools without a lawful basis\n"
+            "- **Confidential sources** — Never input information that could identify confidential sources\n"
+            "- **Data minimisation** — Only share the minimum data necessary with AI services\n"
+            "- **Vendor assessment** — AI tools must be assessed for data handling practices before use\n"
+        ),
+    },
+    {
+        "key": "human_oversight",
+        "title": "Human Oversight",
+        "guidance": (
+            "Define the human oversight mechanisms for AI use. "
+            "Specify who is responsible and what review processes exist."
+        ),
+        "starter": (
+            "## Human Oversight\n\n"
+            "Human oversight is maintained through:\n\n"
+            "- **Review authority** — A designated person reviews and approves AI-assisted content before publication\n"
+            "- **Escalation process** — Complex or sensitive AI use cases are escalated to senior editorial staff\n"
+            "- **Regular audits** — AI tool usage is reviewed periodically for compliance with this policy\n"
+            "- **Training** — Staff receive training on responsible AI use and this policy\n"
+        ),
+    },
+    {
+        "key": "risk_assessment",
+        "title": "Risk Assessment",
+        "guidance": (
+            "Outline how risks associated with AI use are identified, assessed, and mitigated. "
+            "Consider both operational and ethical risks."
+        ),
+        "starter": (
+            "## Risk Assessment\n\n"
+            "AI-related risks are managed through:\n\n"
+            "- **Impact assessment** — New AI use cases undergo a risk assessment before deployment\n"
+            "- **Bias monitoring** — Outputs are monitored for signs of bias or discrimination\n"
+            "- **Quality monitoring** — AI output quality is tracked and reviewed regularly\n"
+            "- **Proportionality** — The level of oversight is proportionate to the risk of the use case\n"
+        ),
+    },
+    {
+        "key": "vendor_rules",
+        "title": "Vendor & Tool Rules",
+        "guidance": (
+            "Set rules for evaluating and approving AI vendors and tools. "
+            "Include criteria for selection and ongoing monitoring."
+        ),
+        "starter": (
+            "## Vendor & Tool Rules\n\n"
+            "AI tools and vendors must meet the following criteria:\n\n"
+            "- **Approved list** — Only tools on the approved list may be used for work purposes\n"
+            "- **Evaluation criteria** — Tools are evaluated for accuracy, privacy, security, and bias\n"
+            "- **Contract requirements** — Vendor contracts must address data ownership and processing\n"
+            "- **Review cycle** — Approved tools are reviewed annually for continued compliance\n"
+        ),
+    },
+    {
+        "key": "incident_response",
+        "title": "Incident Response",
+        "guidance": (
+            "Define what happens when something goes wrong with AI use. "
+            "Include reporting procedures and corrective actions."
+        ),
+        "starter": (
+            "## Incident Response\n\n"
+            "When an AI-related incident occurs:\n\n"
+            "1. **Report** — Report the incident to the designated AI ethics contact immediately\n"
+            "2. **Contain** — Take immediate steps to limit any harm (e.g., correct or remove content)\n"
+            "3. **Investigate** — Document what happened and identify root causes\n"
+            "4. **Remediate** — Implement corrective actions to prevent recurrence\n"
+            "5. **Communicate** — Inform affected parties as appropriate\n"
+        ),
+    },
+]
+
+SECTION_KEYS = [s["key"] for s in ETHICS_SECTIONS]
+SECTION_MAP = {s["key"]: s for s in ETHICS_SECTIONS}
+
+
+def build_starter_sections() -> dict:
+    """Build initial sections_data with starter content for all sections."""
+    now = datetime.now(timezone.utc).isoformat()
+    return {
+        s["key"]: {"content": s["starter"], "updated_at": now}
+        for s in ETHICS_SECTIONS
+    }
+
+
+def compile_sections_to_markdown(sections_data: dict) -> str:
+    """Compile all sections into a single markdown document."""
+    parts = []
+    for s in ETHICS_SECTIONS:
+        section = sections_data.get(s["key"])
+        if section and section.get("content"):
+            parts.append(section["content"].strip())
+    return "\n\n---\n\n".join(parts)
+
+
+# =============================================================================
+# MODELS
+# =============================================================================
+
+class EthicsPolicy(Base):
+    """Per-user AI Ethics Policy — the identity record.
+
+    Content lives in EthicsPolicyVersion rows.
+    The current_version_id points to the latest published version (if any).
+    """
+    __tablename__ = "ethics_policies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Owner
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Optional org link
+    organization_profile_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organization_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    title = Column(String, nullable=False)
+
+    # Pointer to latest published version
+    current_version_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("ethics_policy_versions.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+    )
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    organization_profile = relationship("OrganizationProfile", foreign_keys=[organization_profile_id])
+    versions = relationship(
+        "EthicsPolicyVersion",
+        back_populates="policy",
+        foreign_keys="EthicsPolicyVersion.policy_id",
+        cascade="all, delete-orphan",
+        order_by="EthicsPolicyVersion.version_number.desc()",
+    )
+    current_version = relationship(
+        "EthicsPolicyVersion",
+        foreign_keys=[current_version_id],
+        post_update=True,
+    )
+
+    def __repr__(self):
+        return f"<EthicsPolicy {self.id} user={self.user_id} title={self.title!r}>"
+
+    # -------------------------------------------------------------------------
+    # Business methods
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def create_policy(
+        cls,
+        db: Session,
+        *,
+        user_id: uuid.UUID,
+        title: str,
+        organization_profile_id: Optional[uuid.UUID] = None,
+    ) -> "EthicsPolicy":
+        """Create a new policy with a v1 draft containing starter content.
+
+        Returns the EthicsPolicy. Caller must call db.commit().
+        """
+        policy = cls(
+            user_id=user_id,
+            title=title,
+            organization_profile_id=organization_profile_id,
+        )
+        db.add(policy)
+        db.flush()
+
+        sections_data = build_starter_sections()
+        content_markdown = compile_sections_to_markdown(sections_data)
+
+        version = EthicsPolicyVersion(
+            policy_id=policy.id,
+            version_number=1,
+            status="draft",
+            sections_data=sections_data,
+            content_markdown=content_markdown,
+        )
+        db.add(version)
+        db.flush()
+
+        return policy
+
+    def new_draft(self, db: Session, *, created_by: Optional[uuid.UUID] = None) -> "EthicsPolicyVersion":
+        """Create a new draft version from the latest version.
+
+        Caller must call db.commit().
+        """
+        latest = (
+            db.query(EthicsPolicyVersion)
+            .filter(EthicsPolicyVersion.policy_id == self.id)
+            .order_by(EthicsPolicyVersion.version_number.desc())
+            .first()
+        )
+        next_num = (latest.version_number + 1) if latest else 1
+        sections_data = dict(latest.sections_data) if latest and latest.sections_data else build_starter_sections()
+        content_markdown = compile_sections_to_markdown(sections_data)
+
+        version = EthicsPolicyVersion(
+            policy_id=self.id,
+            version_number=next_num,
+            status="draft",
+            sections_data=sections_data,
+            content_markdown=content_markdown,
+        )
+        db.add(version)
+        db.flush()
+        return version
+
+    def get_current_draft(self, db: Session) -> Optional["EthicsPolicyVersion"]:
+        """Return the current draft version if one exists."""
+        return (
+            db.query(EthicsPolicyVersion)
+            .filter(
+                EthicsPolicyVersion.policy_id == self.id,
+                EthicsPolicyVersion.status == "draft",
+            )
+            .order_by(EthicsPolicyVersion.version_number.desc())
+            .first()
+        )
+
+    def list_versions(self, db: Session) -> list["EthicsPolicyVersion"]:
+        """Return all versions ordered by version_number descending."""
+        return (
+            db.query(EthicsPolicyVersion)
+            .filter(EthicsPolicyVersion.policy_id == self.id)
+            .order_by(EthicsPolicyVersion.version_number.desc())
+            .all()
+        )
+
+
+class EthicsPolicyVersion(Base):
+    """Immutable snapshot of an ethics policy at a point in time.
+
+    Sections are stored as JSONB. Once published, create a new version to edit.
+    """
+    __tablename__ = "ethics_policy_versions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Parent policy
+    policy_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("ethics_policies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_number = Column(Integer, nullable=False)
+
+    # Status
+    status = Column(String, nullable=False, default="draft", index=True)
+
+    # Structured section data
+    sections_data = Column(JSONB, nullable=True)
+
+    # Compiled markdown (all sections concatenated)
+    content_markdown = Column(Text, nullable=True)
+
+    # Version metadata
+    change_notes = Column(Text, nullable=True)
+
+    # Publishing
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    published_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    policy = relationship(
+        "EthicsPolicy",
+        back_populates="versions",
+        foreign_keys=[policy_id],
+    )
+    publisher_user = relationship("User", foreign_keys=[published_by])
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'published', 'archived')",
+            name="ck_ethics_policy_versions_status",
+        ),
+        UniqueConstraint(
+            "policy_id", "version_number",
+            name="uq_ethics_policy_versions_policy_version",
+        ),
+        Index("ix_ethics_policy_versions_policy_status", "policy_id", "status"),
+    )
+
+    def __repr__(self):
+        return f"<EthicsPolicyVersion policy={self.policy_id} v{self.version_number} status={self.status}>"
+
+    def publish(self, db: Session, *, published_by: Optional[uuid.UUID] = None) -> None:
+        """Publish this version, archiving any previously published version.
+
+        Updates the parent policy's current_version_id pointer.
+        Caller must call db.commit().
+        """
+        if self.status == "published":
+            return
+
+        # Archive previously published versions
+        db.query(EthicsPolicyVersion).filter(
+            EthicsPolicyVersion.policy_id == self.policy_id,
+            EthicsPolicyVersion.status == "published",
+            EthicsPolicyVersion.id != self.id,
+        ).update({"status": "archived"})
+
+        self.status = "published"
+        self.published_at = datetime.now(timezone.utc)
+        self.published_by = published_by
+
+        # Update parent policy pointer
+        self.policy.current_version_id = self.id
+
+        db.flush()
+
+    def update_section(self, db: Session, key: str, content: str) -> None:
+        """Update a single section in sections_data, recompile markdown.
+
+        Uses flag_modified() for SQLAlchemy JSONB change detection.
+        Caller must call db.commit().
+        """
+        if key not in SECTION_KEYS:
+            raise ValueError(f"Unknown section key: {key}")
+
+        if self.sections_data is None:
+            self.sections_data = build_starter_sections()
+
+        self.sections_data[key] = {
+            "content": content,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        flag_modified(self, "sections_data")
+
+        self.content_markdown = compile_sections_to_markdown(self.sections_data)
+        db.flush()

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Compare v{{ v1 }} vs v{{ v2 }} - {{ policy.title }} - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="/ethics-builder/{{ policy.id }}/versions" class="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">&larr; Back to versions</a>
+        <h1 class="text-2xl font-bold text-gray-900">{{ policy.title }}</h1>
+        <p class="text-sm text-gray-500 mt-1">
+            Comparing Version {{ v1 }} ({{ ver1.status }}) with Version {{ v2 }} ({{ ver2.status }})
+        </p>
+    </div>
+
+    <!-- Section Diffs -->
+    <div class="space-y-6">
+        {% for diff in section_diffs %}
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-5 py-3 border-b {% if diff.changed %}bg-yellow-50 border-yellow-200{% else %}bg-gray-50 border-gray-200{% endif %}">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold {% if diff.changed %}text-yellow-900{% else %}text-gray-700{% endif %}">
+                        {{ diff.title }}
+                    </h3>
+                    {% if diff.changed %}
+                    <span class="text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded">Changed</span>
+                    {% else %}
+                    <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">No changes</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if diff.changed %}
+            <div class="p-4 overflow-x-auto">
+                <pre class="text-xs font-mono leading-relaxed">{% for line in diff.diff_lines %}<span class="{% if line.startswith('+') and not line.startswith('+++') %}text-green-700 bg-green-50{% elif line.startswith('-') and not line.startswith('---') %}text-red-700 bg-red-50{% elif line.startswith('@@') %}text-blue-700 bg-blue-50{% else %}text-gray-600{% endif %} block px-2">{{ line }}</span>{% endfor %}</pre>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

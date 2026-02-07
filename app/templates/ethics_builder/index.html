@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Policy Builder - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">AI Ethics Policy Builder</h1>
+        <p class="mt-2 text-gray-600 max-w-2xl">
+            Build a structured AI ethics policy for your organisation, section by section.
+            Guided prompts help you cover all the key areas.
+        </p>
+    </div>
+
+    {% if requires_login %}
+    {% include "components/login_prompt.html" %}
+    {% else %}
+
+    <!-- Create New -->
+    <div class="mb-8">
+        <form method="POST" action="/ethics-builder/new">
+            <button type="submit" class="inline-flex items-center px-5 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition shadow">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Create New Policy
+            </button>
+        </form>
+    </div>
+
+    {% if policies %}
+    <!-- Policy List -->
+    <div class="space-y-4">
+        {% for policy in policies %}
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 {% if policy._published %}border-green-500{% elif policy._draft %}border-yellow-500{% else %}border-gray-300{% endif %}">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">{{ policy.title }}</h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Created {{ policy.created_at.strftime('%d %b %Y') }}
+                        {% if policy._published %}
+                            &middot; <span class="text-green-700 font-medium">Published</span>
+                        {% elif policy._draft %}
+                            &middot; <span class="text-yellow-700 font-medium">Draft v{{ policy._draft.version_number }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    {% if policy._draft %}
+                    <a href="/ethics-builder/{{ policy.id }}/edit" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition">
+                        Edit Draft
+                    </a>
+                    {% endif %}
+                    {% if policy._published %}
+                    <a href="/ethics-builder/{{ policy.id }}" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 rounded-md hover:bg-green-100 transition">
+                        View
+                    </a>
+                    {% endif %}
+                    <a href="/ethics-builder/{{ policy.id }}/versions" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 transition">
+                        History
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-16 bg-white rounded-lg shadow">
+        <svg class="mx-auto h-16 w-16 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <h2 class="mt-4 text-xl font-semibold text-gray-900">No Policies Yet</h2>
+        <p class="mt-2 text-gray-500 max-w-md mx-auto">
+            Create your first AI ethics policy. Our guided builder walks you through
+            10 key sections with starter content and helpful prompts.
+        </p>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end requires_login #}
+</div>
+{% endblock %}

@@ -8,10 +8,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
+from sqlalchemy.orm import joinedload
+
 from app.db import get_db
 from app.dependencies import require_admin
 from app.models.auth import User
-from app.services.auth import hash_password
+from app.models.organization_profile import OrganizationProfile
+from app.services.auth import hash_password, create_user as auth_create_user
 from app.models.toolkit import ToolkitDocument, ToolkitChunk, ChatLog, Feedback, UserActivity, AppFeedback, StrategyPlan
 from app.models.review import ToolReview, ReviewVote, ReviewFlag
 from app.models.discovery import DiscoveredTool
@@ -200,7 +203,9 @@ async def list_users(
     List all users with admin status.
     """
     admin_context = get_admin_context_dict(request)
-    users = db.query(User).order_by(User.created_at.desc()).all()
+    users = db.query(User).options(
+        joinedload(User.organization_profile)
+    ).order_by(User.created_at.desc()).all()
 
     return templates.TemplateResponse(
         "admin/users.html",
@@ -212,6 +217,62 @@ async def list_users(
             "active_admin_page": "users",
         }
     )
+
+
+@router.get("/users/create", response_class=HTMLResponse)
+async def create_user_form(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Show user creation form with org dropdown."""
+    admin_context = get_admin_context_dict(request)
+    orgs = db.query(OrganizationProfile).order_by(OrganizationProfile.name).all()
+
+    return templates.TemplateResponse(
+        "admin/user_create.html",
+        {
+            "request": request,
+            "user": user,
+            "organizations": orgs,
+            **admin_context,
+            "active_admin_page": "users",
+        }
+    )
+
+
+@router.post("/users/create")
+async def create_user_route(
+    email: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    display_name: str = Form(None),
+    organization_profile_id: str = Form(None),
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Create a new user, optionally linked to an organization."""
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    try:
+        new_user = auth_create_user(
+            db=db,
+            email=email,
+            username=username,
+            password=password,
+            is_admin=False,
+            organization_profile_id=organization_profile_id or None,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Set display name if provided
+    if display_name:
+        new_user.display_name = display_name
+        db.commit()
+
+    return RedirectResponse(url=f"/admin/users/{new_user.id}", status_code=303)
 
 
 @router.post("/users/{user_id}/promote")
@@ -333,6 +394,9 @@ async def user_detail(
         "app_feedback": app_feedback_count
     }
 
+    # Get organizations for the edit dropdown
+    organizations = db.query(OrganizationProfile).order_by(OrganizationProfile.name).all()
+
     admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/user_detail.html",
@@ -342,6 +406,7 @@ async def user_detail(
             "target_user": target_user,
             "activity_summary": activity_summary,
             "timeline": timeline,
+            "organizations": organizations,
             **admin_context,
             "active_admin_page": "users",
         }
@@ -356,6 +421,7 @@ async def edit_user(
     username: str = Form(...),
     organisation: str = Form(None),
     organisation_type: str = Form(None),
+    organization_profile_id: str = Form(None),
     role: str = Form(None),
     country: str = Form(None),
     ai_experience_level: str = Form(None),
@@ -401,6 +467,7 @@ async def edit_user(
     target_user.display_name = display_name or None
     target_user.organisation = organisation or None
     target_user.organisation_type = organisation_type or None
+    target_user.organization_profile_id = organization_profile_id or None
     target_user.role = role or None
     target_user.country = country or None
     target_user.ai_experience_level = ai_experience_level or None
@@ -666,6 +733,156 @@ async def delete_chats_by_query(
     db.commit()
 
     return RedirectResponse(url="/admin/analytics", status_code=303)
+
+
+# ============================================================================
+# ORGANIZATION PROFILES
+# ============================================================================
+
+@router.get("/organizations", response_class=HTMLResponse)
+async def list_organizations(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """List all organization profiles."""
+    admin_context = get_admin_context_dict(request)
+    orgs = db.query(OrganizationProfile).order_by(OrganizationProfile.created_at.desc()).all()
+
+    # Get user counts per org
+    org_user_counts = {}
+    for org in orgs:
+        count = db.query(func.count(User.id)).filter(
+            User.organization_profile_id == org.id
+        ).scalar() or 0
+        org_user_counts[str(org.id)] = count
+
+    return templates.TemplateResponse(
+        "admin/organizations.html",
+        {
+            "request": request,
+            "user": user,
+            "organizations": orgs,
+            "org_user_counts": org_user_counts,
+            **admin_context,
+            "active_admin_page": "organizations",
+        }
+    )
+
+
+@router.get("/organizations/create", response_class=HTMLResponse)
+async def create_organization_form(
+    request: Request,
+    user: User = Depends(require_admin),
+):
+    """Show organization creation form."""
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/organization_form.html",
+        {
+            "request": request,
+            "user": user,
+            **admin_context,
+            "active_admin_page": "organizations",
+        }
+    )
+
+
+@router.post("/organizations/create")
+async def create_organization(
+    name: str = Form(...),
+    country: str = Form(None),
+    jurisdiction: str = Form(None),
+    sector: str = Form(None),
+    size: str = Form(None),
+    risk_tolerance: str = Form(None),
+    description: str = Form(None),
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Create a new organization profile."""
+    slug = OrganizationProfile.generate_slug(name)
+
+    # Ensure slug uniqueness
+    existing = db.query(OrganizationProfile).filter(OrganizationProfile.slug == slug).first()
+    if existing:
+        from datetime import datetime, timezone
+        slug = f"{slug}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+
+    org = OrganizationProfile(
+        name=name,
+        slug=slug,
+        country=country or None,
+        jurisdiction=jurisdiction or None,
+        sector=sector or None,
+        size=size or None,
+        risk_tolerance=risk_tolerance or None,
+        description=description or None,
+    )
+    db.add(org)
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/organizations/{org.id}", status_code=303)
+
+
+@router.get("/organizations/{org_id}", response_class=HTMLResponse)
+async def organization_detail(
+    org_id: str,
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Organization detail page showing linked users."""
+    org = db.query(OrganizationProfile).filter(OrganizationProfile.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    linked_users = db.query(User).filter(
+        User.organization_profile_id == org.id
+    ).order_by(User.created_at.desc()).all()
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/organization_detail.html",
+        {
+            "request": request,
+            "user": admin_user,
+            "org": org,
+            "linked_users": linked_users,
+            **admin_context,
+            "active_admin_page": "organizations",
+        }
+    )
+
+
+@router.post("/organizations/{org_id}/edit")
+async def edit_organization(
+    org_id: str,
+    name: str = Form(...),
+    country: str = Form(None),
+    jurisdiction: str = Form(None),
+    sector: str = Form(None),
+    size: str = Form(None),
+    risk_tolerance: str = Form(None),
+    description: str = Form(None),
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Update an organization profile."""
+    org = db.query(OrganizationProfile).filter(OrganizationProfile.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org.name = name
+    org.country = country or None
+    org.jurisdiction = jurisdiction or None
+    org.sector = sector or None
+    org.size = size or None
+    org.risk_tolerance = risk_tolerance or None
+    org.description = description or None
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/organizations/{org_id}", status_code=303)
 
 
 # ============================================================================
@@ -1856,3 +2073,257 @@ async def reject_tool_suggestion(
     db.commit()
 
     return RedirectResponse(url="/admin/tool-suggestions?status=pending", status_code=303)
+
+
+# =============================================================================
+# LIBRARY MANAGEMENT
+# =============================================================================
+
+@router.get("/library", response_class=HTMLResponse)
+async def list_library_items(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """List all library items."""
+    from app.models.library_item import LibraryItem
+
+    admin_context = get_admin_context_dict(request)
+    items = db.query(LibraryItem).order_by(LibraryItem.created_at.desc()).all()
+
+    return templates.TemplateResponse(
+        "admin/library_items.html",
+        {
+            "request": request,
+            "user": user,
+            "items": items,
+            **admin_context,
+            "active_admin_page": "library",
+        }
+    )
+
+
+@router.get("/library/create", response_class=HTMLResponse)
+async def create_library_item_form(
+    request: Request,
+    user: User = Depends(require_admin),
+):
+    """Show library item creation form."""
+    from app.models.library_item import DOCUMENT_TYPES
+    from app.models.legal_builder import JURISDICTIONS
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/library_item_form.html",
+        {
+            "request": request,
+            "user": user,
+            "document_types": DOCUMENT_TYPES,
+            "jurisdictions": JURISDICTIONS,
+            **admin_context,
+            "active_admin_page": "library",
+        }
+    )
+
+
+@router.post("/library/create")
+async def create_library_item(
+    title: str = Form(...),
+    document_type: str = Form(...),
+    jurisdiction: str = Form(None),
+    publisher: str = Form(None),
+    publication_date: str = Form(None),
+    source_url: str = Form(None),
+    summary: str = Form(None),
+    content_markdown: str = Form(...),
+    tags: str = Form(None),
+    sections: str = Form(None),
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Create a new library item."""
+    import json
+    from app.models.library_item import LibraryItem
+
+    slug = LibraryItem.generate_slug(title)
+    existing = db.query(LibraryItem).filter(LibraryItem.slug == slug).first()
+    if existing:
+        slug = f"{slug}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+
+    # Parse tags from comma-separated string
+    tags_list = None
+    if tags and tags.strip():
+        tags_list = [t.strip() for t in tags.split(",") if t.strip()]
+
+    # Parse sections from JSON
+    sections_data = None
+    if sections and sections.strip():
+        try:
+            sections_data = json.loads(sections)
+        except json.JSONDecodeError:
+            pass
+
+    # Parse publication_date
+    pub_date = None
+    if publication_date and publication_date.strip():
+        try:
+            from datetime import date
+            pub_date = date.fromisoformat(publication_date.strip())
+        except ValueError:
+            pass
+
+    item = LibraryItem(
+        title=title,
+        slug=slug,
+        document_type=document_type,
+        jurisdiction=jurisdiction or None,
+        publisher=publisher or None,
+        publication_date=pub_date,
+        source_url=source_url or None,
+        summary=summary or None,
+        content_markdown=content_markdown,
+        tags=tags_list,
+        sections=sections_data,
+        is_published=False,
+    )
+    db.add(item)
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/library/{item.id}", status_code=303)
+
+
+@router.get("/library/{item_id}", response_class=HTMLResponse)
+async def library_item_detail(
+    item_id: str,
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Library item detail / edit form."""
+    import json
+    from app.models.library_item import LibraryItem, DOCUMENT_TYPES
+    from app.models.legal_builder import JURISDICTIONS
+
+    item = db.query(LibraryItem).filter(LibraryItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Library item not found")
+
+    # Prepare tags as comma-separated string for the form
+    tags_str = ", ".join(item.tags) if item.tags else ""
+    sections_str = json.dumps(item.sections, indent=2) if item.sections else ""
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/library_item_form.html",
+        {
+            "request": request,
+            "user": admin_user,
+            "item": item,
+            "tags_str": tags_str,
+            "sections_str": sections_str,
+            "document_types": DOCUMENT_TYPES,
+            "jurisdictions": JURISDICTIONS,
+            **admin_context,
+            "active_admin_page": "library",
+        }
+    )
+
+
+@router.post("/library/{item_id}/edit")
+async def edit_library_item(
+    item_id: str,
+    title: str = Form(...),
+    document_type: str = Form(...),
+    jurisdiction: str = Form(None),
+    publisher: str = Form(None),
+    publication_date: str = Form(None),
+    source_url: str = Form(None),
+    summary: str = Form(None),
+    content_markdown: str = Form(...),
+    tags: str = Form(None),
+    sections: str = Form(None),
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Update a library item."""
+    import json
+    from app.models.library_item import LibraryItem
+
+    item = db.query(LibraryItem).filter(LibraryItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Library item not found")
+
+    item.title = title
+    item.document_type = document_type
+    item.jurisdiction = jurisdiction or None
+    item.publisher = publisher or None
+    item.source_url = source_url or None
+    item.summary = summary or None
+    item.content_markdown = content_markdown
+
+    # Parse publication_date
+    if publication_date and publication_date.strip():
+        try:
+            from datetime import date
+            item.publication_date = date.fromisoformat(publication_date.strip())
+        except ValueError:
+            pass
+    else:
+        item.publication_date = None
+
+    # Parse tags
+    if tags and tags.strip():
+        item.tags = [t.strip() for t in tags.split(",") if t.strip()]
+    else:
+        item.tags = None
+
+    # Parse sections
+    if sections and sections.strip():
+        try:
+            item.sections = json.loads(sections)
+        except json.JSONDecodeError:
+            pass
+    else:
+        item.sections = None
+
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/library/{item_id}", status_code=303)
+
+
+@router.post("/library/{item_id}/toggle-publish")
+async def toggle_library_item_publish(
+    item_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Toggle publish status of a library item."""
+    from app.models.library_item import LibraryItem
+
+    item = db.query(LibraryItem).filter(LibraryItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Library item not found")
+
+    item.is_published = not item.is_published
+    db.commit()
+
+    return RedirectResponse(url="/admin/library", status_code=303)
+
+
+@router.post("/library/{item_id}/delete")
+async def delete_library_item(
+    item_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Delete a library item."""
+    from app.models.library_item import LibraryItem
+
+    item = db.query(LibraryItem).filter(LibraryItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Library item not found")
+
+    db.delete(item)
+    db.commit()
+
+    return RedirectResponse(url="/admin/library", status_code=303)

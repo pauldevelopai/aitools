@@ -113,6 +113,16 @@ class FeatureFlags:
     foundations_enabled: bool = True
     # Tool playbooks/guides
     playbooks_enabled: bool = True
+    # AI Ethics Policy section
+    ethics_policy_enabled: bool = True
+    # AI Legal Framework section
+    legal_framework_enabled: bool = True
+    # AI Ethics Policy Builder (user-created)
+    ethics_builder_enabled: bool = True
+    # AI Legal Framework Builder (user-created)
+    legal_builder_enabled: bool = True
+    # Public Library of reference documents
+    library_enabled: bool = True
 
     # ==========================================================================
     # PERSONALIZATION
@@ -197,6 +207,11 @@ class FeatureFlags:
             # Learning
             "foundations_enabled": self.foundations_enabled,
             "playbooks_enabled": self.playbooks_enabled,
+            "ethics_policy_enabled": self.ethics_policy_enabled,
+            "legal_framework_enabled": self.legal_framework_enabled,
+            "ethics_builder_enabled": self.ethics_builder_enabled,
+            "legal_builder_enabled": self.legal_builder_enabled,
+            "library_enabled": self.library_enabled,
             # Personalization
             "strategy_enabled": self.strategy_enabled,
             "recommendations_enabled": self.recommendations_enabled,

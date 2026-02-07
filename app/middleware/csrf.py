@@ -48,6 +48,9 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         self.exempt_prefixes = [
             "/admin/",   # Protected by require_admin dependency
             "/feedback/",  # Protected by require_auth dependency
+            "/ethics-builder/",  # Protected by require_auth, JSON autosave via fetch()
+            "/legal-builder/",  # Protected by require_auth, JSON autosave via fetch()
+            "/library/",  # Copy-to-draft POST via fetch(), protected by require_auth
         ]
 
     async def dispatch(self, request: Request, call_next):

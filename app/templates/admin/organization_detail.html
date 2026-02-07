@@ -1,0 +1,193 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Organization - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav>
+        <ol class="flex items-center space-x-2 text-sm text-gray-500">
+            <li><a href="/admin" class="hover:text-gray-900">Dashboard</a></li>
+            <li>/</li>
+            <li><a href="/admin/organizations" class="hover:text-gray-900">Organizations</a></li>
+            <li>/</li>
+            <li class="text-gray-900">{{ org.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Org Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <svg class="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h2 class="text-xl font-bold text-gray-900">{{ org.name }}</h2>
+                    <p class="text-sm text-gray-500">{{ org.slug }}</p>
+                    <div class="mt-1 flex items-center space-x-2">
+                        {% if org.sector %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">{{ org.sector | title }}</span>
+                        {% endif %}
+                        {% if org.size %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ org.size | title }}</span>
+                        {% endif %}
+                        {% if org.risk_tolerance %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                            {% if org.risk_tolerance == 'low' %}bg-green-100 text-green-800
+                            {% elif org.risk_tolerance == 'medium' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            Risk: {{ org.risk_tolerance | title }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div>
+                <a href="/admin/users/create?org={{ org.id }}"
+                   class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+                    Add User to Org
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left: Linked Users -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Linked Users -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Linked Users ({{ linked_users|length }})</h3>
+                </div>
+                {% if linked_users %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for u in linked_users %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <span class="text-blue-700 font-medium text-xs">{{ u.username[0].upper() }}</span>
+                                        </div>
+                                        <div class="ml-3">
+                                            <div class="text-sm font-medium text-gray-900">{{ u.display_name or u.username }}</div>
+                                            <div class="text-xs text-gray-500">@{{ u.username }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ u.email }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if u.is_admin %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Admin</span>
+                                    {% else %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">User</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <a href="/admin/users/{{ u.id }}" class="text-blue-600 hover:text-blue-900 text-sm">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="px-6 py-8 text-center text-gray-500">
+                    <p>No users linked to this organization yet.</p>
+                    <a href="/admin/users/create?org={{ org.id }}" class="mt-2 inline-block text-blue-600 hover:text-blue-800 text-sm">Create a user for this org</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right: Edit Form -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Edit Organization</h3>
+                </div>
+                <form action="/admin/organizations/{{ org.id }}/edit" method="POST" class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                        <input type="text" name="name" value="{{ org.name }}" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                        <input type="text" name="country" value="{{ org.country or '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jurisdiction</label>
+                        <input type="text" name="jurisdiction" value="{{ org.jurisdiction or '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+                        <select name="sector"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select...</option>
+                            <option value="newsroom" {% if org.sector == 'newsroom' %}selected{% endif %}>Newsroom</option>
+                            <option value="freelance" {% if org.sector == 'freelance' %}selected{% endif %}>Freelance</option>
+                            <option value="ngo" {% if org.sector == 'ngo' %}selected{% endif %}>NGO</option>
+                            <option value="academic" {% if org.sector == 'academic' %}selected{% endif %}>Academic</option>
+                            <option value="government" {% if org.sector == 'government' %}selected{% endif %}>Government</option>
+                            <option value="other" {% if org.sector == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                        <select name="size"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select...</option>
+                            <option value="small" {% if org.size == 'small' %}selected{% endif %}>Small</option>
+                            <option value="medium" {% if org.size == 'medium' %}selected{% endif %}>Medium</option>
+                            <option value="large" {% if org.size == 'large' %}selected{% endif %}>Large</option>
+                            <option value="enterprise" {% if org.size == 'enterprise' %}selected{% endif %}>Enterprise</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Risk Tolerance</label>
+                        <select name="risk_tolerance"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select...</option>
+                            <option value="low" {% if org.risk_tolerance == 'low' %}selected{% endif %}>Low</option>
+                            <option value="medium" {% if org.risk_tolerance == 'medium' %}selected{% endif %}>Medium</option>
+                            <option value="high" {% if org.risk_tolerance == 'high' %}selected{% endif %}>High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea name="description" rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">{{ org.description or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                        Save Changes
+                    </button>
+                </form>
+            </div>
+
+            <!-- Info -->
+            <div class="bg-gray-100 rounded-lg p-4 text-sm text-gray-600">
+                <p><strong>Org ID:</strong> {{ org.id }}</p>
+                <p><strong>Slug:</strong> {{ org.slug }}</p>
+                <p><strong>Created:</strong> {{ org.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

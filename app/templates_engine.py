@@ -134,6 +134,11 @@ class ProductAwareTemplates(Jinja2Templates):
                 # Learning
                 "feature_foundations": features.foundations_enabled,
                 "feature_playbooks": features.playbooks_enabled,
+                "feature_ethics_policy": features.ethics_policy_enabled,
+                "feature_legal_framework": features.legal_framework_enabled,
+                "feature_ethics_builder": features.ethics_builder_enabled,
+                "feature_legal_builder": features.legal_builder_enabled,
+                "feature_library": features.library_enabled,
                 # Personalization
                 "feature_strategy": features.strategy_enabled,
                 "feature_recommendations": features.recommendations_enabled,
@@ -216,6 +221,11 @@ class ProductAwareTemplates(Jinja2Templates):
             "/clusters": features.clusters_enabled,
             # Learning content
             "/foundations": features.foundations_enabled,
+            "/ethics-policy": features.ethics_policy_enabled,
+            "/legal-framework": features.legal_framework_enabled,
+            "/ethics-builder": features.ethics_builder_enabled,
+            "/legal-builder": features.legal_builder_enabled,
+            "/library": features.library_enabled,
             # Personalization
             "/for-you": features.recommendations_enabled,
             "/strategy": features.strategy_enabled,

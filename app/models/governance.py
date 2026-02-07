@@ -416,7 +416,7 @@ class ContentItem(Base):
             name='ck_content_items_content_type'
         ),
         CheckConstraint(
-            "section IN ('foundations', 'resources', 'governance', 'tools', 'use-cases')",
+            "section IN ('foundations', 'resources', 'governance', 'tools', 'use-cases', 'ethics_policy', 'legal_framework')",
             name='ck_content_items_section'
         ),
         CheckConstraint(

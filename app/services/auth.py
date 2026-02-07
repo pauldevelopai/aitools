@@ -28,7 +28,8 @@ def create_user(
     email: str,
     username: str,
     password: str,
-    is_admin: bool = False
+    is_admin: bool = False,
+    organization_profile_id: Optional[str] = None,
 ) -> User:
     """
     Create a new user account.
@@ -39,6 +40,7 @@ def create_user(
         username: Username (must be unique)
         password: Plain text password (will be hashed)
         is_admin: Whether user is an admin
+        organization_profile_id: Optional org profile UUID to link user to
 
     Returns:
         Created User object
@@ -62,7 +64,8 @@ def create_user(
         username=username,
         hashed_password=hash_password(password),
         is_admin=is_admin,
-        is_active=True
+        is_active=True,
+        organization_profile_id=organization_profile_id or None,
     )
 
     db.add(user)

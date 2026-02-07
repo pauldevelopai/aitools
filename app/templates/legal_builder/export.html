@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ framework.title }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            color: #1a1a1a;
+            line-height: 1.7;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        h1 { font-size: 28px; margin-bottom: 8px; color: #111; }
+        h2 { font-size: 20px; margin-top: 32px; margin-bottom: 12px; color: #222; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+        h3 { font-size: 16px; margin-top: 20px; margin-bottom: 8px; color: #333; }
+        p { margin-bottom: 12px; }
+        ul, ol { margin-bottom: 12px; padding-left: 24px; }
+        li { margin-bottom: 4px; }
+        strong { color: #111; }
+        hr { border: none; border-top: 2px solid #e5e5e5; margin: 32px 0; }
+        .header { border-bottom: 2px solid #333; padding-bottom: 16px; margin-bottom: 32px; }
+        .meta { font-size: 14px; color: #666; font-family: system-ui, sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 24px; font-family: system-ui, sans-serif; font-size: 13px; }
+        th { background: #f3f4f6; text-align: left; padding: 8px 12px; border: 1px solid #d1d5db; font-weight: 600; }
+        td { padding: 8px 12px; border: 1px solid #d1d5db; vertical-align: top; }
+        .status-implemented { color: #166534; font-weight: 600; }
+        .status-planned { color: #854d0e; font-weight: 600; }
+        .status-na { color: #6b7280; }
+        .evidence { font-size: 11px; color: #2563eb; }
+        .notes { font-size: 11px; color: #6b7280; font-style: italic; }
+        .print-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+        .print-btn {
+            padding: 8px 16px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: system-ui, sans-serif;
+        }
+        .print-btn:hover { background: #4338ca; }
+        .print-btn.secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        .print-btn.secondary:hover { background: #f9fafb; }
+        @media print {
+            .print-controls { display: none; }
+            body { padding: 0; max-width: none; }
+            h2 { page-break-after: avoid; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Print Controls (hidden in print) -->
+    <div class="print-controls">
+        <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+        <button class="print-btn secondary" onclick="window.history.back()">Back</button>
+    </div>
+
+    <!-- Document Header -->
+    <div class="header">
+        <h1>{{ framework.title }}</h1>
+        <p class="meta">
+            Version {{ version.version_number }}
+            {% if version.status == 'published' and version.published_at %}
+                &middot; Published {{ version.published_at.strftime('%d %B %Y') }}
+            {% endif %}
+            {% if version.status == 'draft' %}
+                &middot; Draft
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Narrative -->
+    {% if version.narrative_markdown %}
+    <div>
+        {{ version.narrative_markdown | markdown }}
+    </div>
+    {% endif %}
+
+    <!-- Checklist -->
+    {% if version.checklist_items %}
+    <hr>
+    <h2>Compliance Checklist</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 15%;">Category</th>
+                <th style="width: 35%;">Obligation</th>
+                <th style="width: 20%;">Framework</th>
+                <th style="width: 10%;">Status</th>
+                <th style="width: 20%;">Notes & Evidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in version.checklist_items %}
+            <tr>
+                <td>{{ category_map.get(item.category, item.category) }}</td>
+                <td>
+                    <strong>{{ item.obligation }}</strong>
+                    {% if item.description %}
+                    <br><span style="font-size: 11px; color: #6b7280;">{{ item.description }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.framework_ref or '' }}</td>
+                <td>
+                    {% if item.status == 'implemented' %}
+                    <span class="status-implemented">Implemented</span>
+                    {% elif item.status == 'planned' %}
+                    <span class="status-planned">Planned</span>
+                    {% else %}
+                    <span class="status-na">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.notes %}
+                    <span class="notes">{{ item.notes }}</span><br>
+                    {% endif %}
+                    {% for link in (item.evidence_links or []) %}
+                    <span class="evidence"><a href="{{ link.url }}">{{ link.label or link.url }}</a></span><br>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+</body>
+</html>
