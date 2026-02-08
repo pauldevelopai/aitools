@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Sync Item Detail{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex items-center space-x-4">
+        <a href="/admin/google" class="text-sm text-blue-600 hover:text-blue-800">&larr; Back to Google Drive</a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <h1 class="text-xl font-bold text-gray-900 mb-4">{{ item.google_file_name }}</h1>
+
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Google File ID</dt>
+                <dd class="mt-1 text-sm text-gray-900 font-mono">{{ item.google_file_id }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">MIME Type</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ item.google_mime_type }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Target</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if item.target_type == 'library' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Public Library</span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Organization</span>
+                    {% if item.target_id %}
+                    <span class="ml-1 text-gray-500">({{ item.target_id }})</span>
+                    {% endif %}
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Status</dt>
+                <dd class="mt-1 text-sm">
+                    {% if item.sync_status == 'synced' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Synced</span>
+                    {% elif item.sync_status == 'syncing' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Syncing</span>
+                    {% elif item.sync_status == 'error' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Error</span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">Pending</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Last Synced</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if item.last_synced_at %}{{ item.last_synced_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}&mdash;{% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Content Hash</dt>
+                <dd class="mt-1 text-sm text-gray-900 font-mono">{{ item.content_hash or '&mdash;' }}</dd>
+            </div>
+
+            {% if item.library_item_id %}
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Library Item</dt>
+                <dd class="mt-1 text-sm">
+                    <a href="/admin/library/{{ item.library_item_id }}" class="text-blue-600 hover:text-blue-800">View in Library</a>
+                </dd>
+            </div>
+            {% endif %}
+
+            {% if item.toolkit_document_id %}
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Toolkit Document</dt>
+                <dd class="mt-1 text-sm text-gray-900 font-mono">{{ item.toolkit_document_id }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+
+        {% if item.error_message %}
+        <div class="mt-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <h3 class="text-sm font-medium text-red-800">Error Details</h3>
+            <p class="mt-1 text-sm text-red-700">{{ item.error_message }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,405 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Google Drive{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Google Drive Integration</h1>
+            <p class="mt-1 text-sm text-gray-500">Connect your Google account to import documents into GROUNDED.</p>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- CONNECTION STATUS                                                   -->
+    <!-- ================================================================== -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Connection Status</h2>
+
+        {% if not google_configured %}
+        <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <div class="flex">
+                <svg class="h-5 w-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-yellow-800">Google API Not Configured</p>
+                    <p class="mt-1 text-sm text-yellow-700">Set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> in your environment to enable this feature.</p>
+                </div>
+            </div>
+        </div>
+
+        {% elif connection %}
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">Connected</p>
+                    <p class="text-sm text-gray-500">{{ connection.google_email }}</p>
+                </div>
+            </div>
+            <form action="/admin/google/disconnect" method="POST" onsubmit="return confirm('Disconnect Google Drive? All sync tracking will be removed.')">
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md">
+                    Disconnect
+                </button>
+            </form>
+        </div>
+
+        {% else %}
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">Not Connected</p>
+                    <p class="text-sm text-gray-500">Connect your Google account to browse and import Drive files.</p>
+                </div>
+            </div>
+            <a href="/admin/google/connect" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md">
+                Connect Google Drive
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if connection %}
+    <!-- ================================================================== -->
+    <!-- FILE BROWSER                                                        -->
+    <!-- ================================================================== -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Browse Drive Files</h2>
+            <div class="flex items-center space-x-3">
+                <!-- Target selector -->
+                <select id="target-type" class="text-sm border-gray-300 rounded-md shadow-sm">
+                    <option value="library">Public Library</option>
+                    <option value="organization">Organization</option>
+                </select>
+                <select id="target-org" class="text-sm border-gray-300 rounded-md shadow-sm hidden">
+                    {% for org in organizations %}
+                    <option value="{{ org.id }}">{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+                <button onclick="ingestSelected()" id="btn-ingest"
+                        class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50"
+                        disabled>
+                    Ingest Selected
+                </button>
+            </div>
+        </div>
+
+        <!-- Breadcrumb navigation -->
+        <div id="breadcrumbs" class="flex items-center space-x-1 text-sm text-gray-500 mb-3">
+            <button onclick="browseTo(null)" class="hover:text-blue-600 font-medium">My Drive</button>
+        </div>
+
+        <!-- File list -->
+        <div id="file-list" class="border border-gray-200 rounded-md divide-y divide-gray-200 min-h-[200px]">
+            <div class="p-8 text-center text-gray-400">
+                <p>Loading...</p>
+            </div>
+        </div>
+
+        <!-- Ingestion results -->
+        <div id="ingest-results" class="mt-4 hidden">
+            <h3 class="text-sm font-medium text-gray-700 mb-2">Ingestion Results</h3>
+            <div id="ingest-results-body"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- SYNC STATUS TABLE                                                   -->
+    <!-- ================================================================== -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Synced Items ({{ sync_items|length }})</h2>
+            {% if sync_items %}
+            <button onclick="syncAll()" class="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md">
+                Re-sync All
+            </button>
+            {% endif %}
+        </div>
+
+        {% if sync_items %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Synced</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200" id="sync-table-body">
+                    {% for item in sync_items %}
+                    <tr id="sync-row-{{ item.id }}" class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900">{{ item.google_file_name }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            {% if item.target_type == 'library' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Library</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Organization</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm" id="sync-status-{{ item.id }}">
+                            {% if item.sync_status == 'synced' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Synced</span>
+                            {% elif item.sync_status == 'syncing' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Syncing</span>
+                            {% elif item.sync_status == 'error' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title="{{ item.error_message }}">Error</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            {% if item.last_synced_at %}
+                            {{ item.last_synced_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                            &mdash;
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right space-x-2">
+                            <button onclick="syncItem('{{ item.id }}')" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Re-sync</button>
+                            <button onclick="deleteItem('{{ item.id }}')" class="text-red-600 hover:text-red-800 text-xs font-medium">Remove</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500">No files have been synced yet. Use the file browser above to select and ingest files.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // State
+    let currentFolder = null;
+    let breadcrumbStack = [{ id: null, name: 'My Drive' }];
+    let selectedFiles = [];
+
+    // Target type toggle
+    const targetTypeEl = document.getElementById('target-type');
+    const targetOrgEl = document.getElementById('target-org');
+    if (targetTypeEl) {
+        targetTypeEl.addEventListener('change', function() {
+            if (this.value === 'organization') {
+                targetOrgEl.classList.remove('hidden');
+            } else {
+                targetOrgEl.classList.add('hidden');
+            }
+        });
+    }
+
+    // Browse Drive files
+    function browseTo(folderId, folderName) {
+        currentFolder = folderId;
+        selectedFiles = [];
+        updateIngestButton();
+
+        // Update breadcrumbs
+        if (folderId === null) {
+            breadcrumbStack = [{ id: null, name: 'My Drive' }];
+        } else if (folderName) {
+            // Check if we're going back in the stack
+            const idx = breadcrumbStack.findIndex(b => b.id === folderId);
+            if (idx >= 0) {
+                breadcrumbStack = breadcrumbStack.slice(0, idx + 1);
+            } else {
+                breadcrumbStack.push({ id: folderId, name: folderName });
+            }
+        }
+        renderBreadcrumbs();
+
+        const listEl = document.getElementById('file-list');
+        listEl.innerHTML = '<div class="p-8 text-center text-gray-400"><p>Loading...</p></div>';
+
+        const url = folderId ? `/admin/google/browse?folder_id=${folderId}` : '/admin/google/browse';
+        fetch(url)
+            .then(r => r.json())
+            .then(data => renderFiles(data.files))
+            .catch(err => {
+                listEl.innerHTML = `<div class="p-8 text-center text-red-500"><p>Error: ${err.message}</p></div>`;
+            });
+    }
+
+    function renderBreadcrumbs() {
+        const el = document.getElementById('breadcrumbs');
+        if (!el) return;
+        el.innerHTML = breadcrumbStack.map((b, i) => {
+            if (i === breadcrumbStack.length - 1) {
+                return `<span class="font-medium text-gray-900">${b.name}</span>`;
+            }
+            return `<button onclick="browseTo('${b.id}', '${b.name}')" class="hover:text-blue-600">${b.name}</button><span class="text-gray-300">/</span>`;
+        }).join('');
+    }
+
+    function renderFiles(files) {
+        const listEl = document.getElementById('file-list');
+        if (!files.length) {
+            listEl.innerHTML = '<div class="p-8 text-center text-gray-400"><p>No files in this folder.</p></div>';
+            return;
+        }
+
+        listEl.innerHTML = files.map(f => {
+            const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+            const icon = isFolder
+                ? '<svg class="h-5 w-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>'
+                : '<svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>';
+
+            if (isFolder) {
+                return `<div class="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50" onclick="browseTo('${f.id}', '${f.name.replace(/'/g, "\\'")}')">
+                    <div class="mr-3">${icon}</div>
+                    <span class="text-sm text-gray-900">${f.name}</span>
+                </div>`;
+            }
+
+            return `<div class="flex items-center px-4 py-3 hover:bg-gray-50">
+                <input type="checkbox" class="file-checkbox mr-3 h-4 w-4 text-blue-600 rounded border-gray-300"
+                       data-file='${JSON.stringify(f).replace(/'/g, "&#39;")}'
+                       onchange="toggleFile(this)">
+                <div class="mr-3">${icon}</div>
+                <span class="text-sm text-gray-900 flex-1">${f.name}</span>
+                <span class="text-xs text-gray-400">${f.mimeType.replace('application/vnd.google-apps.', '')}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function toggleFile(checkbox) {
+        const fileData = JSON.parse(checkbox.dataset.file);
+        if (checkbox.checked) {
+            selectedFiles.push(fileData);
+        } else {
+            selectedFiles = selectedFiles.filter(f => f.id !== fileData.id);
+        }
+        updateIngestButton();
+    }
+
+    function updateIngestButton() {
+        const btn = document.getElementById('btn-ingest');
+        if (btn) {
+            btn.disabled = selectedFiles.length === 0;
+            btn.textContent = selectedFiles.length > 0
+                ? `Ingest Selected (${selectedFiles.length})`
+                : 'Ingest Selected';
+        }
+    }
+
+    // Ingest selected files
+    function ingestSelected() {
+        if (!selectedFiles.length) return;
+
+        const targetType = document.getElementById('target-type').value;
+        const targetId = targetType === 'organization'
+            ? document.getElementById('target-org').value
+            : null;
+
+        const btn = document.getElementById('btn-ingest');
+        btn.disabled = true;
+        btn.textContent = 'Ingesting...';
+
+        fetch('/admin/google/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                files: selectedFiles,
+                target_type: targetType,
+                target_id: targetId,
+            }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            const resultsEl = document.getElementById('ingest-results');
+            const bodyEl = document.getElementById('ingest-results-body');
+            resultsEl.classList.remove('hidden');
+
+            bodyEl.innerHTML = data.results.map(r => {
+                const color = r.status === 'synced' ? 'green' : 'red';
+                return `<div class="flex items-center justify-between py-1 text-sm">
+                    <span>${r.file_name}</span>
+                    <span class="text-${color}-600 font-medium">${r.status}${r.error ? ': ' + r.error : ''}</span>
+                </div>`;
+            }).join('');
+
+            selectedFiles = [];
+            updateIngestButton();
+
+            // Reload page after short delay to update sync table
+            setTimeout(() => location.reload(), 1500);
+        })
+        .catch(err => {
+            alert('Ingestion failed: ' + err.message);
+            btn.disabled = false;
+            btn.textContent = 'Ingest Selected';
+        });
+    }
+
+    // Re-sync single item
+    function syncItem(itemId) {
+        const statusEl = document.getElementById('sync-status-' + itemId);
+        statusEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Syncing...</span>';
+
+        fetch(`/admin/google/sync/${itemId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                const color = data.status === 'synced' ? 'green' : data.status === 'error' ? 'red' : 'gray';
+                const label = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                statusEl.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-${color}-100 text-${color}-800" title="${data.error || ''}">${label}</span>`;
+            })
+            .catch(err => {
+                statusEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Error</span>';
+            });
+    }
+
+    // Re-sync all
+    function syncAll() {
+        if (!confirm('Re-sync all items? This may take a moment.')) return;
+
+        fetch('/admin/google/sync-all', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                alert(`Sync complete: ${data.synced} updated, ${data.skipped} unchanged, ${data.errors} errors`);
+                location.reload();
+            })
+            .catch(err => alert('Sync failed: ' + err.message));
+    }
+
+    // Delete sync item
+    function deleteItem(itemId) {
+        if (!confirm('Remove this sync item?')) return;
+
+        fetch(`/admin/google/delete/${itemId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(() => {
+                const row = document.getElementById('sync-row-' + itemId);
+                if (row) row.remove();
+            })
+            .catch(err => alert('Delete failed: ' + err.message));
+    }
+
+    // Auto-load root on page load
+    {% if connection %}
+    document.addEventListener('DOMContentLoaded', function() {
+        browseTo(null);
+    });
+    {% endif %}
+</script>
+{% endblock %}

@@ -27,6 +27,7 @@ from app.models.policy_document import PolicyDocument, PolicyDocumentVersion
 from app.models.ethics_builder import EthicsPolicy, EthicsPolicyVersion
 from app.models.legal_builder import LegalFrameworkDoc, LegalFrameworkVersion
 from app.models.library_item import LibraryItem
+from app.models.google_drive import GoogleConnection, GoogleSyncItem
 
 __all__ = [
     "User",
@@ -67,4 +68,6 @@ __all__ = [
     "LegalFrameworkDoc",
     "LegalFrameworkVersion",
     "LibraryItem",
+    "GoogleConnection",
+    "GoogleSyncItem",
 ]

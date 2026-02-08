@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     PRODUCTHUNT_API_KEY: Optional[str] = None
     PRODUCTHUNT_API_SECRET: Optional[str] = None
 
+    # Google Drive Integration
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+
     # Discovery Rate Limits
     DISCOVERY_RATE_LIMIT_DELAY: float = 2.0  # seconds between requests
 
