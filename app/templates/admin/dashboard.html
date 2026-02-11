@@ -39,8 +39,8 @@
             <p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.reviews }}</p>
             <p class="text-xs {% if stats.flagged_reviews > 0 %}text-orange-600 font-medium{% else %}text-gray-500{% endif %}">{{ stats.flagged_reviews }} flagged</p>
         </a>
-        <a href="/admin/discovery" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-            <p class="text-xs font-medium text-gray-500 uppercase">Discovery</p>
+        <a href="/admin/agent/" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+            <p class="text-xs font-medium text-gray-500 uppercase">AI & Automation</p>
             <p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.discovered_tools }}</p>
             <p class="text-xs {% if stats.pending_discovery > 0 %}text-orange-600 font-medium{% else %}text-gray-500{% endif %}">{{ stats.pending_discovery }} pending</p>
         </a>
@@ -104,10 +104,6 @@
                     <svg class="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                     <span class="font-medium text-gray-900">Import Spreadsheet</span>
                 </a>
-                <a href="/admin/directory/sync" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    <span class="font-medium text-gray-900">Sync to GROUNDED</span>
-                </a>
                 <a href="/admin/directory/enrichment-review" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow-md transition text-sm">
                     <svg class="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                     <span class="font-medium text-gray-900">Enrichment Review</span>
@@ -169,58 +165,6 @@
         </div>
     </div>
 
-    <!-- ================================================================== -->
-    <!-- SECTION: Discovery (cyan)                                           -->
-    <!-- ================================================================== -->
-    <div class="rounded-lg shadow overflow-hidden">
-        <div class="bg-cyan-600 px-6 py-3">
-            <h2 class="text-white font-semibold">Discovery</h2>
-        </div>
-        <div class="bg-cyan-50 px-6 py-4">
-            <!-- Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div class="bg-white rounded-lg p-3 text-center">
-                    <p class="text-2xl font-bold text-gray-900">{{ stats.discovered_tools }}</p>
-                    <p class="text-xs text-gray-500">Discovered</p>
-                </div>
-                <div class="bg-white rounded-lg p-3 text-center">
-                    <p class="text-2xl font-bold {% if stats.pending_discovery > 0 %}text-orange-600{% else %}text-gray-900{% endif %}">{{ stats.pending_discovery }}</p>
-                    <p class="text-xs text-gray-500">Pending Review</p>
-                </div>
-                <div class="bg-white rounded-lg p-3 text-center">
-                    <p class="text-2xl font-bold text-gray-900">{{ stats.approved_tools }}</p>
-                    <p class="text-xs text-gray-500">Approved</p>
-                </div>
-                <div class="bg-white rounded-lg p-3 text-center">
-                    <p class="text-2xl font-bold text-gray-900">{{ stats.discovered_tools - stats.pending_discovery - stats.approved_tools }}</p>
-                    <p class="text-xs text-gray-500">Rejected / Archived</p>
-                </div>
-            </div>
-            <!-- Links grid -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                <a href="/admin/discovery" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-cyan-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-cyan-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <span class="font-medium text-gray-900">Discovery Pipeline</span>
-                </a>
-                <a href="/admin/discovery/matches" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-cyan-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-cyan-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-                    <span class="font-medium text-gray-900">Matches</span>
-                </a>
-                <a href="/admin/discovery/resources" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-cyan-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-cyan-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    <span class="font-medium text-gray-900">Resources</span>
-                </a>
-                <a href="/admin/discovery/use-cases" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-cyan-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-cyan-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    <span class="font-medium text-gray-900">Use Cases</span>
-                </a>
-                <a href="/admin/discovery/import" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-cyan-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-cyan-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    <span class="font-medium text-gray-900">Import Spreadsheet</span>
-                </a>
-            </div>
-        </div>
-    </div>
 
     <!-- ================================================================== -->
     <!-- SECTION: Content & Knowledge (amber)                                -->
@@ -403,41 +347,12 @@
                 </a>
                 <a href="/admin/agent/" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-violet-400 hover:shadow-md transition text-sm">
                     <svg class="w-5 h-5 text-violet-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                    <span class="font-medium text-gray-900">AI Agent</span>
+                    <span class="font-medium text-gray-900">AI & Automation</span>
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- ================================================================== -->
-    <!-- SECTION: AI Agent (violet)                                          -->
-    <!-- ================================================================== -->
-    <div class="rounded-lg shadow overflow-hidden">
-        <div class="bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3">
-            <h2 class="text-white font-semibold">AI Agent</h2>
-        </div>
-        <div class="bg-violet-50 px-6 py-4">
-            <p class="text-sm text-gray-600 mb-4">Claude-powered research missions that autonomously populate the database. Records are created in draft status for admin review.</p>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                <a href="/admin/agent/" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-violet-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-violet-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                    <span class="font-medium text-gray-900">Agent Dashboard</span>
-                </a>
-                <a href="/admin/agent/" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-violet-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-violet-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <span class="font-medium text-gray-900">Media Research</span>
-                </a>
-                <a href="/admin/agent/" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-violet-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-violet-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    <span class="font-medium text-gray-900">Tool Discovery</span>
-                </a>
-                <a href="/admin/workflows/runs" class="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-violet-400 hover:shadow-md transition text-sm">
-                    <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    <span class="font-medium text-gray-900">Workflow Runs</span>
-                </a>
-            </div>
-        </div>
-    </div>
 
     <!-- ================================================================== -->
     <!-- SECTION: GROUNDED Demos (keep existing block, minimal change)       -->

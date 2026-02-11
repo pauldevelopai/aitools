@@ -787,69 +787,9 @@ async def add_tool_manually(
 
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
-async def discovery_dashboard(
-    request: Request,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """Discovery dashboard with overview stats."""
-    # Get stats
-    total_discovered = db.query(func.count(DiscoveredTool.id)).scalar() or 0
-    pending_review = db.query(func.count(DiscoveredTool.id)).filter(
-        DiscoveredTool.status == "pending_review"
-    ).scalar() or 0
-    approved = db.query(func.count(DiscoveredTool.id)).filter(
-        DiscoveredTool.status == "approved"
-    ).scalar() or 0
-    rejected = db.query(func.count(DiscoveredTool.id)).filter(
-        DiscoveredTool.status == "rejected"
-    ).scalar() or 0
-
-    # New this week
-    from datetime import timedelta
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    new_this_week = db.query(func.count(DiscoveredTool.id)).filter(
-        DiscoveredTool.discovered_at >= week_ago
-    ).scalar() or 0
-
-    # Recent runs
-    recent_runs = db.query(DiscoveryRun).order_by(
-        desc(DiscoveryRun.started_at)
-    ).limit(10).all()
-
-    # Check for currently running discovery
-    running_discovery = db.query(DiscoveryRun).filter(
-        DiscoveryRun.status == "running"
-    ).first()
-
-    # Source breakdown
-    source_breakdown = db.query(
-        DiscoveredTool.source_type,
-        func.count(DiscoveredTool.id).label("count")
-    ).group_by(DiscoveredTool.source_type).all()
-
-    stats = {
-        "total_discovered": total_discovered,
-        "pending_review": pending_review,
-        "approved": approved,
-        "rejected": rejected,
-        "new_this_week": new_this_week,
-        "source_breakdown": dict(source_breakdown)
-    }
-
-    admin_context = get_admin_context_dict(request)
-    return templates.TemplateResponse(
-        "admin/discovery/index.html",
-        {
-            "request": request,
-            "user": user,
-            "stats": stats,
-            "recent_runs": recent_runs,
-            "running_discovery": running_discovery,
-            **admin_context,
-            "active_admin_page": "discovery",
-        }
-    )
+async def discovery_dashboard():
+    """Redirect to consolidated AI & Automation page."""
+    return RedirectResponse(url="/admin/agent/?tab=discovery", status_code=302)
 
 
 @router.get("/tools", response_class=HTMLResponse)

@@ -5,18 +5,21 @@ research missions that populate the database using the OpenAI Agents SDK.
 """
 import asyncio
 import logging
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.dependencies import require_admin
 from app.models.auth import User
-from app.models.directory import MediaOrganization
-from app.models.discovery import DiscoveredTool
+from app.models.directory import MediaOrganization, Journalist, Engagement
+from app.models.discovery import DiscoveredTool, DiscoveryRun
 from app.models.workflow import WorkflowRun
+from app.products.admin_context import get_admin_context_dict
 from app.templates_engine import templates
 from app.workflows.agent.engine import AgentEngine
 from app.workflows.agent.missions import MISSIONS
@@ -51,11 +54,12 @@ WorkflowRuntime.register_workflow("agent_mission", _agent_mission_callable, vers
 @router.get("/", response_class=HTMLResponse)
 async def agent_dashboard(
     request: Request,
+    tab: str = Query("missions", alias="tab"),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """AI Agent dashboard page."""
-    # Get recent agent runs
+    """AI & Automation dashboard – Agent Missions, Discovery, GROUNDED Sync."""
+    # ── Agent Missions data ──
     recent_runs = (
         db.query(WorkflowRun)
         .filter(WorkflowRun.workflow_name == "agent_mission")
@@ -64,14 +68,91 @@ async def agent_dashboard(
         .all()
     )
 
+    # ── Discovery data ──
+    total_discovered = db.query(func.count(DiscoveredTool.id)).scalar() or 0
+    pending_review = db.query(func.count(DiscoveredTool.id)).filter(
+        DiscoveredTool.status == "pending_review"
+    ).scalar() or 0
+    approved = db.query(func.count(DiscoveredTool.id)).filter(
+        DiscoveredTool.status == "approved"
+    ).scalar() or 0
+    rejected = db.query(func.count(DiscoveredTool.id)).filter(
+        DiscoveredTool.status == "rejected"
+    ).scalar() or 0
+
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    new_this_week = db.query(func.count(DiscoveredTool.id)).filter(
+        DiscoveredTool.discovered_at >= week_ago
+    ).scalar() or 0
+
+    discovery_recent_runs = db.query(DiscoveryRun).order_by(
+        desc(DiscoveryRun.started_at)
+    ).limit(10).all()
+
+    running_discovery = db.query(DiscoveryRun).filter(
+        DiscoveryRun.status == "running"
+    ).first()
+
+    source_breakdown = db.query(
+        DiscoveredTool.source_type,
+        func.count(DiscoveredTool.id).label("count")
+    ).group_by(DiscoveredTool.source_type).all()
+
+    discovery_stats = {
+        "total_discovered": total_discovered,
+        "pending_review": pending_review,
+        "approved": approved,
+        "rejected": rejected,
+        "new_this_week": new_this_week,
+        "source_breakdown": dict(source_breakdown),
+    }
+
+    # ── GROUNDED Sync data ──
+    from app.grounded_adapter import is_grounded_initialized
+    from app.services.directory_sync import get_directory_sync_service
+
+    org_count = db.query(func.count(MediaOrganization.id)).scalar() or 0
+    journalist_count = db.query(func.count(Journalist.id)).scalar() or 0
+    engagement_count = db.query(func.count(Engagement.id)).scalar() or 0
+
+    grounded_initialized = is_grounded_initialized()
+    kb_stats = {}
+    if grounded_initialized:
+        try:
+            sync_service = get_directory_sync_service()
+            kb_stats = sync_service.get_stats()
+        except Exception as e:
+            kb_stats = {"error": str(e)}
+
+    sync_stats = {
+        "organizations": org_count,
+        "journalists": journalist_count,
+        "engagements": engagement_count,
+    }
+
+    # Validate tab
+    active_tab = tab if tab in ("missions", "discovery", "sync") else "missions"
+
+    admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/agent/dashboard.html",
         {
             "request": request,
             "user": user,
             "active_admin_page": "agent",
+            "active_tab": active_tab,
+            # Agent
             "missions": MISSIONS,
             "recent_runs": recent_runs,
+            # Discovery
+            "discovery_stats": discovery_stats,
+            "discovery_recent_runs": discovery_recent_runs,
+            "running_discovery": running_discovery,
+            # Sync
+            "sync_stats": sync_stats,
+            "grounded_initialized": grounded_initialized,
+            "kb_stats": kb_stats,
+            **admin_context,
         },
     )
 

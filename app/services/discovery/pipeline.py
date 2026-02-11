@@ -292,6 +292,13 @@ async def run_discovery_pipeline(
         db.refresh(run)
         return run.status == "cancelled"
 
+    # Stats tracking — must be initialized before update_progress() closure uses them
+    tools_found = 0
+    tools_new = 0
+    tools_updated = 0
+    tools_skipped = 0
+    sources_completed = 0
+
     try:
         # Get sources to run
         if sources:
@@ -316,16 +323,6 @@ async def run_discovery_pipeline(
             DiscoveredTool.status != "rejected"
         ).all()
         existing_slugs = {t.slug for t in existing_tools}
-
-        # Load kit tools for cross-reference
-        kit_tools = _load_kit_tools()
-
-        # Stats tracking
-        tools_found = 0
-        tools_new = 0
-        tools_updated = 0
-        tools_skipped = 0
-        sources_completed = 0
 
         # Extract pipeline step configuration
         steps_config = config.get("steps", {"fetch": True, "validate": True, "dedupe": True})

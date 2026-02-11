@@ -183,7 +183,7 @@
                         <a href="/admin/directory/journalists"         class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Journalists</a>
                         <div class="border-t border-gray-100 my-1"></div>
                         <a href="/admin/directory/import"              class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Import</a>
-                        <a href="/admin/directory/sync"                class="block px-4 py-2 text-sm {% if active_admin_page == 'sync' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Sync to GROUNDED</a>
+                        <a href="/admin/agent/?tab=sync"               class="block px-4 py-2 text-sm {% if active_admin_page == 'sync' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Sync to GROUNDED</a>
                     </div>
                 </div>
 
@@ -196,7 +196,7 @@
                         <svg class="ml-1 w-3.5 h-3.5 {% if active_admin_page in _tools_pages %}text-white{% else %}text-gray-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                     <div class="hidden absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40" data-dropdown-menu>
-                        <a href="/admin/discovery"        class="block px-4 py-2 text-sm {% if active_admin_page == 'discovery' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Discovery</a>
+                        <a href="/admin/agent/?tab=discovery" class="block px-4 py-2 text-sm {% if active_admin_page == 'discovery' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Discovery</a>
                         <a href="/admin/approved-tools"   class="block px-4 py-2 text-sm {% if active_admin_page == 'approved_tools' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Approved Tools</a>
                         <a href="/admin/tool-suggestions" class="block px-4 py-2 text-sm {% if active_admin_page == 'tool_suggestions' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Suggestions</a>
                         <a href="/admin/reviews"          class="block px-4 py-2 text-sm {% if active_admin_page == 'reviews' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Reviews</a>

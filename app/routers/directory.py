@@ -1381,47 +1381,10 @@ async def get_department_teams(
 # =============================================================================
 
 @router.get("/sync", response_class=HTMLResponse)
-async def sync_page(
-    request: Request,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
-):
-    """Page for syncing directory to GROUNDED."""
-    from app.grounded_adapter import is_grounded_initialized
-    from app.services.directory_sync import get_directory_sync_service
-
-    # Get stats
-    org_count = db.query(func.count(MediaOrganization.id)).scalar() or 0
-    journalist_count = db.query(func.count(Journalist.id)).scalar() or 0
-    engagement_count = db.query(func.count(Engagement.id)).scalar() or 0
-
-    # Get GROUNDED status
-    grounded_status = is_grounded_initialized()
-    kb_stats = {}
-    if grounded_status:
-        try:
-            sync_service = get_directory_sync_service()
-            kb_stats = sync_service.get_stats()
-        except Exception as e:
-            kb_stats = {"error": str(e)}
-
-    admin_context = get_admin_context_dict(request)
-    return templates.TemplateResponse(
-        "admin/directory/sync.html",
-        {
-            "request": request,
-            "user": user,
-            "stats": {
-                "organizations": org_count,
-                "journalists": journalist_count,
-                "engagements": engagement_count,
-            },
-            "grounded_initialized": grounded_status,
-            "kb_stats": kb_stats,
-            **admin_context,
-            "active_admin_page": "sync",
-        }
-    )
+async def sync_page():
+    """Redirect to consolidated AI & Automation page."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/admin/agent/?tab=sync", status_code=302)
 
 
 @router.post("/sync/all")
