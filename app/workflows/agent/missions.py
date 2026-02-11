@@ -18,6 +18,7 @@ MISSIONS = {
             "- Include the organization's website URL, country, and a brief description.\n"
             "- Set org_type to one of: newspaper, broadcaster, digital, agency, freelance_collective.\n"
             "- Add useful context in the notes field (e.g. ownership, notable coverage areas).\n"
+            "- Use web search to find and verify information about media organizations.\n"
             "- Aim for accuracy over quantity. Only create records you are confident about.\n"
             "- Do not invent or hallucinate information. If unsure, skip the organization.\n"
         ),
@@ -51,6 +52,7 @@ MISSIONS = {
             "- Set category to a descriptive label (e.g. 'fact-checking', 'transcription', 'content-generation').\n"
             "- Set pricing_model to one of: free, freemium, paid, open_source, enterprise.\n"
             "- List key features as a JSON array of short strings.\n"
+            "- Use web search to find tools and verify their URLs and descriptions.\n"
             "- Aim for accuracy. Only create records for tools you can verify exist.\n"
             "- Do not invent tools or hallucinate URLs.\n"
         ),

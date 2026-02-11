@@ -1,27 +1,27 @@
 """Core agentic loop for the AI agent.
 
-Uses OpenAI's Chat Completions API with function calling
-and database tools in an iterative tool-use loop.
+Uses the OpenAI Agents SDK with function tools
+and web search in an autonomous research loop.
 """
-import asyncio
-import json
 import logging
-import time
+import os
 from dataclasses import dataclass, field
 
-from openai import OpenAI, APIError
-
 from sqlalchemy.orm import Session
+from agents import Agent, Runner, WebSearchTool
 
 from app.settings import settings
+
+# Ensure the Agents SDK can find the API key from the environment
+if settings.OPENAI_API_KEY and "OPENAI_API_KEY" not in os.environ:
+    os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
 from app.workflows.agent.missions import MISSIONS
-from app.workflows.agent.tools import ALL_TOOL_SCHEMAS, TOOL_HANDLERS
+from app.workflows.agent.tools import ALL_TOOLS, AgentContext
 
 logger = logging.getLogger(__name__)
 
 # Safety limits
-MAX_ITERATIONS = 25
-TIMEOUT_SECONDS = 300  # 5 minutes
+MAX_TURNS = 25
 
 
 @dataclass
@@ -34,11 +34,10 @@ class AgentResult:
 
 
 class AgentEngine:
-    """Runs an OpenAI-powered agentic loop with function calling."""
+    """Runs an OpenAI Agents SDK-powered research loop."""
 
     def __init__(self, db: Session):
         self.db = db
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
     async def run(self, mission_name: str, params: dict, run_id: str) -> AgentResult:
         """Execute an agent mission.
@@ -64,92 +63,45 @@ class AgentEngine:
         if params.get("focus"):
             system_prompt += f"\nFocus: {params['focus']}"
 
-        # Build tool list for OpenAI function calling
-        tools = self._build_tools(mission["allowed_tools"])
+        # Build tool list from mission config + web search
+        tools = [ALL_TOOLS[name] for name in mission["allowed_tools"] if name in ALL_TOOLS]
+        tools.append(WebSearchTool())
 
-        # Initial user message
+        # Build user message
         user_message = self._build_user_message(mission_name, params)
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ]
+        # Create context for tools (db session + run tracking)
+        context = AgentContext(db=self.db, run_id=run_id)
+
+        # Create the agent
+        agent = Agent(
+            name="Grounded Research Agent",
+            instructions=system_prompt,
+            model=settings.OPENAI_CHAT_MODEL,
+            tools=tools,
+        )
 
         result = AgentResult()
-        start_time = time.time()
 
         try:
-            for iteration in range(MAX_ITERATIONS):
-                # Check timeout
-                elapsed = time.time() - start_time
-                if elapsed > TIMEOUT_SECONDS:
-                    result.research_notes += f"\n[Stopped: timeout after {int(elapsed)}s]"
-                    break
+            run_result = await Runner.run(
+                starting_agent=agent,
+                input=user_message,
+                context=context,
+                max_turns=MAX_TURNS,
+            )
 
-                # Call OpenAI
-                response = await asyncio.to_thread(
-                    self.client.chat.completions.create,
-                    model=settings.OPENAI_CHAT_MODEL,
-                    max_tokens=4096,
-                    tools=tools,
-                    messages=messages,
-                )
+            result.research_notes = run_result.final_output or ""
+            result.created_records = context.created_records
+            result.steps_taken = context.steps_taken
 
-                choice = response.choices[0]
-                message = choice.message
-                result.steps_taken = iteration + 1
-
-                # If model stopped without tool calls, we're done
-                if choice.finish_reason != "tool_calls":
-                    if message.content:
-                        result.research_notes += message.content
-                    break
-
-                # Append assistant message (with tool_calls) to conversation
-                messages.append(message)
-
-                # Process each tool call
-                if message.tool_calls:
-                    for tool_call in message.tool_calls:
-                        fn_name = tool_call.function.name
-                        try:
-                            fn_args = json.loads(tool_call.function.arguments)
-                        except json.JSONDecodeError:
-                            fn_args = {}
-
-                        tool_result = await self._execute_client_tool(
-                            fn_name, fn_args, run_id, result
-                        )
-
-                        # Feed tool result back as a tool message
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": tool_result,
-                        })
-
-        except APIError as e:
-            result.error = f"OpenAI API error: {e}"
-            logger.error(f"Agent API error for run {run_id}: {e}")
         except Exception as e:
             result.error = f"Agent error: {e}"
+            result.created_records = context.created_records
+            result.steps_taken = context.steps_taken
             logger.exception(f"Agent error for run {run_id}")
 
         return result
-
-    def _build_tools(self, allowed_tool_names: list[str]) -> list[dict]:
-        """Build the tools list for the OpenAI function calling API."""
-        tools = []
-
-        for name in allowed_tool_names:
-            schema = ALL_TOOL_SCHEMAS.get(name)
-            if schema:
-                tools.append({
-                    "type": "function",
-                    "function": schema,
-                })
-
-        return tools
 
     def _build_user_message(self, mission_name: str, params: dict) -> str:
         """Build the initial user message based on mission and params."""
@@ -160,6 +112,7 @@ class AgentEngine:
             if focus:
                 msg += f" Focus on: {focus}."
             msg += (
+                " Use web search to find current information about media organizations."
                 " For each organization, first search existing records to check for duplicates, "
                 "then create a record if it doesn't exist. Aim for the major established outlets."
             )
@@ -172,41 +125,10 @@ class AgentEngine:
             if focus:
                 msg += f" Focus on: {focus}."
             msg += (
+                " Use web search to find current tools and verify their URLs."
                 " For each tool, first search existing records to check for duplicates, "
                 "then create a record if it doesn't exist. Include accurate URLs and descriptions."
             )
             return msg
 
         return f"Execute mission: {mission_name} with parameters: {params}"
-
-    async def _execute_client_tool(
-        self,
-        tool_name: str,
-        tool_input: dict,
-        run_id: str,
-        result: AgentResult,
-    ) -> str:
-        """Execute a client-side tool and return the result string."""
-        handler = TOOL_HANDLERS.get(tool_name)
-        if not handler:
-            return f"Error: unknown tool '{tool_name}'."
-
-        try:
-            # Tools that create records need run_id
-            if tool_name in ("create_media_organization", "create_discovered_tool"):
-                output = await handler(self.db, tool_input, run_id)
-                # Track created records
-                if output.startswith("Created"):
-                    result.created_records.append({
-                        "tool": tool_name,
-                        "name": tool_input.get("name", ""),
-                        "output": output,
-                    })
-            else:
-                output = await handler(self.db, tool_input)
-
-            return output
-
-        except Exception as e:
-            logger.error(f"Tool {tool_name} error: {e}")
-            return f"Error executing {tool_name}: {e}"

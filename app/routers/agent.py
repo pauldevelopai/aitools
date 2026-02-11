@@ -1,7 +1,7 @@
 """AI Agent admin routes.
 
-Provides a dashboard to launch, monitor, and review Claude-powered
-research missions that populate the database.
+Provides a dashboard to launch, monitor, and review AI-powered
+research missions that populate the database using the OpenAI Agents SDK.
 """
 import asyncio
 import logging
@@ -149,7 +149,6 @@ async def _run_agent(run_id: str, mission_name: str, params: dict, db: Session):
                 outputs={
                     "created_records": result.created_records,
                     "steps_taken": result.steps_taken,
-                    "web_searches_used": result.web_searches_used,
                 },
             )
         else:
@@ -162,7 +161,6 @@ async def _run_agent(run_id: str, mission_name: str, params: dict, db: Session):
                     "created_records": result.created_records,
                     "research_notes": result.research_notes[:5000],
                     "steps_taken": result.steps_taken,
-                    "web_searches_used": result.web_searches_used,
                 },
                 review_required="Approve agent-created records" if result.created_records else None,
             )
@@ -220,7 +218,7 @@ async def mission_results(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """View detailed results for a completed agent mission."""
+    """View detailed results and review records for an agent mission."""
     try:
         run = db.query(WorkflowRun).filter(WorkflowRun.id == UUID(run_id)).first()
     except (ValueError, Exception):
@@ -229,15 +227,28 @@ async def mission_results(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
+    # Fetch actual DB records created by this run
+    draft_orgs = (
+        db.query(MediaOrganization)
+        .filter(MediaOrganization.notes.ilike(f"%run_id={run_id}%"))
+        .all()
+    )
+    pending_tools = (
+        db.query(DiscoveredTool)
+        .filter(DiscoveredTool.source_name.ilike(f"%{run_id}%"))
+        .all()
+    )
+
     return templates.TemplateResponse(
-        "admin/agent/dashboard.html",
+        "admin/agent/review.html",
         {
             "request": request,
             "user": user,
             "active_admin_page": "agent",
-            "missions": MISSIONS,
-            "recent_runs": [run],
-            "selected_run": run,
+            "run": run,
+            "run_id": run_id,
+            "draft_orgs": draft_orgs,
+            "pending_tools": pending_tools,
         },
     )
 
@@ -252,7 +263,10 @@ async def approve_run_records(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Approve all draft records created by an agent run."""
+    """Approve all draft organizations created by an agent run.
+
+    Tools are reviewed via the Discovery pipeline, not here.
+    """
     try:
         run = db.query(WorkflowRun).filter(WorkflowRun.id == UUID(run_id)).first()
     except (ValueError, Exception):
@@ -261,40 +275,29 @@ async def approve_run_records(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    outputs = run.outputs or {}
-    created_records = outputs.get("created_records", [])
+    # Only approve organizations — tools go through Discovery
     approved_count = 0
+    orgs = (
+        db.query(MediaOrganization)
+        .filter(
+            MediaOrganization.is_active == False,
+            MediaOrganization.notes.ilike(f"%run_id={run_id}%"),
+        )
+        .all()
+    )
+    for org in orgs:
+        org.is_active = True
+        approved_count += 1
 
-    for record in created_records:
-        tool = record.get("tool")
-        if tool == "create_media_organization":
-            # Activate draft organizations from this run
-            orgs = (
-                db.query(MediaOrganization)
-                .filter(
-                    MediaOrganization.is_active == False,
-                    MediaOrganization.notes.ilike(f"%run_id={run_id}%"),
-                )
-                .all()
-            )
-            for org in orgs:
-                org.is_active = True
-                approved_count += 1
-
-        elif tool == "create_discovered_tool":
-            # Approve pending tools from this run
-            tools = (
-                db.query(DiscoveredTool)
-                .filter(
-                    DiscoveredTool.status == "pending_review",
-                    DiscoveredTool.source_name.ilike(f"%{run_id}%"),
-                )
-                .all()
-            )
-            for t in tools:
-                t.status = "approved"
-                t.reviewed_by = user.id
-                approved_count += 1
+    # Count tools still pending in Discovery
+    tools_pending = (
+        db.query(DiscoveredTool)
+        .filter(
+            DiscoveredTool.status == "pending_review",
+            DiscoveredTool.source_name.ilike(f"%{run_id}%"),
+        )
+        .count()
+    )
 
     # Update workflow run status
     run.status = "completed"
@@ -309,4 +312,46 @@ async def approve_run_records(
     return JSONResponse(content={
         "status": "approved",
         "approved_count": approved_count,
+        "tools_pending_in_discovery": tools_pending,
     })
+
+
+# ---------------------------------------------------------------------------
+# Approve / reject individual records
+# ---------------------------------------------------------------------------
+
+@router.post("/record/{record_type}/{record_id}/{action}")
+async def update_record(
+    record_type: str,
+    record_id: int,
+    action: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Approve or reject an individual agent-created record."""
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
+
+    if record_type == "organization":
+        record = db.query(MediaOrganization).filter(MediaOrganization.id == record_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        if action == "approve":
+            record.is_active = True
+        else:
+            db.delete(record)
+
+    elif record_type == "tool":
+        if action == "approve":
+            raise HTTPException(status_code=400, detail="Tools should be reviewed in Discovery")
+        record = db.query(DiscoveredTool).filter(DiscoveredTool.id == record_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="Tool not found")
+        record.status = "rejected"
+        record.reviewed_by = user.id
+
+    else:
+        raise HTTPException(status_code=400, detail="Invalid record type")
+
+    db.commit()
+    return JSONResponse(content={"status": action + "d", "record_type": record_type, "record_id": record_id})

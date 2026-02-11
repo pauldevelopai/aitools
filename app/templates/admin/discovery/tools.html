@@ -73,6 +73,7 @@
                         <option value="producthunt" {% if current_source == 'producthunt' %}selected{% endif %}>Product Hunt</option>
                         <option value="awesome_list" {% if current_source == 'awesome_list' %}selected{% endif %}>Awesome Lists</option>
                         <option value="directory" {% if current_source == 'directory' %}selected{% endif %}>Directories</option>
+                        <option value="agent" {% if current_source == 'agent' %}selected{% endif %}>AI Agent</option>
                     </select>
                 </div>
 
@@ -149,6 +150,9 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="text-sm text-gray-900">{{ item.tool.source_name }}</span>
+                                {% if item.tool.source_type == 'agent' %}
+                                <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700">Agent</span>
+                                {% endif %}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {% if item.tool.status == 'pending_review' %}

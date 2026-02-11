@@ -1,0 +1,273 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Review Mission Results{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 mb-2">
+            <a href="/admin/agent" class="hover:text-gray-700">AI Agent</a>
+            <span>/</span>
+            <span class="text-gray-900">Review Results</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Review Mission Results</h1>
+                <p class="text-sm text-gray-600 mt-1">
+                    {% set p = (run.inputs or {}).get('params', {}) %}
+                    {{ (run.inputs or {}).get('mission', '') | replace('_', ' ') | title }}
+                    {% if p.get('region') %} &mdash; {{ p.region }}{% endif %}
+                    {% if p.get('category') %} &mdash; {{ p.category }}{% endif %}
+                </p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                    {% if run.status == 'completed' %}bg-green-100 text-green-800
+                    {% elif run.status == 'needs_review' %}bg-amber-100 text-amber-800
+                    {% elif run.status == 'failed' %}bg-red-100 text-red-800
+                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                    {{ run.status | replace('_', ' ') | title }}
+                </span>
+                {% if pending_tools %}
+                <a href="/admin/discovery/tools?source_type=agent"
+                   class="px-4 py-2 bg-violet-50 text-violet-700 text-sm font-medium rounded-lg border border-violet-200 hover:bg-violet-100 transition">
+                    Review {{ pending_tools | length }} Tool(s) in Discovery
+                </a>
+                {% endif %}
+                {% if run.status == 'needs_review' and draft_orgs %}
+                <button onclick="approveAllOrgs()"
+                        class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                    Approve All Organizations
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-3xl font-bold text-indigo-700">{{ draft_orgs | length }}</p>
+            <p class="text-sm text-gray-500">Organizations</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-3xl font-bold text-violet-700">{{ pending_tools | length }}</p>
+            <p class="text-sm text-gray-500">Tools Discovered</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-3xl font-bold text-gray-700">{{ (run.outputs or {}).get('steps_taken', 0) }}</p>
+            <p class="text-sm text-gray-500">Agent Steps</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            {% set pending_orgs = draft_orgs | selectattr('is_active', 'false') | list | length %}
+            <p class="text-3xl font-bold text-amber-700">{{ pending_orgs }}</p>
+            <p class="text-sm text-gray-500">Orgs Awaiting Review</p>
+        </div>
+    </div>
+
+    <!-- Media Organizations -->
+    {% if draft_orgs %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="font-semibold text-gray-900">Media Organizations ({{ draft_orgs | length }})</h2>
+        </div>
+        <div class="divide-y divide-gray-200">
+            {% for org in draft_orgs %}
+            <div id="org-{{ org.id }}" class="px-6 py-4 hover:bg-gray-50">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-3">
+                            <h3 class="text-sm font-semibold text-gray-900">{{ org.name }}</h3>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                {% if org.is_active %}bg-green-100 text-green-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {% if org.is_active %}Active{% else %}Draft{% endif %}
+                            </span>
+                            {% if org.org_type %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                {{ org.org_type | replace('_', ' ') | title }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-600 space-y-0.5">
+                            {% if org.country %}
+                            <p><span class="text-gray-400">Country:</span> {{ org.country }}</p>
+                            {% endif %}
+                            {% if org.website %}
+                            <p><span class="text-gray-400">Website:</span> <a href="{{ org.website }}" target="_blank" class="text-indigo-600 hover:underline">{{ org.website }}</a></p>
+                            {% endif %}
+                            {% if org.description %}
+                            <p class="text-gray-500 mt-1">{{ org.description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if not org.is_active %}
+                    <div class="flex items-center space-x-2 ml-4 flex-shrink-0">
+                        <button onclick="approveRecord('organization', {{ org.id }})"
+                                class="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-medium rounded-md hover:bg-green-100 border border-green-200 transition">
+                            Approve
+                        </button>
+                        <button onclick="rejectRecord('organization', {{ org.id }})"
+                                class="px-3 py-1.5 bg-red-50 text-red-700 text-xs font-medium rounded-md hover:bg-red-100 border border-red-200 transition">
+                            Reject
+                        </button>
+                    </div>
+                    {% else %}
+                    <span class="text-xs text-green-600 font-medium ml-4">Approved</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Discovered Tools (read-only, review in Discovery) -->
+    {% if pending_tools %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="font-semibold text-gray-900">Discovered Tools ({{ pending_tools | length }})</h2>
+            <a href="/admin/discovery/tools?source_type=agent"
+               class="text-sm text-violet-600 hover:text-violet-800 font-medium">
+                Review All in Discovery &rarr;
+            </a>
+        </div>
+        <div class="divide-y divide-gray-200">
+            {% for tool in pending_tools %}
+            <div class="px-6 py-4 hover:bg-gray-50">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-3">
+                            <h3 class="text-sm font-semibold text-gray-900">{{ tool.name }}</h3>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                {% if tool.status == 'approved' %}bg-green-100 text-green-700
+                                {% elif tool.status == 'rejected' %}bg-red-100 text-red-700
+                                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {{ tool.status | replace('_', ' ') | title }}
+                            </span>
+                            {% if tool.categories %}
+                            {% for cat in tool.categories %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600">
+                                {{ cat }}
+                            </span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-600 space-y-0.5">
+                            {% if tool.url %}
+                            <p><span class="text-gray-400">URL:</span> <a href="{{ tool.url }}" target="_blank" class="text-indigo-600 hover:underline">{{ tool.url }}</a></p>
+                            {% endif %}
+                            {% if tool.description %}
+                            <p class="text-gray-500 mt-1">{{ tool.description }}</p>
+                            {% endif %}
+                            {% if tool.extra_data and tool.extra_data.get('pricing_model') %}
+                            <p><span class="text-gray-400">Pricing:</span> {{ tool.extra_data.pricing_model | replace('_', ' ') | title }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-shrink-0">
+                        <a href="/admin/discovery/tools/{{ tool.id }}"
+                           class="px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-medium rounded-md hover:bg-violet-100 border border-violet-200 transition">
+                            Review in Discovery
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Research Notes -->
+    {% set notes = (run.outputs or {}).get('research_notes', '') %}
+    {% if notes %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="font-semibold text-gray-900">Research Notes</h2>
+        </div>
+        <div class="p-6">
+            <div class="bg-gray-50 rounded-lg p-4 text-sm text-gray-600 whitespace-pre-wrap max-h-96 overflow-y-auto">{{ notes }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Error -->
+    {% if run.error_message %}
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <h3 class="text-sm font-medium text-red-700 mb-1">Error</h3>
+        <p class="text-sm text-red-600">{{ run.error_message }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function approveRecord(type, id) {
+        try {
+            const resp = await fetch(`/admin/agent/record/${type}/${id}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (resp.ok) {
+                const el = document.getElementById(`org-${id}`);
+                const badge = el.querySelector('.rounded');
+                badge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700';
+                badge.textContent = 'Active';
+                const btns = el.querySelector('.flex-shrink-0');
+                if (btns) btns.innerHTML = '<span class="text-xs text-green-600 font-medium">Approved</span>';
+            } else {
+                const data = await resp.json();
+                alert(data.detail || 'Failed to approve');
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    }
+
+    async function rejectRecord(type, id) {
+        if (!confirm(`Reject this ${type}? It will be deleted.`)) return;
+        try {
+            const resp = await fetch(`/admin/agent/record/${type}/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (resp.ok) {
+                const el = document.getElementById(`org-${id}`);
+                el.style.opacity = '0.4';
+                const btns = el.querySelector('.flex-shrink-0');
+                if (btns) btns.innerHTML = '<span class="text-xs text-red-600 font-medium">Deleted</span>';
+            } else {
+                const data = await resp.json();
+                alert(data.detail || 'Failed to reject');
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    }
+
+    async function approveAllOrgs() {
+        if (!confirm('Approve all draft organizations from this mission? Tools will remain in Discovery for review.')) return;
+        try {
+            const resp = await fetch(`/admin/agent/approve/{{ run.id }}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                let msg = `Approved ${data.approved_count} organization(s).`;
+                if (data.tools_pending_in_discovery > 0) {
+                    msg += ` ${data.tools_pending_in_discovery} tool(s) are pending review in Discovery.`;
+                }
+                alert(msg);
+                location.reload();
+            } else {
+                const data = await resp.json();
+                alert(data.detail || 'Approval failed');
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    }
+</script>
+{% endblock %}

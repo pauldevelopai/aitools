@@ -80,11 +80,11 @@ class DiscoveredTool(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending_review', 'approved', 'rejected', 'archived')",
+            "status IN ('pending_review', 'approved', 'rejected', 'archived', 'in_kit')",
             name='ck_discovered_tool_status'
         ),
         CheckConstraint(
-            "source_type IN ('github', 'producthunt', 'awesome_list', 'directory')",
+            "source_type IN ('github', 'producthunt', 'awesome_list', 'directory', 'agent')",
             name='ck_discovered_tool_source_type'
         ),
         CheckConstraint(

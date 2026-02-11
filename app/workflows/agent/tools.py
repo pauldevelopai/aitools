@@ -1,107 +1,29 @@
 """Client-side tool definitions for the AI agent.
 
-Each tool is defined as:
-- An async handler function that performs the DB operation
-- A schema dict describing the tool for Claude's tool-use API
+Uses the OpenAI Agents SDK @function_tool decorator to define
+tools that the agent can call during its research loop.
 """
 import re
 import logging
+from dataclasses import dataclass, field
+
 from sqlalchemy.orm import Session
+from agents import function_tool, RunContextWrapper
+
 from app.models.directory import MediaOrganization
 from app.models.discovery import DiscoveredTool
 
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Tool schemas (sent to Claude API)
-# ---------------------------------------------------------------------------
+@dataclass
+class AgentContext:
+    """Context passed to agent tools during execution."""
+    db: Session
+    run_id: str
+    created_records: list[dict] = field(default_factory=list)
+    steps_taken: int = 0
 
-SEARCH_EXISTING_RECORDS_SCHEMA = {
-    "name": "search_existing_records",
-    "description": (
-        "Search for existing records in the database to check for duplicates "
-        "before creating new ones. Returns matching names and IDs."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "record_type": {
-                "type": "string",
-                "enum": ["organization", "tool"],
-                "description": "Type of record to search for.",
-            },
-            "query": {
-                "type": "string",
-                "description": "Search query (matched against name/title via case-insensitive contains).",
-            },
-        },
-        "required": ["record_type", "query"],
-    },
-}
-
-CREATE_MEDIA_ORGANIZATION_SCHEMA = {
-    "name": "create_media_organization",
-    "description": (
-        "Create a new media organization record in draft status. "
-        "Always search_existing_records first to avoid duplicates."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "name": {"type": "string", "description": "Organization name."},
-            "org_type": {
-                "type": "string",
-                "enum": ["newspaper", "broadcaster", "digital", "agency", "freelance_collective"],
-                "description": "Type of media organization.",
-            },
-            "website": {"type": "string", "description": "Organization website URL."},
-            "country": {"type": "string", "description": "Country of operation."},
-            "description": {"type": "string", "description": "Brief description of the organization."},
-            "notes": {"type": "string", "description": "Additional context (ownership, coverage areas, etc.)."},
-        },
-        "required": ["name", "org_type"],
-    },
-}
-
-CREATE_DISCOVERED_TOOL_SCHEMA = {
-    "name": "create_discovered_tool",
-    "description": (
-        "Create a new discovered tool record in pending_review status. "
-        "Always search_existing_records first to avoid duplicates."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "name": {"type": "string", "description": "Tool name."},
-            "url": {"type": "string", "description": "Tool website URL."},
-            "description": {"type": "string", "description": "What the tool does."},
-            "category": {"type": "string", "description": "Primary category (e.g. fact-checking, transcription)."},
-            "pricing_model": {
-                "type": "string",
-                "enum": ["free", "freemium", "paid", "open_source", "enterprise"],
-                "description": "Pricing model.",
-            },
-            "features": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "List of key features.",
-            },
-        },
-        "required": ["name", "url", "description"],
-    },
-}
-
-ALL_TOOL_SCHEMAS = {
-    "search_existing_records": SEARCH_EXISTING_RECORDS_SCHEMA,
-    "create_media_organization": CREATE_MEDIA_ORGANIZATION_SCHEMA,
-    "create_discovered_tool": CREATE_DISCOVERED_TOOL_SCHEMA,
-}
-
-
-# ---------------------------------------------------------------------------
-# Tool handlers
-# ---------------------------------------------------------------------------
 
 def _slugify(text: str) -> str:
     """Create a URL-friendly slug from text."""
@@ -120,12 +42,26 @@ def _extract_domain(url: str) -> str:
     return url.split("/")[0]
 
 
-async def handle_search_existing_records(db: Session, params: dict) -> str:
-    """Search existing records by name/title."""
-    record_type = params.get("record_type", "organization")
-    query = params.get("query", "").strip()
+# ---------------------------------------------------------------------------
+# Tool definitions (using @function_tool decorator)
+# ---------------------------------------------------------------------------
 
-    if not query:
+@function_tool
+async def search_existing_records(
+    ctx: RunContextWrapper[AgentContext],
+    record_type: str,
+    query: str,
+) -> str:
+    """Search for existing records in the database to check for duplicates before creating new ones.
+
+    Args:
+        record_type: Type of record to search for. Must be 'organization' or 'tool'.
+        query: Search query matched against name via case-insensitive contains.
+    """
+    db = ctx.context.db
+    ctx.context.steps_taken += 1
+
+    if not query.strip():
         return "Error: query parameter is required."
 
     results = []
@@ -159,13 +95,33 @@ async def handle_search_existing_records(db: Session, params: dict) -> str:
     return f"Found {len(results)} existing {record_type} record(s):\n" + "\n".join(results)
 
 
-async def handle_create_media_organization(db: Session, params: dict, run_id: str) -> str:
-    """Create a MediaOrganization in draft status."""
-    name = params.get("name", "").strip()
-    if not name:
+@function_tool
+async def create_media_organization(
+    ctx: RunContextWrapper[AgentContext],
+    name: str,
+    org_type: str,
+    website: str = "",
+    country: str = "",
+    description: str = "",
+    notes: str = "",
+) -> str:
+    """Create a new media organization record in draft status. Always use search_existing_records first to avoid duplicates.
+
+    Args:
+        name: Organization name.
+        org_type: Type of media organization. One of: newspaper, broadcaster, digital, agency, freelance_collective.
+        website: Organization website URL.
+        country: Country of operation.
+        description: Brief description of the organization.
+        notes: Additional context such as ownership or coverage areas.
+    """
+    db = ctx.context.db
+    run_id = ctx.context.run_id
+    ctx.context.steps_taken += 1
+
+    if not name.strip():
         return "Error: name is required."
 
-    # Check for exact duplicate
     existing = (
         db.query(MediaOrganization)
         .filter(MediaOrganization.name.ilike(name))
@@ -176,32 +132,55 @@ async def handle_create_media_organization(db: Session, params: dict, run_id: st
 
     org = MediaOrganization(
         name=name,
-        org_type=params.get("org_type", "digital"),
-        website=params.get("website"),
-        country=params.get("country"),
-        description=params.get("description"),
-        notes=params.get("notes", "") + f"\n[source=agent, run_id={run_id}]",
+        org_type=org_type or "digital",
+        website=website or None,
+        country=country or None,
+        description=description or None,
+        notes=(notes or "") + f"\n[source=agent, run_id={run_id}]",
         is_active=False,  # Draft — not active until admin approves
     )
     db.add(org)
     db.commit()
     db.refresh(org)
 
+    ctx.context.created_records.append({
+        "tool": "create_media_organization",
+        "name": name,
+        "output": f"Created organization '{org.name}' (id={org.id})",
+    })
+
     logger.info(f"Agent created MediaOrganization: {org.name} (id={org.id})")
     return f"Created organization '{org.name}' (id={org.id}) in draft status."
 
 
-async def handle_create_discovered_tool(db: Session, params: dict, run_id: str) -> str:
-    """Create a DiscoveredTool in pending_review status."""
-    name = params.get("name", "").strip()
-    url = params.get("url", "").strip()
-    if not name or not url:
+@function_tool
+async def create_discovered_tool(
+    ctx: RunContextWrapper[AgentContext],
+    name: str,
+    url: str,
+    description: str,
+    category: str = "",
+    pricing_model: str = "",
+) -> str:
+    """Create a new discovered tool record in pending_review status. Always use search_existing_records first to avoid duplicates.
+
+    Args:
+        name: Tool name.
+        url: Tool website URL.
+        description: What the tool does.
+        category: Primary category such as fact-checking or transcription.
+        pricing_model: Pricing model. One of: free, freemium, paid, open_source, enterprise.
+    """
+    db = ctx.context.db
+    run_id = ctx.context.run_id
+    ctx.context.steps_taken += 1
+
+    if not name.strip() or not url.strip():
         return "Error: name and url are required."
 
     slug = _slugify(name)
     domain = _extract_domain(url)
 
-    # Check for duplicate by slug or domain+name
     existing = (
         db.query(DiscoveredTool)
         .filter(
@@ -217,16 +196,16 @@ async def handle_create_discovered_tool(db: Session, params: dict, run_id: str) 
         slug=slug,
         url=url,
         url_domain=domain,
-        description=params.get("description"),
-        categories=([params["category"]] if params.get("category") else []),
-        tags=params.get("features", []),
-        source_type="directory",
+        description=description or None,
+        categories=([category] if category else []),
+        tags=[],
+        source_type="agent",
         source_url="agent",
         source_name=f"AI Agent (run {run_id})",
         status="pending_review",
         confidence_score=0.7,
         extra_data={
-            "pricing_model": params.get("pricing_model"),
+            "pricing_model": pricing_model or None,
             "agent_run_id": run_id,
         },
     )
@@ -234,13 +213,19 @@ async def handle_create_discovered_tool(db: Session, params: dict, run_id: str) 
     db.commit()
     db.refresh(tool)
 
+    ctx.context.created_records.append({
+        "tool": "create_discovered_tool",
+        "name": name,
+        "output": f"Created tool '{tool.name}' (id={tool.id})",
+    })
+
     logger.info(f"Agent created DiscoveredTool: {tool.name} (id={tool.id})")
     return f"Created tool '{tool.name}' (id={tool.id}) in pending_review status."
 
 
-# Map tool names to handlers
-TOOL_HANDLERS = {
-    "search_existing_records": handle_search_existing_records,
-    "create_media_organization": handle_create_media_organization,
-    "create_discovered_tool": handle_create_discovered_tool,
+# Map tool names to @function_tool objects for mission-based selection
+ALL_TOOLS = {
+    "search_existing_records": search_existing_records,
+    "create_media_organization": create_media_organization,
+    "create_discovered_tool": create_discovered_tool,
 }

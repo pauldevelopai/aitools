@@ -8,7 +8,7 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">AI Agent</h1>
-            <p class="text-sm text-gray-600 mt-1">Claude-powered research missions to populate the database</p>
+            <p class="text-sm text-gray-600 mt-1">AI-powered research missions to populate the database</p>
         </div>
     </div>
 
@@ -100,7 +100,9 @@
                         <td class="px-6 py-4 text-sm text-gray-600">
                             {% set outputs = run.outputs or {} %}
                             {% set records = outputs.get('created_records', []) %}
-                            {{ records | length }} created
+                            {% set org_count = records | selectattr('tool', 'equalto', 'create_media_organization') | list | length %}
+                            {% set tool_count = records | selectattr('tool', 'equalto', 'create_discovered_tool') | list | length %}
+                            {% if org_count %}{{ org_count }} org(s){% endif %}{% if org_count and tool_count %}, {% endif %}{% if tool_count %}{{ tool_count }} tool(s){% endif %}{% if not org_count and not tool_count %}0 created{% endif %}
                             {% if outputs.get('steps_taken') %}
                             <span class="text-xs text-gray-400">({{ outputs.steps_taken }} steps)</span>
                             {% endif %}
@@ -114,8 +116,19 @@
                         </td>
                         <td class="px-6 py-4 text-sm">
                             {% if run.status == 'needs_review' %}
+                            <a href="/admin/agent/results/{{ run.id }}"
+                               class="text-indigo-600 hover:text-indigo-800 font-medium mr-3">Review</a>
                             <button onclick="approveRun('{{ run.id }}')"
-                                    class="text-green-600 hover:text-green-800 font-medium mr-3">Approve All</button>
+                                    class="text-green-600 hover:text-green-800 font-medium mr-3">Approve Orgs</button>
+                            {% endif %}
+                            {% if run.status == 'completed' %}
+                            <a href="/admin/agent/results/{{ run.id }}"
+                               class="text-indigo-600 hover:text-indigo-800 font-medium mr-3">View</a>
+                            {% endif %}
+                            {% set tool_count = (run.outputs or {}).get('created_records', []) | selectattr('tool', 'equalto', 'create_discovered_tool') | list | length %}
+                            {% if tool_count > 0 %}
+                            <a href="/admin/discovery/tools?source_type=agent"
+                               class="text-violet-600 hover:text-violet-800 text-xs font-medium">Tools in Discovery</a>
                             {% endif %}
                             {% if run.status in ['running', 'queued'] %}
                             <button onclick="pollStatus('{{ run.id }}')"
@@ -356,7 +369,14 @@
             cells[1].innerHTML = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[data.status] || 'bg-gray-100 text-gray-600'}">${spinning}${data.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`;
 
             // Records cell
-            cells[2].innerHTML = `${records.length} created${steps ? ` <span class="text-xs text-gray-400">(${steps} steps)</span>` : ''}`;
+            const orgCount = records.filter(r => r.tool === 'create_media_organization').length;
+            const toolCount = records.filter(r => r.tool === 'create_discovered_tool').length;
+            let recText = '';
+            if (orgCount) recText += `${orgCount} org(s)`;
+            if (orgCount && toolCount) recText += ', ';
+            if (toolCount) recText += `${toolCount} tool(s)`;
+            if (!orgCount && !toolCount) recText = '0 created';
+            cells[2].innerHTML = `${recText}${steps ? ` <span class="text-xs text-gray-400">(${steps} steps)</span>` : ''}`;
 
             // Actions cell
             let actions = '';
@@ -383,7 +403,7 @@
     }
 
     async function approveRun(runId) {
-        if (!confirm('Approve all records created by this mission run?')) return;
+        if (!confirm('Approve all organizations from this mission run? Tools will remain in Discovery for review.')) return;
 
         try {
             const resp = await fetch(`/admin/agent/approve/${runId}`, {
@@ -393,7 +413,11 @@
             const data = await resp.json();
 
             if (resp.ok) {
-                alert(`Approved ${data.approved_count} record(s).`);
+                let msg = `Approved ${data.approved_count} organization(s).`;
+                if (data.tools_pending_in_discovery > 0) {
+                    msg += ` ${data.tools_pending_in_discovery} tool(s) are pending review in Discovery.`;
+                }
+                alert(msg);
                 location.reload();
             } else {
                 alert(data.detail || 'Approval failed');
