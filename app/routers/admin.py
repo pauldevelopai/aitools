@@ -19,6 +19,11 @@ from app.models.toolkit import ToolkitDocument, ToolkitChunk, ChatLog, Feedback,
 from app.models.review import ToolReview, ReviewVote, ReviewFlag
 from app.models.discovery import DiscoveredTool
 from app.models.suggested_source import SuggestedSource
+from app.models.directory import MediaOrganization, Journalist, Engagement
+from app.models.governance import GovernanceTarget, GovernanceFramework, ContentItem
+from app.models.library_item import LibraryItem
+from app.models.tool_suggestion import ToolSuggestion
+from app.models.workflow import WorkflowRun
 from app.services.ingestion import (
     ingest_document, reindex_document, ingest_from_kit,
     save_document_only, ingest_existing_document, uningest_document
@@ -151,6 +156,44 @@ async def admin_dashboard(
         SuggestedSource.status == "pending"
     ).scalar() or 0
 
+    # Directory stats
+    org_count = db.query(func.count(MediaOrganization.id)).scalar() or 0
+    journalist_count = db.query(func.count(Journalist.id)).scalar() or 0
+    engagement_count = db.query(func.count(Engagement.id)).scalar() or 0
+    first_of_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    engagements_month = db.query(func.count(Engagement.id)).filter(
+        Engagement.date >= first_of_month
+    ).scalar() or 0
+
+    # Tools extra stats
+    approved_tools_count = db.query(func.count(DiscoveredTool.id)).filter(
+        DiscoveredTool.status == "approved"
+    ).scalar() or 0
+    tool_suggestions_pending = db.query(func.count(ToolSuggestion.id)).filter(
+        ToolSuggestion.status == "pending"
+    ).scalar() or 0
+
+    # Content & Knowledge stats
+    library_count = db.query(func.count(LibraryItem.id)).scalar() or 0
+    strategy_count = db.query(func.count(StrategyPlan.id)).scalar() or 0
+    content_published = db.query(func.count(ContentItem.id)).filter(
+        ContentItem.status == "published"
+    ).scalar() or 0
+
+    # Governance stats
+    governance_targets = db.query(func.count(GovernanceTarget.id)).scalar() or 0
+    frameworks_count = db.query(func.count(GovernanceFramework.id)).scalar() or 0
+    content_pending = db.query(func.count(ContentItem.id)).filter(
+        ContentItem.status == "pending_review"
+    ).scalar() or 0
+
+    # System stats
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    active_users_30d = db.query(func.count(func.distinct(UserActivity.user_id))).filter(
+        UserActivity.created_at >= thirty_days_ago
+    ).scalar() or 0
+    workflow_runs_count = db.query(func.count(WorkflowRun.id)).scalar() or 0
+
     stats = {
         "users": user_count,
         "admins": admin_count,
@@ -164,7 +207,26 @@ async def admin_dashboard(
         "flagged_reviews": flagged_reviews_count,
         "discovered_tools": discovered_tools_count,
         "pending_discovery": pending_discovery_count,
-        "pending_sources": pending_sources_count
+        "pending_sources": pending_sources_count,
+        # Directory
+        "organizations": org_count,
+        "journalists": journalist_count,
+        "engagements": engagement_count,
+        "engagements_month": engagements_month,
+        # Tools extra
+        "approved_tools": approved_tools_count,
+        "tool_suggestions_pending": tool_suggestions_pending,
+        # Content & Knowledge
+        "library_items": library_count,
+        "strategies": strategy_count,
+        "content_published": content_published,
+        # Governance
+        "governance_targets": governance_targets,
+        "frameworks": frameworks_count,
+        "content_pending": content_pending,
+        # System
+        "active_users_30d": active_users_30d,
+        "workflow_runs": workflow_runs_count,
     }
 
     response = templates.TemplateResponse(
