@@ -1,0 +1,213 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Import - Fill Missing Data{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Fill Missing Data</h1>
+            <p class="text-gray-600">{{ import_session.filename }} - chat with AI to fill in missing fields</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="/admin/directory/import/{{ import_session.id }}/map" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+                &larr; Back to Mapping
+            </a>
+            <a href="/admin/directory/import/{{ import_session.id }}/preview" id="preview-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                Skip to Preview &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Current Defaults -->
+    {% if import_session.field_defaults %}
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+        <h3 class="text-sm font-medium text-green-800 mb-2">Default values set:</h3>
+        <div class="flex flex-wrap gap-2">
+            {% for field, value in import_session.field_defaults.items() %}
+            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                {{ field }}: {{ value }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Chat Interface -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Messages -->
+        <div id="chat-messages" class="p-6 space-y-4 max-h-96 overflow-y-auto">
+            <!-- Chat history (first user message is system-generated, hide it) -->
+            {% for msg in import_session.chat_history %}
+            {% if msg.role == 'user' and loop.first %}
+            {# Hide the auto-generated first message #}
+            {% elif msg.role == 'user' %}
+            <div class="flex items-start space-x-3 justify-end">
+                <div class="bg-blue-50 rounded-lg p-4 max-w-xl">
+                    <p class="text-gray-700">{{ msg.content }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <div class="bg-amber-50 rounded-lg p-4 max-w-xl">
+                    <p class="text-gray-700">{{ msg.content }}</p>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loading-area" class="hidden px-6 pb-4">
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <div class="bg-amber-50 rounded-lg p-4">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-amber-500 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                        <div class="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="border-t border-gray-200 p-4">
+            <form id="chat-form" class="flex space-x-3">
+                <input type="text" id="message-input" placeholder="Type your answer..."
+                    class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" autocomplete="off">
+                <button type="submit" id="send-btn" class="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium">
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Defaults Display (updated dynamically) -->
+    <div id="defaults-display" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">Current Default Values</h3>
+        <div id="defaults-badges" class="flex flex-wrap gap-2">
+            {% for field, value in import_session.field_defaults.items() %}
+            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm default-badge">
+                {{ field }}: {{ value }}
+            </span>
+            {% endfor %}
+            {% if not import_session.field_defaults %}
+            <span class="text-sm text-gray-500">No defaults set yet</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+const chatMessages = document.getElementById('chat-messages');
+const chatForm = document.getElementById('chat-form');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const loadingArea = document.getElementById('loading-area');
+const defaultsBadges = document.getElementById('defaults-badges');
+const importId = "{{ import_session.id }}";
+
+// Scroll to bottom
+chatMessages.scrollTop = chatMessages.scrollHeight;
+
+chatForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    // Add user message
+    const userDiv = document.createElement('div');
+    userDiv.className = 'flex items-start space-x-3 justify-end';
+    userDiv.innerHTML = `<div class="bg-blue-50 rounded-lg p-4 max-w-xl"><p class="text-gray-700">${escapeHtml(message)}</p></div>`;
+    chatMessages.appendChild(userDiv);
+
+    messageInput.value = '';
+    sendBtn.disabled = true;
+    loadingArea.classList.remove('hidden');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        const response = await fetch(`/admin/directory/import/${importId}/chat`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: message})
+        });
+
+        const data = await response.json();
+
+        // Add AI response
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'flex items-start space-x-3';
+        aiDiv.innerHTML = `
+            <div class="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+            </div>
+            <div class="bg-amber-50 rounded-lg p-4 max-w-xl">
+                <p class="text-gray-700">${formatResponse(data.response)}</p>
+            </div>
+        `;
+        chatMessages.appendChild(aiDiv);
+
+        // Update defaults display
+        if (data.field_defaults) {
+            let html = '';
+            for (const [field, value] of Object.entries(data.field_defaults)) {
+                html += `<span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">${escapeHtml(field)}: ${escapeHtml(value)}</span>`;
+            }
+            defaultsBadges.innerHTML = html || '<span class="text-sm text-gray-500">No defaults set yet</span>';
+        }
+
+        // If complete, show ready message
+        if (data.is_complete) {
+            const readyDiv = document.createElement('div');
+            readyDiv.className = 'mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-center';
+            readyDiv.innerHTML = `
+                <p class="text-green-800 font-medium">All required fields are covered!</p>
+                <a href="/admin/directory/import/${importId}/preview" class="inline-block mt-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+                    Continue to Preview &rarr;
+                </a>
+            `;
+            chatMessages.appendChild(readyDiv);
+        }
+
+    } catch (error) {
+        const errDiv = document.createElement('div');
+        errDiv.className = 'flex items-start space-x-3';
+        errDiv.innerHTML = `<div class="bg-red-50 rounded-lg p-4"><p class="text-red-600">Error: ${escapeHtml(error.message)}</p></div>`;
+        chatMessages.appendChild(errDiv);
+    }
+
+    loadingArea.classList.add('hidden');
+    sendBtn.disabled = false;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    messageInput.focus();
+});
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+}
+
+function formatResponse(text) {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n\n/g, '</p><p class="mt-2">')
+        .replace(/\n/g, '<br>');
+}
+</script>
+{% endblock %}

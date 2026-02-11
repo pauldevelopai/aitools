@@ -21,12 +21,17 @@ class MediaOrganization(Base):
     description = Column(Text)
     notes = Column(Text)
     is_active = Column(Boolean, default=True, nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("organization_profiles.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
+    ai_journey_stage = Column(String(30), default="not_started")
+
     # Relationships
+    client = relationship("OrganizationProfile", backref="media_organizations")
     departments = relationship("Department", back_populates="organization", cascade="all, delete-orphan")
     journalists = relationship("Journalist", back_populates="organization")
+    journey_entries = relationship("AIJourneyEntry", back_populates="organization", order_by="AIJourneyEntry.created_at.desc()")
 
 
 class Department(Base):

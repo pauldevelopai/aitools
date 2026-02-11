@@ -156,6 +156,7 @@ class ProductAwareTemplates(Jinja2Templates):
                 "feature_admin_feedback": features.admin_feedback_enabled,
                 "feature_admin_playbooks": features.admin_playbooks_enabled,
                 "feature_admin_discovery": features.admin_discovery_enabled,
+                "feature_admin_directory_import": features.admin_directory_import_enabled,
             })
 
         except Exception:

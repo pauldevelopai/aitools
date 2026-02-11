@@ -4,8 +4,8 @@ from datetime import datetime, date, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, HTTPException, Form, Query, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, or_
 
@@ -21,6 +21,7 @@ from app.models.directory import (
     JournalistNote,
     EngagementDocument,
 )
+from app.models.ai_journey import AIJourneyEntry
 from app.templates_engine import templates
 from app.products.admin_context import get_admin_context_dict
 from app.workflows.audit import (
@@ -90,6 +91,22 @@ async def directory_dashboard(
     # Organizations for quick-add dropdown
     organizations = db.query(MediaOrganization).filter(MediaOrganization.is_active == True).order_by(MediaOrganization.name).all()
 
+    # AI Journey stage distribution
+    journey_distribution = (
+        db.query(MediaOrganization.ai_journey_stage, func.count(MediaOrganization.id))
+        .group_by(MediaOrganization.ai_journey_stage)
+        .all()
+    )
+    journey_stats = {stage or "not_started": count for stage, count in journey_distribution}
+
+    # Recently added organizations
+    recent_orgs = (
+        db.query(MediaOrganization)
+        .order_by(desc(MediaOrganization.created_at))
+        .limit(10)
+        .all()
+    )
+
     admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/directory/dashboard.html",
@@ -103,6 +120,8 @@ async def directory_dashboard(
                 "this_month": this_month_count,
             },
             "skill_stats": skill_stats,
+            "journey_stats": journey_stats,
+            "recent_orgs": recent_orgs,
             "recent_engagements": recent_engagements,
             "upcoming_followups": upcoming_followups,
             "organizations": organizations,
@@ -122,11 +141,16 @@ async def list_organizations(
     org_type: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    client_id: Optional[str] = Query(None),
+    journey_stage: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """List all media organizations."""
-    query = db.query(MediaOrganization)
+    from app.models.organization_profile import OrganizationProfile
+
+    query = db.query(MediaOrganization).options(joinedload(MediaOrganization.client))
 
     if org_type:
         query = query.filter(MediaOrganization.org_type == org_type)
@@ -134,8 +158,18 @@ async def list_organizations(
         query = query.filter(MediaOrganization.country == country)
     if search:
         query = query.filter(MediaOrganization.name.ilike(f"%{search}%"))
+    if client_id:
+        query = query.filter(MediaOrganization.client_id == client_id)
+    if journey_stage:
+        query = query.filter(MediaOrganization.ai_journey_stage == journey_stage)
 
-    organizations = query.order_by(MediaOrganization.name).all()
+    # Pagination
+    per_page = 50
+    total = query.count()
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+
+    organizations = query.order_by(MediaOrganization.name).offset((page - 1) * per_page).limit(per_page).all()
 
     # Get journalist counts for each org
     org_journalist_counts = dict(
@@ -150,6 +184,9 @@ async def list_organizations(
     ).all()
     org_types = db.query(MediaOrganization.org_type).distinct().all()
 
+    # Get clients for filter dropdown
+    clients = db.query(OrganizationProfile).order_by(OrganizationProfile.name).all()
+
     admin_context = get_admin_context_dict(request)
     return templates.TemplateResponse(
         "admin/directory/organizations.html",
@@ -160,7 +197,10 @@ async def list_organizations(
             "org_journalist_counts": org_journalist_counts,
             "countries": [c[0] for c in countries if c[0]],
             "org_types": [t[0] for t in org_types if t[0]],
-            "filters": {"org_type": org_type, "country": country, "search": search},
+            "clients": clients,
+            "filters": {"org_type": org_type, "country": country, "search": search, "client_id": client_id, "journey_stage": journey_stage},
+            "current_page": page,
+            "total_pages": total_pages,
             **admin_context,
             "active_admin_page": "directory",
         }
@@ -229,6 +269,7 @@ async def organization_detail(
         .options(
             joinedload(MediaOrganization.departments).joinedload(Department.teams),
             joinedload(MediaOrganization.journalists),
+            joinedload(MediaOrganization.journey_entries).joinedload(AIJourneyEntry.recorded_by),
         )
         .filter(MediaOrganization.id == org_id)
         .first()
@@ -337,6 +378,114 @@ async def delete_organization(
     db.commit()
 
     return RedirectResponse(url="/admin/directory/organizations", status_code=303)
+
+
+# =============================================================================
+# AI JOURNEY
+# =============================================================================
+
+JOURNEY_STAGES = [
+    ("not_started", "Not Started"),
+    ("awareness", "Awareness"),
+    ("exploring", "Exploring"),
+    ("piloting", "Piloting"),
+    ("implementing", "Implementing"),
+    ("integrated", "Integrated"),
+    ("advanced", "Advanced"),
+]
+
+
+@router.get("/organizations/{org_id}/journey", response_class=HTMLResponse)
+async def journey_detail(
+    org_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show journey detail and update form for an organization."""
+    org = (
+        db.query(MediaOrganization)
+        .options(joinedload(MediaOrganization.journey_entries).joinedload(AIJourneyEntry.recorded_by))
+        .filter(MediaOrganization.id == org_id)
+        .first()
+    )
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/journey_update.html",
+        {
+            "request": request,
+            "user": user,
+            "organization": org,
+            "journey_stages": JOURNEY_STAGES,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/organizations/{org_id}/journey")
+async def update_journey(
+    org_id: str,
+    stage: str = Form(...),
+    notes: str = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Save a new journey entry and update the org's current stage."""
+    valid_stages = [s[0] for s in JOURNEY_STAGES]
+    if stage not in valid_stages:
+        raise HTTPException(status_code=400, detail="Invalid stage")
+
+    org = db.query(MediaOrganization).filter(MediaOrganization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    entry = AIJourneyEntry(
+        organization_id=org.id,
+        stage=stage,
+        notes=notes or None,
+        recorded_by_id=user.id,
+    )
+    db.add(entry)
+    org.ai_journey_stage = stage
+    db.commit()
+
+    return RedirectResponse(url=f"/admin/directory/organizations/{org_id}/journey", status_code=303)
+
+
+@router.post("/organizations/{org_id}/journey/quick")
+async def quick_journey_update(
+    org_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """AJAX quick stage update from dashboard."""
+    data = await request.json()
+    stage = data.get("stage")
+
+    valid_stages = [s[0] for s in JOURNEY_STAGES]
+    if stage not in valid_stages:
+        return JSONResponse({"error": "Invalid stage"}, status_code=400)
+
+    org = db.query(MediaOrganization).filter(MediaOrganization.id == org_id).first()
+    if not org:
+        return JSONResponse({"error": "Organization not found"}, status_code=404)
+
+    entry = AIJourneyEntry(
+        organization_id=org.id,
+        stage=stage,
+        notes=f"Quick update from dashboard",
+        recorded_by_id=user.id,
+    )
+    db.add(entry)
+    org.ai_journey_stage = stage
+    db.commit()
+
+    return JSONResponse({"success": True, "stage": stage})
 
 
 # =============================================================================
@@ -2693,6 +2842,477 @@ async def mentor_workflow_runs(
             "user": user,
             "runs": runs,
             "engagements": engagements,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+# =============================================================================
+# SPREADSHEET IMPORT
+# =============================================================================
+
+@router.get("/import", response_class=HTMLResponse)
+async def import_upload_page(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show the spreadsheet upload page."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.models.organization_profile import OrganizationProfile
+
+    clients = db.query(OrganizationProfile).order_by(OrganizationProfile.name).all()
+    recent_imports = (
+        db.query(SpreadsheetImport)
+        .order_by(desc(SpreadsheetImport.created_at))
+        .limit(10)
+        .all()
+    )
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/import_upload.html",
+        {
+            "request": request,
+            "user": user,
+            "clients": clients,
+            "recent_imports": recent_imports,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/import/upload")
+async def import_upload_file(
+    request: Request,
+    file: UploadFile = File(...),
+    client_id: Optional[str] = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Process uploaded spreadsheet file."""
+    import os
+    import uuid as uuid_mod
+    import traceback
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.services.spreadsheet_ingest import parse_spreadsheet, ai_map_columns, get_import_knowledge
+
+    try:
+        # Validate file type
+        filename = file.filename or "upload"
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext not in ("csv", "xlsx", "xls"):
+            raise HTTPException(status_code=400, detail="Only CSV, XLSX, and XLS files are supported")
+
+        # Save uploaded file
+        upload_dir = os.path.join("uploads", "imports")
+        os.makedirs(upload_dir, exist_ok=True)
+        file_id = str(uuid_mod.uuid4())[:8]
+        saved_path = os.path.join(upload_dir, f"{file_id}_{filename}")
+
+        content = await file.read()
+        with open(saved_path, "wb") as f:
+            f.write(content)
+
+        # Parse spreadsheet
+        parsed = parse_spreadsheet(saved_path, ext)
+
+        # Load knowledge from past imports
+        knowledge = get_import_knowledge(db)
+
+        # AI map columns (with knowledge from past imports)
+        mapping_result = ai_map_columns(parsed["headers"], parsed["sample_rows"], knowledge=knowledge)
+
+        # Handle empty client_id string from form
+        resolved_client_id = None
+        if client_id and client_id.strip():
+            resolved_client_id = uuid_mod.UUID(client_id.strip())
+
+        # Create import session
+        import_session = SpreadsheetImport(
+            filename=filename,
+            file_path=saved_path,
+            file_type=ext,
+            row_count=parsed["row_count"],
+            raw_headers=parsed["headers"],
+            sample_rows=parsed["sample_rows"],
+            column_mapping=mapping_result["mapping"],
+            status="mapped",
+            uploaded_by_id=user.id,
+            client_id=resolved_client_id,
+            chat_history=[],
+            field_defaults={},
+        )
+        db.add(import_session)
+        db.commit()
+        db.refresh(import_session)
+
+        return RedirectResponse(
+            url=f"/admin/directory/import/{import_session.id}/map",
+            status_code=303,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Import upload error: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+
+
+@router.get("/import/{import_id}/map", response_class=HTMLResponse)
+async def import_mapping_page(
+    import_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show the column mapping review page."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.services.spreadsheet_ingest import TARGET_FIELDS
+
+    import_session = db.query(SpreadsheetImport).filter(
+        SpreadsheetImport.id == import_id
+    ).first()
+    if not import_session:
+        raise HTTPException(status_code=404, detail="Import session not found")
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/import_mapping.html",
+        {
+            "request": request,
+            "user": user,
+            "import_session": import_session,
+            "target_fields": TARGET_FIELDS,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/import/{import_id}/map")
+async def import_save_mapping(
+    import_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Save adjusted column mapping."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.services.spreadsheet_ingest import TARGET_FIELDS
+    from sqlalchemy.orm.attributes import flag_modified
+
+    import_session = db.query(SpreadsheetImport).filter(
+        SpreadsheetImport.id == import_id
+    ).first()
+    if not import_session:
+        raise HTTPException(status_code=404, detail="Import session not found")
+
+    form = await request.form()
+
+    # Build mapping from form data
+    new_mapping = {}
+    for header in import_session.raw_headers:
+        target = form.get(f"mapping_{header}")
+        if target and target != "skip":
+            new_mapping[header] = target
+
+    import_session.column_mapping = new_mapping
+    flag_modified(import_session, "column_mapping")
+
+    # Check if required fields are missing
+    mapped_targets = set(new_mapping.values())
+    missing_required = [
+        f for f, info in TARGET_FIELDS.items()
+        if info["required"] and f not in mapped_targets
+    ]
+
+    if missing_required:
+        import_session.status = "chatting"
+        db.commit()
+        return RedirectResponse(
+            url=f"/admin/directory/import/{import_id}/chat",
+            status_code=303,
+        )
+    else:
+        import_session.status = "ready"
+        db.commit()
+        return RedirectResponse(
+            url=f"/admin/directory/import/{import_id}/preview",
+            status_code=303,
+        )
+
+
+@router.get("/import/{import_id}/chat", response_class=HTMLResponse)
+async def import_chat_page(
+    import_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show the chat interface for missing data."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.services.spreadsheet_ingest import generate_chat_response, get_import_knowledge, TARGET_FIELDS
+    from sqlalchemy.orm.attributes import flag_modified
+
+    import_session = db.query(SpreadsheetImport).filter(
+        SpreadsheetImport.id == import_id
+    ).first()
+    if not import_session:
+        raise HTTPException(status_code=404, detail="Import session not found")
+
+    # Auto-generate first AI question if chat history is empty
+    if not import_session.chat_history:
+        knowledge = get_import_knowledge(db)
+        # Simple kickoff — the system prompt already has all the context
+        intro = "Hi, I've uploaded my spreadsheet and mapped the columns. What else do you need from me?"
+
+        result = generate_chat_response(import_session, intro, knowledge=knowledge)
+        import_session.chat_history = result["chat_history"]
+        import_session.field_defaults = result["field_defaults"]
+        flag_modified(import_session, "chat_history")
+        flag_modified(import_session, "field_defaults")
+        if result["is_complete"]:
+            import_session.status = "ready"
+        db.commit()
+        db.refresh(import_session)
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/import_chat.html",
+        {
+            "request": request,
+            "user": user,
+            "import_session": import_session,
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/import/{import_id}/chat")
+async def import_chat_message(
+    import_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Handle AJAX chat message for missing data."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.services.spreadsheet_ingest import generate_chat_response, get_import_knowledge
+    from sqlalchemy.orm.attributes import flag_modified
+
+    import_session = db.query(SpreadsheetImport).filter(
+        SpreadsheetImport.id == import_id
+    ).first()
+    if not import_session:
+        return JSONResponse({"error": "Import session not found"}, status_code=404)
+
+    body = await request.json()
+    message = body.get("message", "").strip()
+    if not message:
+        return JSONResponse({"error": "Message is required"}, status_code=400)
+
+    knowledge = get_import_knowledge(db)
+    result = generate_chat_response(import_session, message, knowledge=knowledge)
+
+    import_session.chat_history = result["chat_history"]
+    import_session.field_defaults = result["field_defaults"]
+    flag_modified(import_session, "chat_history")
+    flag_modified(import_session, "field_defaults")
+
+    response_text = result["response"]
+
+    # Check if AI wants to trigger per-row classification
+    if "[CLASSIFY_ROWS]" in response_text:
+        from app.services.spreadsheet_ingest import ai_classify_rows
+        response_text = response_text.replace("[CLASSIFY_ROWS]", "").strip()
+
+        try:
+            row_overrides = ai_classify_rows(import_session, knowledge=knowledge)
+            import_session.row_overrides = row_overrides
+            flag_modified(import_session, "row_overrides")
+
+            # Count what was classified
+            org_types_found = {}
+            countries_found = {}
+            for ov in row_overrides.values():
+                ot = ov.get("org_type")
+                if ot:
+                    org_types_found[ot] = org_types_found.get(ot, 0) + 1
+                ct = ov.get("country")
+                if ct:
+                    countries_found[ct] = countries_found.get(ct, 0) + 1
+
+            # Build a summary to send back through the chat
+            summary_parts = []
+            if org_types_found:
+                breakdown = ", ".join(f"**{count}** {t}" for t, count in sorted(org_types_found.items(), key=lambda x: -x[1]))
+                summary_parts.append(f"Classified {len(row_overrides)} organizations: {breakdown}.")
+            if countries_found:
+                top_countries = sorted(countries_found.items(), key=lambda x: -x[1])[:5]
+                breakdown = ", ".join(f"**{count}** from {c}" for c, count in top_countries)
+                summary_parts.append(f"Countries identified: {breakdown}.")
+
+            classify_msg = " ".join(summary_parts) if summary_parts else "Classification complete."
+
+            # Generate a follow-up response with the classification results
+            followup = generate_chat_response(import_session, f"[System: AI classification complete. {classify_msg}]", knowledge=knowledge)
+            import_session.chat_history = followup["chat_history"]
+            import_session.field_defaults = followup["field_defaults"]
+            flag_modified(import_session, "chat_history")
+            flag_modified(import_session, "field_defaults")
+            response_text = followup["response"]
+            result["is_complete"] = followup["is_complete"]
+            result["field_defaults"] = followup["field_defaults"]
+
+        except Exception as e:
+            response_text += f"\n\nSorry, there was an error during classification: {str(e)}"
+
+    if result["is_complete"]:
+        import_session.status = "ready"
+
+    db.commit()
+
+    return JSONResponse({
+        "response": response_text,
+        "is_complete": result["is_complete"],
+        "field_defaults": result["field_defaults"],
+    })
+
+
+@router.get("/import/{import_id}/preview", response_class=HTMLResponse)
+async def import_preview_page(
+    import_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show preview of all records before import."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.services.spreadsheet_ingest import validate_and_preview
+
+    import_session = db.query(SpreadsheetImport).filter(
+        SpreadsheetImport.id == import_id
+    ).first()
+    if not import_session:
+        raise HTTPException(status_code=404, detail="Import session not found")
+
+    preview = validate_and_preview(import_session)
+
+    stats = {
+        "total": len(preview),
+        "valid": sum(1 for p in preview if p["status"] == "valid"),
+        "warning": sum(1 for p in preview if p["status"] == "warning"),
+        "error": sum(1 for p in preview if p["status"] == "error"),
+    }
+
+    # Build the list of all data fields that appear in the preview
+    # (standard fields + any custom mapped fields)
+    mapping = import_session.column_mapping or {}
+    mapped_fields = sorted(set(mapping.values()) - {None})
+    # Ensure standard fields come first in a logical order
+    field_order = ["name", "org_type", "country", "website", "description", "notes"]
+    extra_fields = [f for f in mapped_fields if f not in field_order]
+    display_fields = [f for f in field_order if f in mapped_fields or any(p["data"].get(f) for p in preview)]
+    display_fields.extend(extra_fields)
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/import_preview.html",
+        {
+            "request": request,
+            "user": user,
+            "import_session": import_session,
+            "preview": preview,
+            "stats": stats,
+            "display_fields": display_fields,
+            "raw_headers": import_session.raw_headers or [],
+            **admin_context,
+            "active_admin_page": "directory",
+        }
+    )
+
+
+@router.post("/import/{import_id}/execute")
+async def import_execute(
+    import_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Execute the import."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+    from app.services.spreadsheet_ingest import execute_import
+
+    import_session = db.query(SpreadsheetImport).filter(
+        SpreadsheetImport.id == import_id
+    ).first()
+    if not import_session:
+        return JSONResponse({"error": "Import session not found"}, status_code=404)
+
+    # Accept row edits from the frontend
+    from sqlalchemy.orm.attributes import flag_modified
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    row_edits = body.get("row_edits", {})
+
+    # Store edits in import session so execute_import can use them
+    if row_edits:
+        existing_overrides = dict(import_session.row_overrides or {})
+        for row_idx_str, edits in row_edits.items():
+            if row_idx_str not in existing_overrides:
+                existing_overrides[row_idx_str] = {}
+            existing_overrides[row_idx_str].update(edits)
+        import_session.row_overrides = existing_overrides
+        flag_modified(import_session, "row_overrides")
+
+    import_session.status = "importing"
+    db.commit()
+
+    try:
+        result = execute_import(db, import_session)
+        return JSONResponse({
+            "status": "completed",
+            "created": result["created"],
+            "updated": result["updated"],
+            "skipped": result["skipped"],
+            "errors": result["errors"],
+        })
+    except Exception as e:
+        import_session.status = "failed"
+        import_session.import_errors = [{"error": str(e)}]
+        db.commit()
+        return JSONResponse({"status": "failed", "error": str(e)}, status_code=500)
+
+
+@router.get("/import/{import_id}/results", response_class=HTMLResponse)
+async def import_results_page(
+    import_id: str,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Show import results summary."""
+    from app.models.spreadsheet_import import SpreadsheetImport
+
+    import_session = db.query(SpreadsheetImport).filter(
+        SpreadsheetImport.id == import_id
+    ).first()
+    if not import_session:
+        raise HTTPException(status_code=404, detail="Import session not found")
+
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/directory/import_results.html",
+        {
+            "request": request,
+            "user": user,
+            "import_session": import_session,
             **admin_context,
             "active_admin_page": "directory",
         }

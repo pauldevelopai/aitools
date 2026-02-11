@@ -163,6 +163,8 @@ class FeatureFlags:
     admin_playbooks_enabled: bool = True
     # Admin discovery management
     admin_discovery_enabled: bool = True
+    # Admin directory spreadsheet import
+    admin_directory_import_enabled: bool = True
 
     def is_enabled(self, feature_name: str) -> bool:
         """
@@ -229,6 +231,7 @@ class FeatureFlags:
             "admin_feedback_enabled": self.admin_feedback_enabled,
             "admin_playbooks_enabled": self.admin_playbooks_enabled,
             "admin_discovery_enabled": self.admin_discovery_enabled,
+            "admin_directory_import_enabled": self.admin_directory_import_enabled,
         }
 
     @classmethod

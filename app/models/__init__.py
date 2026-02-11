@@ -28,6 +28,8 @@ from app.models.ethics_builder import EthicsPolicy, EthicsPolicyVersion
 from app.models.legal_builder import LegalFrameworkDoc, LegalFrameworkVersion
 from app.models.library_item import LibraryItem
 from app.models.google_drive import GoogleConnection, GoogleSyncItem
+from app.models.spreadsheet_import import SpreadsheetImport
+from app.models.ai_journey import AIJourneyEntry
 
 __all__ = [
     "User",
@@ -70,4 +72,6 @@ __all__ = [
     "LibraryItem",
     "GoogleConnection",
     "GoogleSyncItem",
+    "SpreadsheetImport",
+    "AIJourneyEntry",
 ]

@@ -191,6 +191,7 @@ AITOOLKIT_V1_FEATURES = FeatureFlags(
     admin_feedback_enabled=False,   # Feedback management was not in V1
     admin_playbooks_enabled=False,  # Playbook management was not in V1
     admin_discovery_enabled=False,  # Discovery management was not in V1
+    admin_directory_import_enabled=False,  # Directory import was not in V1
 )
 
 AITOOLKIT_V1_EDITION = Edition(
@@ -273,6 +274,7 @@ AITOOLKIT_V2_FEATURES = FeatureFlags(
     admin_feedback_enabled=True,
     admin_playbooks_enabled=True,
     admin_discovery_enabled=True,
+    admin_directory_import_enabled=False,  # Directory import was not in V2
 )
 
 AITOOLKIT_V2_EDITION = Edition(
@@ -356,6 +358,7 @@ AITOOLKIT_V3_FEATURES = FeatureFlags(
     admin_feedback_enabled=True,
     admin_playbooks_enabled=True,
     admin_discovery_enabled=True,
+    admin_directory_import_enabled=True,
 )
 
 AITOOLKIT_V3_EDITION = Edition(

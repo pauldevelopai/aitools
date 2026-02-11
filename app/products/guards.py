@@ -278,6 +278,11 @@ def require_admin_discovery():
     return require_feature("admin_discovery")
 
 
+def require_admin_directory_import():
+    """Require admin directory import feature."""
+    return require_feature("admin_directory_import")
+
+
 # =============================================================================
 # TEMPLATE HELPERS
 # =============================================================================

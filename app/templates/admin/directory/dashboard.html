@@ -11,6 +11,14 @@
             <p class="text-gray-600">Manage journalists, media organizations, and AI training engagements</p>
         </div>
         <div class="flex space-x-3">
+            {% if feature_admin_directory_import %}
+            <a href="/admin/directory/import" class="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 text-sm font-medium flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                Import Spreadsheet
+            </a>
+            {% endif %}
             <a href="/admin/directory/sync" class="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 text-sm font-medium flex items-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -120,6 +128,99 @@
         </div>
     </div>
 
+    <!-- AI Journey Pipeline -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">AI Journey Pipeline</h2>
+        <p class="text-sm text-gray-500 mb-4">Organization progress through AI adoption stages</p>
+        <div class="grid grid-cols-7 gap-2">
+            {% set stages = [
+                ("not_started", "Not Started", "bg-gray-100", "text-gray-600", "border-gray-200"),
+                ("awareness", "Awareness", "bg-blue-50", "text-blue-600", "border-blue-200"),
+                ("exploring", "Exploring", "bg-indigo-50", "text-indigo-600", "border-indigo-200"),
+                ("piloting", "Piloting", "bg-amber-50", "text-amber-600", "border-amber-200"),
+                ("implementing", "Implementing", "bg-orange-50", "text-orange-600", "border-orange-200"),
+                ("integrated", "Integrated", "bg-green-50", "text-green-600", "border-green-200"),
+                ("advanced", "Advanced", "bg-emerald-50", "text-emerald-600", "border-emerald-200"),
+            ] %}
+            {% for key, label, bg, text_color, border in stages %}
+            <a href="/admin/directory/organizations?journey_stage={{ key }}" class="text-center p-3 {{ bg }} rounded-lg hover:shadow transition border {{ border }}">
+                <div class="text-2xl font-bold {{ text_color }}">{{ journey_stats.get(key, 0) }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ label }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Recently Added Organizations -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-900">Recently Added Organizations</h2>
+            <a href="/admin/directory/organizations" class="text-sm text-blue-600 hover:underline">View all</a>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for org in recent_orgs %}
+            <div class="px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center space-x-3 min-w-0 flex-1">
+                    <div class="w-8 h-8 rounded bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium flex-shrink-0">
+                        {{ org.name[:2]|upper }}
+                    </div>
+                    <div class="min-w-0">
+                        <a href="/admin/directory/organizations/{{ org.id }}" class="font-medium text-gray-900 hover:text-blue-600 truncate block">{{ org.name }}</a>
+                        <div class="text-xs text-gray-500 flex items-center space-x-2">
+                            {% if org.org_type == 'newspaper' %}
+                            <span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">Newspaper</span>
+                            {% elif org.org_type == 'broadcaster' %}
+                            <span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">Broadcaster</span>
+                            {% elif org.org_type == 'digital' %}
+                            <span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">Digital</span>
+                            {% elif org.org_type == 'agency' %}
+                            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Agency</span>
+                            {% else %}
+                            <span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">{{ org.org_type|title }}</span>
+                            {% endif %}
+                            {% if org.country %}
+                            <span>{{ org.country }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3 flex-shrink-0">
+                    {% set stage_colors = {
+                        "not_started": "bg-gray-100 text-gray-700",
+                        "awareness": "bg-blue-100 text-blue-700",
+                        "exploring": "bg-indigo-100 text-indigo-700",
+                        "piloting": "bg-amber-100 text-amber-700",
+                        "implementing": "bg-orange-100 text-orange-700",
+                        "integrated": "bg-green-100 text-green-700",
+                        "advanced": "bg-emerald-100 text-emerald-700",
+                    } %}
+                    {% set stage_labels = {
+                        "not_started": "Not Started",
+                        "awareness": "Awareness",
+                        "exploring": "Exploring",
+                        "piloting": "Piloting",
+                        "implementing": "Implementing",
+                        "integrated": "Integrated",
+                        "advanced": "Advanced",
+                    } %}
+                    <select
+                        onchange="quickUpdateStage('{{ org.id }}', this.value, this)"
+                        class="text-xs border border-gray-300 rounded px-2 py-1 {{ stage_colors.get(org.ai_journey_stage or 'not_started', 'bg-gray-100 text-gray-700') }}"
+                    >
+                        {% for key, label in [("not_started", "Not Started"), ("awareness", "Awareness"), ("exploring", "Exploring"), ("piloting", "Piloting"), ("implementing", "Implementing"), ("integrated", "Integrated"), ("advanced", "Advanced")] %}
+                        <option value="{{ key }}" {% if (org.ai_journey_stage or 'not_started') == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% else %}
+            <div class="px-6 py-8 text-center text-gray-500">
+                No organizations yet. <a href="/admin/directory/organizations/new" class="text-blue-600 hover:underline">Add one</a> or <a href="/admin/directory/import" class="text-blue-600 hover:underline">import from spreadsheet</a>.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <!-- Skill Distribution -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">AI Skill Level Distribution</h2>
@@ -223,7 +324,30 @@
                 <div class="text-indigo-600 font-medium">GROUNDED Sync</div>
                 <div class="text-sm text-gray-500">Sync to KB</div>
             </a>
+            {% if feature_admin_directory_import %}
+            <a href="/admin/directory/import" class="p-4 border border-emerald-200 rounded-lg hover:border-emerald-400 hover:bg-emerald-50 transition text-center">
+                <div class="text-emerald-600 font-medium">Import</div>
+                <div class="text-sm text-gray-500">Spreadsheet upload</div>
+            </a>
+            {% endif %}
         </div>
     </div>
 </div>
+
+<script>
+async function quickUpdateStage(orgId, stage, selectEl) {
+    try {
+        const response = await fetch(`/admin/directory/organizations/${orgId}/journey/quick`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({stage: stage})
+        });
+        if (!response.ok) throw new Error('Failed to update');
+        selectEl.classList.add('ring-2', 'ring-green-400');
+        setTimeout(() => selectEl.classList.remove('ring-2', 'ring-green-400'), 1000);
+    } catch (error) {
+        alert('Error updating stage: ' + error.message);
+    }
+}
+</script>
 {% endblock %}
