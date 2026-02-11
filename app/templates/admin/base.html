@@ -146,7 +146,7 @@
     {% set _tools_pages      = ['discovery', 'approved_tools', 'tool_suggestions', 'reviews'] %}
     {% set _dir_pages        = ['directory', 'sync'] %}
     {% set _governance_pages = ['governance', 'governance_targets', 'governance_frameworks', 'governance_content', 'governance_tools', 'ethics_policy', 'legal_framework'] %}
-    {% set _system_pages     = ['users', 'organizations', 'google_drive', 'analytics', 'feedback'] %}
+    {% set _system_pages     = ['users', 'organizations', 'google_drive', 'analytics', 'feedback', 'agent'] %}
 
     <!-- Admin Navigation -->
     <div class="bg-white border-b border-gray-200">
@@ -257,6 +257,8 @@
                         <div class="border-t border-gray-100 my-1"></div>
                         <a href="/admin/analytics"      class="block px-4 py-2 text-sm {% if active_admin_page == 'analytics' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Analytics</a>
                         <a href="/admin/feedback"       class="block px-4 py-2 text-sm {% if active_admin_page == 'feedback' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Feedback</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="/admin/agent/"         class="block px-4 py-2 text-sm {% if active_admin_page == 'agent' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">AI Agent</a>
                     </div>
                 </div>
 

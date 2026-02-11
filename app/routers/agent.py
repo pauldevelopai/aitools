@@ -1,0 +1,312 @@
+"""AI Agent admin routes.
+
+Provides a dashboard to launch, monitor, and review Claude-powered
+research missions that populate the database.
+"""
+import asyncio
+import logging
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.dependencies import require_admin
+from app.models.auth import User
+from app.models.directory import MediaOrganization
+from app.models.discovery import DiscoveredTool
+from app.models.workflow import WorkflowRun
+from app.templates_engine import templates
+from app.workflows.agent.engine import AgentEngine
+from app.workflows.agent.missions import MISSIONS
+from app.workflows.rate_limit import check_workflow_rate_limit
+from app.workflows.runtime import WorkflowRuntime
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/admin/agent", tags=["agent"])
+
+
+# ---------------------------------------------------------------------------
+# Register the agent_mission workflow with WorkflowRuntime
+# ---------------------------------------------------------------------------
+
+async def _agent_mission_callable(inputs: dict, config: dict | None = None) -> dict:
+    """Workflow callable registered with WorkflowRuntime.
+
+    This is invoked by WorkflowRuntime.execute() but we handle execution
+    ourselves via the background task pattern, so this is a no-op placeholder.
+    """
+    return inputs
+
+
+WorkflowRuntime.register_workflow("agent_mission", _agent_mission_callable, version="1.0")
+
+
+# ---------------------------------------------------------------------------
+# Dashboard page
+# ---------------------------------------------------------------------------
+
+@router.get("/", response_class=HTMLResponse)
+async def agent_dashboard(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """AI Agent dashboard page."""
+    # Get recent agent runs
+    recent_runs = (
+        db.query(WorkflowRun)
+        .filter(WorkflowRun.workflow_name == "agent_mission")
+        .order_by(WorkflowRun.queued_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "admin/agent/dashboard.html",
+        {
+            "request": request,
+            "user": user,
+            "active_admin_page": "agent",
+            "missions": MISSIONS,
+            "recent_runs": recent_runs,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Launch mission
+# ---------------------------------------------------------------------------
+
+@router.post("/launch")
+async def launch_mission(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Launch an agent mission. Returns the run_id for status polling."""
+    body = await request.json()
+    mission_name = body.get("mission")
+    params = body.get("params", {})
+
+    if mission_name not in MISSIONS:
+        raise HTTPException(status_code=400, detail=f"Unknown mission: {mission_name}")
+
+    # Rate limit check
+    allowed, retry_after, reason = check_workflow_rate_limit(
+        "agent_mission", str(user.id)
+    )
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "Rate limit exceeded",
+                "retry_after": retry_after,
+                "reason": reason,
+            },
+        )
+
+    # Create workflow run
+    runtime = WorkflowRuntime(db)
+    run = runtime.create_run(
+        workflow_name="agent_mission",
+        inputs={"mission": mission_name, "params": params},
+        triggered_by=user.id,
+        tags=["agent", mission_name],
+    )
+
+    # Launch agent in background
+    asyncio.create_task(_run_agent(str(run.id), mission_name, params, db))
+
+    return JSONResponse(content={"run_id": str(run.id), "status": "queued"})
+
+
+async def _run_agent(run_id: str, mission_name: str, params: dict, db: Session):
+    """Background task that executes the agent and updates the WorkflowRun."""
+    from app.db import SessionLocal
+
+    # Use a fresh DB session for the background task
+    bg_db = SessionLocal()
+    try:
+        runtime = WorkflowRuntime(bg_db)
+        run = runtime.get_run(UUID(run_id))
+        if not run:
+            logger.error(f"Agent run {run_id} not found")
+            return
+
+        runtime.update_status(run, status="running")
+
+        engine = AgentEngine(bg_db)
+        result = await engine.run(mission_name, params, run_id)
+
+        if result.error:
+            runtime.update_status(
+                run,
+                status="failed",
+                error_message=result.error,
+                outputs={
+                    "created_records": result.created_records,
+                    "steps_taken": result.steps_taken,
+                    "web_searches_used": result.web_searches_used,
+                },
+            )
+        else:
+            # Mark as needs_review so admin can approve records
+            status = "needs_review" if result.created_records else "completed"
+            runtime.update_status(
+                run,
+                status=status,
+                outputs={
+                    "created_records": result.created_records,
+                    "research_notes": result.research_notes[:5000],
+                    "steps_taken": result.steps_taken,
+                    "web_searches_used": result.web_searches_used,
+                },
+                review_required="Approve agent-created records" if result.created_records else None,
+            )
+
+    except Exception as e:
+        logger.exception(f"Agent background task error for run {run_id}")
+        try:
+            runtime = WorkflowRuntime(bg_db)
+            run = runtime.get_run(UUID(run_id))
+            if run:
+                runtime.update_status(run, status="failed", error_message=str(e))
+        except Exception:
+            pass
+    finally:
+        bg_db.close()
+
+
+# ---------------------------------------------------------------------------
+# Status polling
+# ---------------------------------------------------------------------------
+
+@router.get("/status/{run_id}")
+async def mission_status(
+    run_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Get the current status of an agent mission."""
+    try:
+        run = db.query(WorkflowRun).filter(WorkflowRun.id == UUID(run_id)).first()
+    except (ValueError, Exception):
+        raise HTTPException(status_code=400, detail="Invalid run ID")
+
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    return JSONResponse(content={
+        "run_id": str(run.id),
+        "status": run.status,
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "error_message": run.error_message,
+        "outputs": run.outputs or {},
+    })
+
+
+# ---------------------------------------------------------------------------
+# Results page
+# ---------------------------------------------------------------------------
+
+@router.get("/results/{run_id}", response_class=HTMLResponse)
+async def mission_results(
+    request: Request,
+    run_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """View detailed results for a completed agent mission."""
+    try:
+        run = db.query(WorkflowRun).filter(WorkflowRun.id == UUID(run_id)).first()
+    except (ValueError, Exception):
+        raise HTTPException(status_code=400, detail="Invalid run ID")
+
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    return templates.TemplateResponse(
+        "admin/agent/dashboard.html",
+        {
+            "request": request,
+            "user": user,
+            "active_admin_page": "agent",
+            "missions": MISSIONS,
+            "recent_runs": [run],
+            "selected_run": run,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Approve records from a run
+# ---------------------------------------------------------------------------
+
+@router.post("/approve/{run_id}")
+async def approve_run_records(
+    run_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Approve all draft records created by an agent run."""
+    try:
+        run = db.query(WorkflowRun).filter(WorkflowRun.id == UUID(run_id)).first()
+    except (ValueError, Exception):
+        raise HTTPException(status_code=400, detail="Invalid run ID")
+
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    outputs = run.outputs or {}
+    created_records = outputs.get("created_records", [])
+    approved_count = 0
+
+    for record in created_records:
+        tool = record.get("tool")
+        if tool == "create_media_organization":
+            # Activate draft organizations from this run
+            orgs = (
+                db.query(MediaOrganization)
+                .filter(
+                    MediaOrganization.is_active == False,
+                    MediaOrganization.notes.ilike(f"%run_id={run_id}%"),
+                )
+                .all()
+            )
+            for org in orgs:
+                org.is_active = True
+                approved_count += 1
+
+        elif tool == "create_discovered_tool":
+            # Approve pending tools from this run
+            tools = (
+                db.query(DiscoveredTool)
+                .filter(
+                    DiscoveredTool.status == "pending_review",
+                    DiscoveredTool.source_name.ilike(f"%{run_id}%"),
+                )
+                .all()
+            )
+            for t in tools:
+                t.status = "approved"
+                t.reviewed_by = user.id
+                approved_count += 1
+
+    # Update workflow run status
+    run.status = "completed"
+    run.review_decision = "approved"
+    run.reviewed_by = user.id
+    from datetime import datetime, timezone
+    run.reviewed_at = datetime.now(timezone.utc)
+    run.completed_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return JSONResponse(content={
+        "status": "approved",
+        "approved_count": approved_count,
+    })

@@ -1232,6 +1232,141 @@ async def discovery_runs_list(
     )
 
 
+# ============================================================================
+# IMPORT SPREADSHEET
+# ============================================================================
+
+@router.get("/import", response_class=HTMLResponse)
+async def discovery_import_page(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Spreadsheet import page for bulk-adding discovered tools."""
+    admin_context = get_admin_context_dict(request)
+    return templates.TemplateResponse(
+        "admin/discovery/import.html",
+        {
+            "request": request,
+            "user": user,
+            **admin_context,
+            "active_admin_page": "discovery",
+        }
+    )
+
+
+@router.post("/import/upload")
+async def discovery_import_upload(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Process uploaded spreadsheet of tools."""
+    import io
+    import pandas as pd
+    from app.services.discovery.dedup import extract_domain
+    from app.services.discovery.pipeline import generate_slug
+
+    form = await request.form()
+    upload_file = form.get("file")
+
+    if not upload_file or not upload_file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+
+    filename = upload_file.filename.lower()
+    if not (filename.endswith(".csv") or filename.endswith(".xlsx") or filename.endswith(".xls")):
+        raise HTTPException(status_code=400, detail="Please upload a .csv or .xlsx file")
+
+    contents = await upload_file.read()
+
+    try:
+        if filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {e}")
+
+    # Normalise column names
+    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+
+    # Require at minimum name and url columns
+    if "name" not in df.columns or "url" not in df.columns:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Spreadsheet must have 'name' and 'url' columns. Found: {list(df.columns)}"
+        )
+
+    existing_slugs = {t.slug for t in db.query(DiscoveredTool.slug).all()}
+    created = 0
+    skipped = 0
+    errors = []
+
+    for idx, row in df.iterrows():
+        name = str(row.get("name", "")).strip()
+        url = str(row.get("url", "")).strip()
+
+        if not name or not url or name == "nan" or url == "nan":
+            skipped += 1
+            continue
+
+        slug = generate_slug(name, existing_slugs)
+
+        # Check duplicate
+        existing = db.query(DiscoveredTool).filter(
+            (DiscoveredTool.slug == slug) | (DiscoveredTool.url == url)
+        ).first()
+        if existing:
+            skipped += 1
+            continue
+
+        try:
+            domain = extract_domain(url)
+            description = str(row.get("description", "")).strip()
+            if description == "nan":
+                description = ""
+            categories_raw = str(row.get("category", row.get("categories", ""))).strip()
+            categories = [c.strip() for c in categories_raw.split(",") if c.strip() and c.strip() != "nan"]
+
+            tool = DiscoveredTool(
+                name=name,
+                slug=slug,
+                url=url,
+                url_domain=domain,
+                description=description or None,
+                categories=categories or [],
+                source_type="directory",
+                source_url="spreadsheet_import",
+                source_name=f"Spreadsheet: {upload_file.filename}",
+                status="pending_review",
+                confidence_score=0.8,
+            )
+            db.add(tool)
+            existing_slugs.add(slug)
+            created += 1
+        except Exception as e:
+            errors.append(f"Row {idx + 2}: {e}")
+            continue
+
+    db.commit()
+
+    return templates.TemplateResponse(
+        "admin/discovery/import.html",
+        {
+            "request": request,
+            "user": user,
+            "result": {
+                "created": created,
+                "skipped": skipped,
+                "errors": errors,
+                "filename": upload_file.filename,
+            },
+            **get_admin_context_dict(request),
+            "active_admin_page": "discovery",
+        }
+    )
+
+
 # Approved tools page - separate router to be at /admin/approved-tools
 approved_router = APIRouter(
     prefix="/admin/approved-tools",

@@ -51,6 +51,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/ethics-builder/",  # Protected by require_auth, JSON autosave via fetch()
             "/legal-builder/",  # Protected by require_auth, JSON autosave via fetch()
             "/library/",  # Copy-to-draft POST via fetch(), protected by require_auth
+            "/admin/agent/",  # AI Agent JSON fetch endpoints, protected by require_admin
         ]
 
     async def dispatch(self, request: Request, call_next):

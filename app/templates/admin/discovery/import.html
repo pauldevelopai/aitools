@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Import Tools Spreadsheet{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 mb-2">
+            <a href="/admin/discovery" class="hover:text-gray-700">Discovery</a>
+            <span>/</span>
+            <span class="text-gray-900">Import Spreadsheet</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">Import Tools from Spreadsheet</h1>
+        <p class="text-sm text-gray-600 mt-1">Upload a CSV or Excel file to bulk-add tools for review</p>
+    </div>
+
+    {% if result %}
+    <!-- Results -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Import Results</h2>
+
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="bg-green-50 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-green-700">{{ result.created }}</p>
+                <p class="text-sm text-green-600">Tools Created</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-gray-700">{{ result.skipped }}</p>
+                <p class="text-sm text-gray-500">Skipped (duplicates / empty)</p>
+            </div>
+            <div class="bg-{% if result.errors %}red{% else %}gray{% endif %}-50 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-{% if result.errors %}red{% else %}gray{% endif %}-700">{{ result.errors | length }}</p>
+                <p class="text-sm text-{% if result.errors %}red{% else %}gray{% endif %}-500">Errors</p>
+            </div>
+        </div>
+
+        {% if result.errors %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <h3 class="text-sm font-medium text-red-700 mb-2">Errors</h3>
+            <ul class="text-sm text-red-600 space-y-1">
+                {% for err in result.errors[:20] %}
+                <li>{{ err }}</li>
+                {% endfor %}
+                {% if result.errors | length > 20 %}
+                <li class="italic">...and {{ result.errors | length - 20 }} more</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="flex space-x-3">
+            <a href="/admin/discovery/tools?status=pending_review" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">Review Imported Tools</a>
+            <a href="/admin/discovery/import" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">Import Another</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upload Form -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Upload Spreadsheet</h2>
+
+        <form action="/admin/discovery/import/upload" method="POST" enctype="multipart/form-data">
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 transition" id="drop-zone">
+                <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                <p class="text-gray-600 mb-2">Drag & drop a spreadsheet here, or click to browse</p>
+                <input type="file" name="file" accept=".csv,.xlsx,.xls" required
+                       class="block mx-auto text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                <p id="file-name" class="text-sm text-indigo-600 mt-2 hidden"></p>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit"
+                        class="px-6 py-2.5 bg-cyan-600 text-white font-medium rounded-lg hover:bg-cyan-700 transition text-sm">
+                    Upload & Import
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Format Guide -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Spreadsheet Format</h2>
+        <p class="text-sm text-gray-600 mb-4">Your file should have the following columns. <strong>name</strong> and <strong>url</strong> are required.</p>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="px-4 py-2 text-left font-medium text-gray-700">Column</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-700">Required</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-700">Example</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr>
+                        <td class="px-4 py-2 font-mono text-indigo-700">name</td>
+                        <td class="px-4 py-2"><span class="text-red-600 font-medium">Yes</span></td>
+                        <td class="px-4 py-2 text-gray-600">ClaimBuster</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-2 font-mono text-indigo-700">url</td>
+                        <td class="px-4 py-2"><span class="text-red-600 font-medium">Yes</span></td>
+                        <td class="px-4 py-2 text-gray-600">https://idir.uta.edu/claimbuster/</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-2 font-mono text-indigo-700">description</td>
+                        <td class="px-4 py-2 text-gray-400">No</td>
+                        <td class="px-4 py-2 text-gray-600">AI-powered fact-checking tool</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-2 font-mono text-indigo-700">category</td>
+                        <td class="px-4 py-2 text-gray-400">No</td>
+                        <td class="px-4 py-2 text-gray-600">fact-checking, verification</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show selected filename
+    const fileInput = document.querySelector('input[type="file"]');
+    const fileNameEl = document.getElementById('file-name');
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            fileNameEl.textContent = this.files[0].name;
+            fileNameEl.classList.remove('hidden');
+        }
+    });
+</script>
+{% endblock %}

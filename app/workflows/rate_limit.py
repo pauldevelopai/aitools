@@ -77,6 +77,12 @@ class WorkflowRateLimiter:
                 "resource_max_requests": 2,
                 "resource_window_seconds": 1800,
             },
+            "agent_mission": {
+                "user_max_requests": 5,
+                "user_window_seconds": 3600,  # 5 per hour
+                "resource_max_requests": 5,
+                "resource_window_seconds": 3600,
+            },
         }
 
     def get_limits(self, workflow_name: str) -> dict:
