@@ -6,6 +6,7 @@ This module provides a consistent interface to:
 - Persist run status to the database
 - Capture errors and state checkpoints
 """
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
@@ -216,15 +217,12 @@ class WorkflowRuntime:
             )
 
         except Exception as e:
+            run.error_traceback = traceback.format_exc()
             return self.update_status(
                 run,
                 status="failed",
                 error_message=str(e),
             )
-            # Store traceback in a separate update to avoid issues
-            run.error_traceback = traceback.format_exc()
-            self.db.commit()
-            return run
 
     def submit_review(
         self,

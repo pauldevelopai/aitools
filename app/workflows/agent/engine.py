@@ -50,18 +50,19 @@ class AgentEngine:
         Returns:
             AgentResult with created records and metadata
         """
+        if not settings.OPENAI_API_KEY:
+            return AgentResult(error="OPENAI_API_KEY is not configured. Set it in .env to run agent missions.")
+
         mission = MISSIONS.get(mission_name)
         if not mission:
             return AgentResult(error=f"Unknown mission: {mission_name}")
 
         # Build system prompt with mission context + parameters
         system_prompt = mission["system_prompt"]
-        if params.get("region"):
-            system_prompt += f"\nTarget region: {params['region']}"
-        if params.get("category"):
-            system_prompt += f"\nTarget category: {params['category']}"
-        if params.get("focus"):
-            system_prompt += f"\nFocus: {params['focus']}"
+        for param_key in ("region", "category", "topic", "jurisdiction", "focus"):
+            if params.get(param_key):
+                label = param_key.replace("_", " ").title()
+                system_prompt += f"\n{label}: {params[param_key]}"
 
         # Build tool list from mission config + web search
         tools = [ALL_TOOLS[name] for name in mission["allowed_tools"] if name in ALL_TOOLS]
@@ -128,6 +129,49 @@ class AgentEngine:
                 " Use web search to find current tools and verify their URLs."
                 " For each tool, first search existing records to check for duplicates, "
                 "then create a record if it doesn't exist. Include accurate URLs and descriptions."
+            )
+            return msg
+
+        elif mission_name == "use_case_research":
+            topic = params.get("topic", "AI in journalism")
+            region = params.get("region", "")
+            msg = f"Research real-world AI use cases in journalism related to '{topic}'."
+            if region:
+                msg += f" Focus on organizations in {region}."
+            msg += (
+                " Use web search to find documented case studies from sources like JournalismAI, "
+                "Nieman Lab, Reuters Institute, and news org tech blogs."
+                " For each use case, first search existing records (record_type='use_case') "
+                "to check for duplicates, then create a record with the challenge, solution, and outcome."
+            )
+            return msg
+
+        elif mission_name == "legal_framework_research":
+            jurisdiction = params.get("jurisdiction", "the specified jurisdiction")
+            focus = params.get("focus", "")
+            msg = f"Research AI regulations and legal frameworks in the '{jurisdiction}' jurisdiction that are relevant to journalism and media organizations."
+            if focus:
+                msg += f" Focus on: {focus}."
+            msg += (
+                " Use web search to find current regulatory information."
+                " For each regulation, first search existing records (record_type='content') "
+                "to check for duplicates, then create a content item with a clear explanation "
+                "of requirements and implications for newsrooms."
+            )
+            return msg
+
+        elif mission_name == "ethics_policy_research":
+            focus = params.get("focus", "AI ethics in journalism")
+            region = params.get("region", "")
+            msg = f"Research published AI ethics policies and guidelines related to '{focus}'."
+            if region:
+                msg += f" Focus on organizations in {region}."
+            msg += (
+                " Use web search to find current published policies from news organizations "
+                "and journalism bodies."
+                " For each policy, first search existing records (record_type='content') "
+                "to check for duplicates, then create a content item documenting the key "
+                "principles, allowed uses, and disclosure requirements."
             )
             return msg
 

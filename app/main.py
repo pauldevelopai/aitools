@@ -59,7 +59,15 @@ async def lifespan(app: FastAPI):
         logger.error("Application will not start")
         raise
 
+    # Initialize scheduler singleton (user starts it from dashboard)
+    from app.workflows.agent.scheduler import get_scheduler
+    scheduler = get_scheduler()
+    logger.info("Agent scheduler initialized (stopped, awaiting manual start)")
+
     yield
+
+    # Stop scheduler gracefully
+    scheduler.stop()
 
     # Shutdown GROUNDED infrastructure
     shutdown_grounded()

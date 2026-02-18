@@ -103,7 +103,7 @@ async def unified_workflow_runs(
                 "total_pages": total_pages,
             },
             **admin_context,
-            "active_admin_page": "workflows",
+            "active_admin_page": "agent",
         }
     )
 
@@ -172,7 +172,7 @@ async def workflow_run_detail(
             "linked_entity_type": linked_entity_type,
             "linked_entity_url": linked_entity_url,
             **admin_context,
-            "active_admin_page": "workflows",
+            "active_admin_page": "agent",
         }
     )
 

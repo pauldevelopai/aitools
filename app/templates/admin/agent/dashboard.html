@@ -27,6 +27,14 @@
                     class="tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">
                 GROUNDED Sync
             </button>
+            <a href="/admin/workflows/runs" id="tab-btn-workflows"
+                    class="tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                Workflow Runs
+            </a>
+            <a href="/admin/demo/documents" id="tab-btn-demo"
+                    class="tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                Document Demo
+            </a>
         </nav>
     </div>
 
@@ -34,11 +42,179 @@
     <!-- TAB 1: AGENT MISSIONS                                               -->
     <!-- ================================================================== -->
     <div id="tab-missions" class="tab-panel space-y-8">
-        <!-- Mission Launcher -->
+
+        <!-- ============================================================== -->
+        <!-- SCHEDULER CONTROL PANEL                                         -->
+        <!-- ============================================================== -->
+        <div class="bg-white rounded-lg shadow overflow-hidden border-2 border-violet-200">
+            <div class="bg-gradient-to-r from-violet-700 to-indigo-700 px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">&#129302;</span>
+                    <div>
+                        <h2 class="text-white font-semibold text-lg">Agent Scheduler</h2>
+                        <p class="text-violet-200 text-sm">Autonomous research loop</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="sched-state-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
+                        {% if scheduler_status.state == 'running' %}bg-green-400 text-green-900
+                        {% elif scheduler_status.state == 'paused' %}bg-yellow-400 text-yellow-900
+                        {% else %}bg-gray-300 text-gray-700{% endif %}">
+                        <span id="sched-state-dot" class="w-2 h-2 rounded-full mr-1.5
+                            {% if scheduler_status.state == 'running' %}bg-green-700 animate-pulse
+                            {% elif scheduler_status.state == 'paused' %}bg-yellow-700
+                            {% else %}bg-gray-500{% endif %}"></span>
+                        <span id="sched-state-text">{{ scheduler_status.state | title }}</span>
+                    </span>
+                </div>
+            </div>
+            <div class="p-6 space-y-5">
+                <!-- Controls row -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <button id="sched-start-btn" onclick="SchedulerTab.start()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5"
+                        {% if scheduler_status.state == 'running' %}disabled{% endif %}>
+                        &#9654; Start
+                    </button>
+                    <button id="sched-pause-btn" onclick="SchedulerTab.pause()" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5"
+                        {% if scheduler_status.state == 'stopped' %}disabled{% endif %}>
+                        <span id="sched-pause-label">{% if scheduler_status.state == 'paused' %}&#9654; Resume{% else %}&#9208; Pause{% endif %}</span>
+                    </button>
+                    <button id="sched-stop-btn" onclick="SchedulerTab.stop()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5"
+                        {% if scheduler_status.state == 'stopped' %}disabled{% endif %}>
+                        &#9209; Stop
+                    </button>
+                    <div class="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                        <label for="sched-delay" class="font-medium">Delay:</label>
+                        <input type="number" id="sched-delay" value="{{ scheduler_status.delay_between_missions }}" min="10" max="3600"
+                               class="w-20 rounded-md border-gray-300 text-sm px-2 py-1 border" onchange="SchedulerTab.updateDelay()">
+                        <span>s between runs</span>
+                    </div>
+                </div>
+
+                <!-- Stats cards -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-violet-50 rounded-lg p-4 text-center">
+                        <div id="sched-stat-missions" class="text-2xl font-bold text-violet-700">{{ scheduler_status.stats.missions_completed_today }}</div>
+                        <div class="text-xs text-violet-600 font-medium">Missions Today</div>
+                    </div>
+                    <div class="bg-emerald-50 rounded-lg p-4 text-center">
+                        <div id="sched-stat-records" class="text-2xl font-bold text-emerald-700">{{ scheduler_status.stats.records_created_today }}</div>
+                        <div class="text-xs text-emerald-600 font-medium">Records Created</div>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-4 text-center">
+                        <div id="sched-stat-rejected" class="text-2xl font-bold text-red-600">{{ scheduler_status.stats.records_rejected_today }}</div>
+                        <div class="text-xs text-red-500 font-medium">Auto-Rejected</div>
+                    </div>
+                </div>
+
+                <!-- Current mission -->
+                <div id="sched-current-mission" class="{% if not scheduler_status.current_mission %}hidden{% endif %} bg-blue-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-sm font-medium text-blue-800">Currently Running:</span>
+                            <span id="sched-current-name" class="text-sm text-blue-900 font-semibold ml-1">{{ scheduler_status.current_mission | default('', true) | replace('_', ' ') | title }}</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-blue-600">
+                            <span id="sched-current-elapsed">{% if scheduler_status.current_elapsed_seconds %}{{ scheduler_status.current_elapsed_seconds }}s elapsed{% endif %}</span>
+                            <span id="sched-current-runid" class="font-mono">{% if scheduler_status.current_run_id %}{{ scheduler_status.current_run_id[:8] }}...{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="mt-2 w-full bg-blue-200 rounded-full h-1.5">
+                        <div id="sched-progress-bar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-1000 animate-pulse" style="width: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Next up -->
+                <div id="sched-next-mission" class="{% if not scheduler_status.next_mission %}hidden{% endif %} flex items-center justify-between text-sm text-gray-600">
+                    <div>
+                        <span class="font-medium">Next Up:</span>
+                        <span id="sched-next-name" class="ml-1">
+                            {% if scheduler_status.next_mission %}
+                            {{ scheduler_status.next_mission.mission | replace('_', ' ') | title }}
+                            {% set np = scheduler_status.next_mission.params %}
+                            ({{ np.get('region', np.get('category', np.get('topic', np.get('focus', '')))) }})
+                            {% endif %}
+                        </span>
+                    </div>
+                    <span id="sched-schedule-progress">{{ scheduler_status.schedule_index }} of {{ scheduler_status.schedule_total }} in rotation</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- LIVE ACTIVITY FEED                                              -->
+        <!-- ============================================================== -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="font-semibold text-gray-900 text-sm">Activity Feed</h2>
+                <span class="text-xs text-gray-400" id="sched-feed-status">Auto-refresh every 3s</span>
+            </div>
+            <div id="sched-activity-feed" class="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                <div class="px-6 py-3 text-sm text-gray-400 text-center">Scheduler activity will appear here</div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SCHEDULE CONFIGURATION (collapsible)                            -->
+        <!-- ============================================================== -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <button onclick="SchedulerTab.toggleSchedule()" class="w-full px-6 py-3 border-b border-gray-200 flex items-center justify-between hover:bg-gray-50 transition">
+                <h2 class="font-semibold text-gray-900 text-sm">Schedule Configuration</h2>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500"><span id="sched-total-count">{{ scheduler_status.schedule_total }}</span> missions in rotation</span>
+                    <svg id="sched-chevron" class="w-4 h-4 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+            </button>
+            <div id="sched-schedule-panel" class="hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-10">#</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mission</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Parameters</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sched-schedule-tbody" class="divide-y divide-gray-100">
+                            {% for item in scheduler_status.schedule %}
+                            <tr class="{% if loop.index0 == scheduler_status.schedule_index and scheduler_status.current_mission %}bg-blue-50{% elif loop.index0 < scheduler_status.schedule_index %}bg-gray-50{% endif %}">
+                                <td class="px-4 py-2 text-gray-500">{{ loop.index }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-900">{{ item.mission | replace('_', ' ') | title }}</td>
+                                <td class="px-4 py-2 text-gray-600">
+                                    {% set p = item.params %}
+                                    {{ p.get('region', p.get('category', p.get('topic', p.get('jurisdiction', '')))) }}
+                                    {% if p.get('focus') %} &middot; {{ p.focus }}{% endif %}
+                                </td>
+                                <td class="px-4 py-2">
+                                    {% if loop.index0 == scheduler_status.schedule_index and scheduler_status.current_mission %}
+                                    <span class="text-blue-600 font-semibold">&#9654; Now</span>
+                                    {% elif loop.index0 < scheduler_status.schedule_index %}
+                                    <span class="text-green-600">&#10003;</span>
+                                    {% elif loop.index0 == scheduler_status.schedule_index and not scheduler_status.current_mission %}
+                                    <span class="text-amber-500">&#9203; Next</span>
+                                    {% else %}
+                                    <span class="text-gray-400">&#9675;</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+                    <button onclick="SchedulerTab.resetSchedule()" class="px-3 py-1.5 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100">Reset to Default</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mission Launcher (manual) -->
         <div class="bg-white rounded-lg shadow overflow-hidden">
             <div class="bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-4">
                 <h2 class="text-white font-semibold text-lg">Launch Mission</h2>
-                <p class="text-violet-200 text-sm">Select a mission type and configure parameters</p>
+                <p class="text-violet-200 text-sm">Select a mission type and configure parameters (manual launch)</p>
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -116,7 +292,16 @@
                                 {% set records = outputs.get('created_records', []) %}
                                 {% set org_count = records | selectattr('tool', 'equalto', 'create_media_organization') | list | length %}
                                 {% set tool_count = records | selectattr('tool', 'equalto', 'create_discovered_tool') | list | length %}
-                                {% if org_count %}{{ org_count }} org(s){% endif %}{% if org_count and tool_count %}, {% endif %}{% if tool_count %}{{ tool_count }} tool(s){% endif %}{% if not org_count and not tool_count %}0 created{% endif %}
+                                {% set uc_count = records | selectattr('tool', 'equalto', 'create_use_case') | list | length %}
+                                {% set legal_count = records | selectattr('tool', 'equalto', 'create_legal_framework_content') | list | length %}
+                                {% set ethics_count = records | selectattr('tool', 'equalto', 'create_ethics_policy_content') | list | length %}
+                                {% set parts = [] %}
+                                {% if org_count %}{% set _ = parts.append(org_count ~ ' org(s)') %}{% endif %}
+                                {% if tool_count %}{% set _ = parts.append(tool_count ~ ' tool(s)') %}{% endif %}
+                                {% if uc_count %}{% set _ = parts.append(uc_count ~ ' use case(s)') %}{% endif %}
+                                {% if legal_count %}{% set _ = parts.append(legal_count ~ ' legal') %}{% endif %}
+                                {% if ethics_count %}{% set _ = parts.append(ethics_count ~ ' ethics') %}{% endif %}
+                                {{ parts | join(', ') or '0 created' }}
                                 {% if outputs.get('steps_taken') %}
                                 <span class="text-xs text-gray-400">({{ outputs.steps_taken }} steps)</span>
                                 {% endif %}
@@ -773,6 +958,187 @@ function switchTab(tab) {
 }
 
 /* ==================================================================
+   SCHEDULER CONTROLS
+   ================================================================== */
+const SchedulerTab = (function() {
+    let pollInterval = null;
+
+    async function start() {
+        try {
+            const resp = await fetch('/admin/agent/scheduler/start', { method: 'POST' });
+            const data = await resp.json();
+            if (data.status === 'started' || data.status === 'already_running') refreshStatus();
+        } catch (e) { console.error('Scheduler start error:', e); }
+    }
+
+    async function stop() {
+        if (!confirm('Stop the scheduler? It will finish the current mission first.')) return;
+        try {
+            await fetch('/admin/agent/scheduler/stop', { method: 'POST' });
+            refreshStatus();
+        } catch (e) { console.error('Scheduler stop error:', e); }
+    }
+
+    async function pause() {
+        try {
+            const resp = await fetch('/admin/agent/scheduler/pause', { method: 'POST' });
+            const data = await resp.json();
+            refreshStatus();
+        } catch (e) { console.error('Scheduler pause error:', e); }
+    }
+
+    async function updateDelay() {
+        const delay = parseInt(document.getElementById('sched-delay').value) || 120;
+        try {
+            await fetch('/admin/agent/scheduler/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ delay_between_missions: delay })
+            });
+        } catch (e) { console.error('Scheduler config error:', e); }
+    }
+
+    async function resetSchedule() {
+        if (!confirm('Reset the schedule to default? This will restart from the beginning.')) return;
+        try {
+            await fetch('/admin/agent/scheduler/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reset_default: true })
+            });
+            window.location.reload();
+        } catch (e) { console.error('Scheduler reset error:', e); }
+    }
+
+    function toggleSchedule() {
+        const panel = document.getElementById('sched-schedule-panel');
+        const chevron = document.getElementById('sched-chevron');
+        panel.classList.toggle('hidden');
+        chevron.classList.toggle('rotate-180');
+    }
+
+    async function refreshStatus() {
+        try {
+            const resp = await fetch('/admin/agent/scheduler/status');
+            const d = await resp.json();
+
+            // State badge
+            const badge = document.getElementById('sched-state-badge');
+            const dot = document.getElementById('sched-state-dot');
+            const text = document.getElementById('sched-state-text');
+            text.textContent = d.state.charAt(0).toUpperCase() + d.state.slice(1);
+            badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ' +
+                (d.state === 'running' ? 'bg-green-400 text-green-900' :
+                 d.state === 'paused' ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-300 text-gray-700');
+            dot.className = 'w-2 h-2 rounded-full mr-1.5 ' +
+                (d.state === 'running' ? 'bg-green-700 animate-pulse' :
+                 d.state === 'paused' ? 'bg-yellow-700' : 'bg-gray-500');
+
+            // Button states
+            document.getElementById('sched-start-btn').disabled = d.state === 'running';
+            document.getElementById('sched-pause-btn').disabled = d.state === 'stopped';
+            document.getElementById('sched-stop-btn').disabled = d.state === 'stopped';
+            document.getElementById('sched-pause-label').innerHTML = d.state === 'paused' ? '&#9654; Resume' : '&#9208; Pause';
+
+            // Stats
+            document.getElementById('sched-stat-missions').textContent = d.stats.missions_completed_today || 0;
+            document.getElementById('sched-stat-records').textContent = d.stats.records_created_today || 0;
+            document.getElementById('sched-stat-rejected').textContent = d.stats.records_rejected_today || 0;
+
+            // Current mission
+            const currentEl = document.getElementById('sched-current-mission');
+            if (d.current_mission) {
+                currentEl.classList.remove('hidden');
+                document.getElementById('sched-current-name').textContent = d.current_mission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                document.getElementById('sched-current-elapsed').textContent = d.current_elapsed_seconds ? d.current_elapsed_seconds + 's elapsed' : '';
+                document.getElementById('sched-current-runid').textContent = d.current_run_id ? d.current_run_id.slice(0, 8) + '...' : '';
+            } else {
+                currentEl.classList.add('hidden');
+            }
+
+            // Next mission
+            const nextEl = document.getElementById('sched-next-mission');
+            if (d.next_mission && d.state !== 'stopped') {
+                nextEl.classList.remove('hidden');
+                const np = d.next_mission.params || {};
+                const npText = np.region || np.category || np.topic || np.jurisdiction || np.focus || '';
+                document.getElementById('sched-next-name').textContent =
+                    d.next_mission.mission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) +
+                    (npText ? ' (' + npText + ')' : '');
+                document.getElementById('sched-schedule-progress').textContent = d.schedule_index + ' of ' + d.schedule_total + ' in rotation';
+            } else {
+                nextEl.classList.add('hidden');
+            }
+
+            // Update schedule table status column
+            const rows = document.querySelectorAll('#sched-schedule-tbody tr');
+            rows.forEach((row, idx) => {
+                const statusCell = row.querySelectorAll('td')[3];
+                if (!statusCell) return;
+                row.className = '';
+                if (idx === d.schedule_index && d.current_mission) {
+                    row.className = 'bg-blue-50';
+                    statusCell.innerHTML = '<span class="text-blue-600 font-semibold">&#9654; Now</span>';
+                } else if (idx < d.schedule_index) {
+                    row.className = 'bg-gray-50';
+                    statusCell.innerHTML = '<span class="text-green-600">&#10003;</span>';
+                } else if (idx === d.schedule_index && !d.current_mission) {
+                    statusCell.innerHTML = '<span class="text-amber-500">&#9203; Next</span>';
+                } else {
+                    statusCell.innerHTML = '<span class="text-gray-400">&#9675;</span>';
+                }
+            });
+
+        } catch (e) { console.error('Scheduler status error:', e); }
+    }
+
+    async function refreshActivity() {
+        try {
+            const resp = await fetch('/admin/agent/scheduler/activity');
+            const d = await resp.json();
+            const feed = document.getElementById('sched-activity-feed');
+            if (!d.activity || d.activity.length === 0) {
+                feed.innerHTML = '<div class="px-6 py-3 text-sm text-gray-400 text-center">No scheduler activity yet</div>';
+                return;
+            }
+            let html = '';
+            for (const entry of d.activity) {
+                const ts = new Date(entry.timestamp);
+                const time = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                let icon = '&#128196;';
+                const msg = entry.message || '';
+                if (msg.includes('Starting')) icon = '&#128640;';
+                else if (msg.includes('Completed')) icon = '&#9989;';
+                else if (msg.includes('Quality')) icon = '&#128269;';
+                else if (msg.includes('Waiting')) icon = '&#9208;';
+                else if (msg.includes('error') || msg.includes('Error') || msg.includes('failed')) icon = '&#10060;';
+                else if (msg.includes('paused') || msg.includes('Paused')) icon = '&#9208;';
+                else if (msg.includes('resumed') || msg.includes('Resumed') || msg.includes('started') || msg.includes('Started')) icon = '&#9654;';
+                else if (msg.includes('stopping') || msg.includes('Stopping') || msg.includes('stopped')) icon = '&#9209;';
+                const levelColor = entry.level === 'error' ? 'text-red-600' : entry.level === 'warning' ? 'text-amber-600' : 'text-gray-700';
+                html += `<div class="px-6 py-2 flex items-start gap-3 text-sm hover:bg-gray-50"><span class="text-xs text-gray-400 font-mono whitespace-nowrap mt-0.5">${time}</span><span>${icon}</span><span class="${levelColor}">${entry.message}</span></div>`;
+            }
+            feed.innerHTML = html;
+        } catch (e) { console.error('Activity fetch error:', e); }
+    }
+
+    function startPolling() {
+        refreshStatus();
+        refreshActivity();
+        pollInterval = setInterval(() => {
+            refreshStatus();
+            refreshActivity();
+        }, 3000);
+    }
+
+    function stopPolling() {
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    }
+
+    return { start, stop, pause, updateDelay, resetSchedule, toggleSchedule, refreshStatus, refreshActivity, startPolling, stopPolling };
+})();
+
+/* ==================================================================
    TAB 1 — AGENT MISSIONS
    ================================================================== */
 const AgentTab = (function() {
@@ -865,11 +1231,16 @@ const AgentTab = (function() {
             cells[1].innerHTML = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[data.status] || 'bg-gray-100 text-gray-600'}">${spinning}${data.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`;
             const orgCount = records.filter(r => r.tool === 'create_media_organization').length;
             const toolCount = records.filter(r => r.tool === 'create_discovered_tool').length;
-            let recText = '';
-            if (orgCount) recText += `${orgCount} org(s)`;
-            if (orgCount && toolCount) recText += ', ';
-            if (toolCount) recText += `${toolCount} tool(s)`;
-            if (!orgCount && !toolCount) recText = '0 created';
+            const ucCount = records.filter(r => r.tool === 'create_use_case').length;
+            const legalCount = records.filter(r => r.tool === 'create_legal_framework_content').length;
+            const ethicsCount = records.filter(r => r.tool === 'create_ethics_policy_content').length;
+            const parts = [];
+            if (orgCount) parts.push(`${orgCount} org(s)`);
+            if (toolCount) parts.push(`${toolCount} tool(s)`);
+            if (ucCount) parts.push(`${ucCount} use case(s)`);
+            if (legalCount) parts.push(`${legalCount} legal`);
+            if (ethicsCount) parts.push(`${ethicsCount} ethics`);
+            const recText = parts.length ? parts.join(', ') : '0 created';
             cells[2].innerHTML = `${recText}${steps ? ` <span class="text-xs text-gray-400">(${steps} steps)</span>` : ''}`;
             let actions = '';
             if (data.status === 'needs_review') actions = `<button onclick="AgentTab.approveRun('${runId}')" class="text-green-600 hover:text-green-800 font-medium mr-3">Approve All</button>`;
@@ -1183,6 +1554,9 @@ const SyncTab = (function() {
 document.addEventListener('DOMContentLoaded', function() {
     // Activate correct tab from server-side state
     switchTab('{{ active_tab }}');
+
+    // Init Scheduler live polling
+    SchedulerTab.startPolling();
 
     // Init Agent polling for running missions
     AgentTab.initPolling();

@@ -144,7 +144,7 @@
     {# ── Active-page group helpers ── #}
     {% set _content_pages    = ['documents', 'sources', 'training', 'playbooks', 'library'] %}
     {% set _tools_pages      = ['discovery', 'approved_tools', 'tool_suggestions', 'reviews'] %}
-    {% set _dir_pages        = ['directory', 'sync'] %}
+    {% set _dir_pages        = ['directory'] %}
     {% set _governance_pages = ['governance', 'governance_targets', 'governance_frameworks', 'governance_content', 'governance_tools', 'ethics_policy', 'legal_framework'] %}
     {% set _system_pages     = ['users', 'organizations', 'google_drive', 'analytics', 'feedback', 'agent'] %}
 
@@ -183,7 +183,6 @@
                         <a href="/admin/directory/journalists"         class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Journalists</a>
                         <div class="border-t border-gray-100 my-1"></div>
                         <a href="/admin/directory/import"              class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Import</a>
-                        <a href="/admin/agent/?tab=sync"               class="block px-4 py-2 text-sm {% if active_admin_page == 'sync' %}bg-blue-50 text-blue-700 font-medium{% else %}text-gray-700 hover:bg-gray-50{% endif %}">Sync to GROUNDED</a>
                     </div>
                 </div>
 
@@ -265,19 +264,7 @@
                 {# ── Spacer ── #}
                 <div class="flex-1"></div>
 
-                {# ── Workflow Runs (standalone, right side) ── #}
-                <a href="/admin/workflows/runs"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'workflow_runs' %}bg-green-600 text-white{% else %}text-green-600 hover:bg-green-50{% endif %}">
-                    Workflow Runs
-                </a>
 
-                {# ── Demo (standalone) ── #}
-                <a href="/admin/demo/documents"
-                   class="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap
-                          {% if active_admin_page == 'demo_documents' %}bg-purple-600 text-white{% else %}text-purple-600 hover:bg-purple-50{% endif %}">
-                    GROUNDED Demo
-                </a>
             </div>
         </div>
     </div>

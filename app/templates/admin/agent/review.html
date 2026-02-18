@@ -19,6 +19,9 @@
                     {{ (run.inputs or {}).get('mission', '') | replace('_', ' ') | title }}
                     {% if p.get('region') %} &mdash; {{ p.region }}{% endif %}
                     {% if p.get('category') %} &mdash; {{ p.category }}{% endif %}
+                    {% if p.get('topic') %} &mdash; {{ p.topic }}{% endif %}
+                    {% if p.get('jurisdiction') %} &mdash; {{ p.jurisdiction }}{% endif %}
+                    {% if p.get('focus') %} &mdash; {{ p.focus }}{% endif %}
                 </p>
             </div>
             <div class="flex items-center space-x-3">
@@ -46,23 +49,40 @@
     </div>
 
     <!-- Summary Stats -->
-    <div class="grid grid-cols-4 gap-4">
+    {% set records = (run.outputs or {}).get('created_records', []) %}
+    {% set total_created = records | length %}
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {% if draft_orgs %}
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-3xl font-bold text-indigo-700">{{ draft_orgs | length }}</p>
             <p class="text-sm text-gray-500">Organizations</p>
         </div>
+        {% endif %}
+        {% if pending_tools %}
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-3xl font-bold text-violet-700">{{ pending_tools | length }}</p>
-            <p class="text-sm text-gray-500">Tools Discovered</p>
+            <p class="text-sm text-gray-500">Tools</p>
         </div>
+        {% endif %}
+        {% if pending_use_cases %}
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-3xl font-bold text-teal-700">{{ pending_use_cases | length }}</p>
+            <p class="text-sm text-gray-500">Use Cases</p>
+        </div>
+        {% endif %}
+        {% if pending_content %}
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-3xl font-bold text-emerald-700">{{ pending_content | length }}</p>
+            <p class="text-sm text-gray-500">Governance Content</p>
+        </div>
+        {% endif %}
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-3xl font-bold text-gray-700">{{ (run.outputs or {}).get('steps_taken', 0) }}</p>
             <p class="text-sm text-gray-500">Agent Steps</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
-            {% set pending_orgs = draft_orgs | selectattr('is_active', 'false') | list | length %}
-            <p class="text-3xl font-bold text-amber-700">{{ pending_orgs }}</p>
-            <p class="text-sm text-gray-500">Orgs Awaiting Review</p>
+            <p class="text-3xl font-bold text-amber-700">{{ total_created }}</p>
+            <p class="text-sm text-gray-500">Total Created</p>
         </div>
     </div>
 
@@ -170,6 +190,93 @@
                            class="px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-medium rounded-md hover:bg-violet-100 border border-violet-200 transition">
                             Review in Discovery
                         </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Use Cases -->
+    {% if pending_use_cases %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="font-semibold text-gray-900">Use Cases ({{ pending_use_cases | length }})</h2>
+            <a href="/admin/playbooks"
+               class="text-sm text-teal-600 hover:text-teal-800 font-medium">
+                Review in Use Cases &rarr;
+            </a>
+        </div>
+        <div class="divide-y divide-gray-200">
+            {% for uc in pending_use_cases %}
+            <div class="px-6 py-4 hover:bg-gray-50">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-3">
+                            <h3 class="text-sm font-semibold text-gray-900">{{ uc.title }}</h3>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                {% if uc.status == 'approved' %}bg-green-100 text-green-700
+                                {% elif uc.status == 'rejected' %}bg-red-100 text-red-700
+                                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {{ uc.status | replace('_', ' ') | title }}
+                            </span>
+                        </div>
+                        <div class="mt-1 text-sm text-gray-600 space-y-0.5">
+                            {% if uc.organization %}
+                            <p><span class="text-gray-400">Organization:</span> {{ uc.organization }}{% if uc.country %} ({{ uc.country }}){% endif %}</p>
+                            {% endif %}
+                            {% if uc.summary %}
+                            <p class="text-gray-500 mt-1">{{ uc.summary }}</p>
+                            {% endif %}
+                            {% if uc.source_url %}
+                            <p><span class="text-gray-400">Source:</span> <a href="{{ uc.source_url }}" target="_blank" class="text-indigo-600 hover:underline">{{ uc.source_name or uc.source_url }}</a></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Governance Content (Legal Frameworks & Ethics Policies) -->
+    {% if pending_content %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="font-semibold text-gray-900">Governance Content ({{ pending_content | length }})</h2>
+            <a href="/admin/governance/content"
+               class="text-sm text-emerald-600 hover:text-emerald-800 font-medium">
+                Review in Governance &rarr;
+            </a>
+        </div>
+        <div class="divide-y divide-gray-200">
+            {% for item in pending_content %}
+            <div class="px-6 py-4 hover:bg-gray-50">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-3">
+                            <h3 class="text-sm font-semibold text-gray-900">{{ item.title }}</h3>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                                {{ item.status | replace('_', ' ') | title }}
+                            </span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                {% if item.section == 'legal_framework' %}bg-blue-50 text-blue-600
+                                {% else %}bg-purple-50 text-purple-600{% endif %}">
+                                {% if item.section == 'legal_framework' %}Legal Framework{% else %}Ethics Policy{% endif %}
+                            </span>
+                            {% if item.jurisdiction %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                {{ item.jurisdiction | upper }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-600 space-y-0.5">
+                            {% if item.summary %}
+                            <p class="text-gray-500 mt-1">{{ item.summary }}</p>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -18,11 +18,15 @@ from app.dependencies import require_admin
 from app.models.auth import User
 from app.models.directory import MediaOrganization, Journalist, Engagement
 from app.models.discovery import DiscoveredTool, DiscoveryRun
+from app.models.usecase import UseCase
+from app.models.governance import ContentItem
 from app.models.workflow import WorkflowRun
 from app.products.admin_context import get_admin_context_dict
 from app.templates_engine import templates
 from app.workflows.agent.engine import AgentEngine
 from app.workflows.agent.missions import MISSIONS
+from app.workflows.agent.quality_judge import judge_mission_results
+from app.workflows.agent.scheduler import get_scheduler
 from app.workflows.rate_limit import check_workflow_rate_limit
 from app.workflows.runtime import WorkflowRuntime
 
@@ -67,6 +71,10 @@ async def agent_dashboard(
         .limit(20)
         .all()
     )
+
+    # ── Scheduler state ──
+    scheduler = get_scheduler()
+    scheduler_status = scheduler.get_status()
 
     # ── Discovery data ──
     total_discovered = db.query(func.count(DiscoveredTool.id)).scalar() or 0
@@ -144,6 +152,7 @@ async def agent_dashboard(
             # Agent
             "missions": MISSIONS,
             "recent_runs": recent_runs,
+            "scheduler_status": scheduler_status,
             # Discovery
             "discovery_stats": discovery_stats,
             "discovery_recent_runs": discovery_recent_runs,
@@ -222,6 +231,16 @@ async def _run_agent(run_id: str, mission_name: str, params: dict, db: Session):
         engine = AgentEngine(bg_db)
         result = await engine.run(mission_name, params, run_id)
 
+        # Quality judging
+        quality_report = None
+        if result.created_records:
+            try:
+                quality_report = await judge_mission_results(
+                    bg_db, run_id, result.created_records
+                )
+            except Exception as e:
+                logger.error(f"Quality judging error for run {run_id}: {e}")
+
         if result.error:
             runtime.update_status(
                 run,
@@ -230,19 +249,23 @@ async def _run_agent(run_id: str, mission_name: str, params: dict, db: Session):
                 outputs={
                     "created_records": result.created_records,
                     "steps_taken": result.steps_taken,
+                    "quality_report": quality_report,
                 },
             )
         else:
             # Mark as needs_review so admin can approve records
             status = "needs_review" if result.created_records else "completed"
+            outputs = {
+                "created_records": result.created_records,
+                "research_notes": result.research_notes[:5000],
+                "steps_taken": result.steps_taken,
+            }
+            if quality_report:
+                outputs["quality_report"] = quality_report
             runtime.update_status(
                 run,
                 status=status,
-                outputs={
-                    "created_records": result.created_records,
-                    "research_notes": result.research_notes[:5000],
-                    "steps_taken": result.steps_taken,
-                },
+                outputs=outputs,
                 review_required="Approve agent-created records" if result.created_records else None,
             )
 
@@ -320,6 +343,28 @@ async def mission_results(
         .all()
     )
 
+    # Fetch use cases created by this run (tracked via source_name)
+    pending_use_cases = (
+        db.query(UseCase)
+        .filter(UseCase.source_name.ilike(f"%{run_id}%"))
+        .all()
+    )
+
+    # Fetch content items (legal frameworks, ethics policies) created by this run
+    created_records = (run.outputs or {}).get("created_records", [])
+    content_record_names = [
+        r["name"] for r in created_records
+        if r.get("tool") in ("create_legal_framework_content", "create_ethics_policy_content")
+    ]
+    pending_content = (
+        db.query(ContentItem)
+        .filter(
+            ContentItem.tags.contains(["agent-generated"]),
+            ContentItem.title.in_(content_record_names),
+        )
+        .all()
+    ) if content_record_names else []
+
     return templates.TemplateResponse(
         "admin/agent/review.html",
         {
@@ -330,6 +375,8 @@ async def mission_results(
             "run_id": run_id,
             "draft_orgs": draft_orgs,
             "pending_tools": pending_tools,
+            "pending_use_cases": pending_use_cases,
+            "pending_content": pending_content,
         },
     )
 
@@ -436,3 +483,86 @@ async def update_record(
 
     db.commit()
     return JSONResponse(content={"status": action + "d", "record_type": record_type, "record_id": record_id})
+
+
+# ---------------------------------------------------------------------------
+# Scheduler API endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/scheduler/status")
+async def scheduler_status(
+    user: User = Depends(require_admin),
+):
+    """Return full scheduler state for dashboard polling."""
+    scheduler = get_scheduler()
+    return JSONResponse(content=scheduler.get_status())
+
+
+@router.post("/scheduler/start")
+async def scheduler_start(
+    user: User = Depends(require_admin),
+):
+    """Start the scheduler loop."""
+    scheduler = get_scheduler()
+    if scheduler.state == "running":
+        return JSONResponse(content={"status": "already_running"})
+    await scheduler.start()
+    return JSONResponse(content={"status": "started"})
+
+
+@router.post("/scheduler/stop")
+async def scheduler_stop(
+    user: User = Depends(require_admin),
+):
+    """Stop the scheduler (finishes current mission first)."""
+    scheduler = get_scheduler()
+    scheduler.stop()
+    return JSONResponse(content={"status": "stopping"})
+
+
+@router.post("/scheduler/pause")
+async def scheduler_pause(
+    user: User = Depends(require_admin),
+):
+    """Toggle pause/resume on the scheduler."""
+    scheduler = get_scheduler()
+    if scheduler.state == "paused":
+        scheduler.resume()
+        return JSONResponse(content={"status": "resumed"})
+    elif scheduler.state == "running":
+        scheduler.pause()
+        return JSONResponse(content={"status": "paused"})
+    return JSONResponse(content={"status": scheduler.state})
+
+
+@router.post("/scheduler/config")
+async def scheduler_config(
+    request: Request,
+    user: User = Depends(require_admin),
+):
+    """Update the scheduler schedule and delay."""
+    body = await request.json()
+    scheduler = get_scheduler()
+
+    reset = body.get("reset_default", False)
+    new_schedule = body.get("schedule")
+    delay = body.get("delay_between_missions")
+
+    if reset:
+        from app.workflows.agent.scheduler import DEFAULT_SCHEDULE
+        scheduler.update_schedule(list(DEFAULT_SCHEDULE), delay)
+    elif new_schedule is not None:
+        scheduler.update_schedule(new_schedule, delay)
+    elif delay is not None:
+        scheduler.delay_between_missions = delay
+
+    return JSONResponse(content={"status": "updated", "schedule_count": len(scheduler.schedule)})
+
+
+@router.get("/scheduler/activity")
+async def scheduler_activity(
+    user: User = Depends(require_admin),
+):
+    """Return recent activity log entries."""
+    scheduler = get_scheduler()
+    return JSONResponse(content={"activity": scheduler.get_activity()})

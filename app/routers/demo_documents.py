@@ -85,7 +85,7 @@ async def demo_documents_page(
             "request": request,
             "user": user,
             **admin_context,
-            "active_admin_page": "demo_documents",
+            "active_admin_page": "agent",
             "stats": stats,
         }
     )
@@ -355,7 +355,7 @@ async def governance_audit_page(
             "request": request,
             "user": user,
             **admin_context,
-            "active_admin_page": "demo_documents",
+            "active_admin_page": "agent",
             "stats": stats,
             "recent_records": recent_records,
         }
