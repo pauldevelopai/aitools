@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app.name }} - Open Source Apps - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <a href="/apps/" class="text-sm text-gray-500 hover:text-gray-700 mb-4 inline-block">&larr; Back to Apps</a>
+
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <div class="flex items-start justify-between mb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ app.name }}</h1>
+                {% if app.description %}
+                <p class="text-gray-600">{{ app.description }}</p>
+                {% endif %}
+            </div>
+            {% if app.is_featured %}
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background-color: {{ brand_primary_color }}20; color: {{ brand_primary_color }}">Featured</span>
+            {% endif %}
+        </div>
+
+        <!-- Metadata badges -->
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded capitalize">{{ app.deployment_type|replace('_', ' ') }}</span>
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded capitalize">{{ app.difficulty }}</span>
+            <span class="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded">{{ app.license_type }}</span>
+            <span class="px-2 py-1 text-xs bg-green-50 text-green-700 rounded capitalize">{{ app.pricing_model|replace('_', ' ') }}</span>
+        </div>
+
+        <!-- Platform badges -->
+        {% if app.platforms %}
+        <div class="flex flex-wrap gap-1 mb-4">
+            <span class="text-xs text-gray-500 mr-1">Platforms:</span>
+            {% for plat in app.platforms %}
+            <span class="text-xs px-2 py-0.5 bg-gray-50 text-gray-600 rounded border border-gray-200">{{ plat }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Links -->
+        <div class="flex flex-wrap gap-3 mb-4">
+            {% if app.github_url %}
+            <a href="{{ app.github_url }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 transition">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                GitHub
+            </a>
+            {% endif %}
+            {% if app.website_url %}
+            <a href="{{ app.website_url }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition">
+                Website
+            </a>
+            {% endif %}
+            {% if app.docs_url %}
+            <a href="{{ app.docs_url }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition">
+                Documentation
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Sectors & Tags -->
+        {% if app.sectors %}
+        <div class="flex flex-wrap gap-1 mb-2">
+            <span class="text-xs text-gray-500 mr-1">Sectors:</span>
+            {% for s in app.sectors %}
+            <span class="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 rounded">{{ s|replace('_', ' ')|title }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if app.tags %}
+        <div class="flex flex-wrap gap-1">
+            <span class="text-xs text-gray-500 mr-1">Tags:</span>
+            {% for tag in app.tags %}
+            <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Installation Guide -->
+    {% if app.installation_guide %}
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Installation Guide</h2>
+        <div class="prose prose-sm max-w-none text-gray-700">
+            {{ app.installation_guide | markdown }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- System Requirements -->
+    {% if app.system_requirements %}
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">System Requirements</h2>
+        <div class="prose prose-sm max-w-none text-gray-700">
+            {{ app.system_requirements | markdown }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Learn with This App -->
+    {% if related_lessons %}
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Learn with This App</h2>
+        <p class="text-sm text-gray-500 mb-4">Practical lessons that use {{ app.name }} to build your AI skills.</p>
+        <div class="space-y-3">
+            {% for item in related_lessons %}
+            <a href="/lessons/{{ item.module.slug }}/{{ item.lesson.slug }}"
+               class="block border border-gray-100 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">{{ item.lesson.title }}</h3>
+                        <span class="text-xs text-gray-400">{{ item.module.name }}</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0 ml-4">
+                        {% if item.lesson.estimated_minutes %}
+                        <span>{{ item.lesson.estimated_minutes }} min</span>
+                        {% endif %}
+                        <span class="font-medium" style="color: {{ brand_primary_color }}">+{{ item.lesson.token_reward }} tokens</span>
+                        <span class="px-1.5 py-0.5 bg-gray-100 rounded capitalize">{{ item.lesson.task_type }}</span>
+                    </div>
+                </div>
+                {% if item.lesson.description %}
+                <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ item.lesson.description }}</p>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if requires_login %}
+    <div class="mt-8">
+        {% include "components/login_prompt.html" %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

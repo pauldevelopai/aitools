@@ -133,14 +133,14 @@ class AgentEngine:
             return msg
 
         elif mission_name == "use_case_research":
-            topic = params.get("topic", "AI in journalism")
+            topic = params.get("topic", "ethical AI implementation")
             region = params.get("region", "")
-            msg = f"Research real-world AI use cases in journalism related to '{topic}'."
+            msg = f"Research real-world AI use cases related to '{topic}'."
             if region:
                 msg += f" Focus on organizations in {region}."
             msg += (
-                " Use web search to find documented case studies from sources like JournalismAI, "
-                "Nieman Lab, Reuters Institute, and news org tech blogs."
+                " Use web search to find documented case studies from newsrooms, NGOs, law firms, "
+                "and businesses implementing AI ethically."
                 " For each use case, first search existing records (record_type='use_case') "
                 "to check for duplicates, then create a record with the challenge, solution, and outcome."
             )
@@ -149,26 +149,26 @@ class AgentEngine:
         elif mission_name == "legal_framework_research":
             jurisdiction = params.get("jurisdiction", "the specified jurisdiction")
             focus = params.get("focus", "")
-            msg = f"Research AI regulations and legal frameworks in the '{jurisdiction}' jurisdiction that are relevant to journalism and media organizations."
+            msg = f"Research AI regulations and legal frameworks in the '{jurisdiction}' jurisdiction that are relevant to organisations implementing AI."
             if focus:
                 msg += f" Focus on: {focus}."
             msg += (
                 " Use web search to find current regulatory information."
                 " For each regulation, first search existing records (record_type='content') "
                 "to check for duplicates, then create a content item with a clear explanation "
-                "of requirements and implications for newsrooms."
+                "of requirements and implications for organisations."
             )
             return msg
 
         elif mission_name == "ethics_policy_research":
-            focus = params.get("focus", "AI ethics in journalism")
+            focus = params.get("focus", "AI ethics in organisations")
             region = params.get("region", "")
             msg = f"Research published AI ethics policies and guidelines related to '{focus}'."
             if region:
                 msg += f" Focus on organizations in {region}."
             msg += (
-                " Use web search to find current published policies from news organizations "
-                "and journalism bodies."
+                " Use web search to find current published policies from organisations "
+                "across newsrooms, NGOs, law firms, and businesses."
                 " For each policy, first search existing records (record_type='content') "
                 "to check for duplicates, then create a content item documenting the key "
                 "principles, allowed uses, and disclosure requirements."

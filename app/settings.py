@@ -68,8 +68,10 @@ class Settings(BaseSettings):
     PRODUCTHUNT_API_KEY: Optional[str] = None
     PRODUCTHUNT_API_SECRET: Optional[str] = None
 
-    # Anthropic (Claude AI Agent)
+    # Anthropic (Claude AI)
     ANTHROPIC_API_KEY: str = ""
+    COMPLETION_PROVIDER: str = "claude"
+    CLAUDE_COMPLETION_MODEL: str = "claude-sonnet-4-20250514"
 
     # Google Drive Integration
     GOOGLE_CLIENT_ID: Optional[str] = None

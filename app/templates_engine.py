@@ -19,6 +19,7 @@ from app.products.context import (
     get_current_edition,
     get_feature_flags,
 )
+from app.services.i18n import translate, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
 
 
 def markdown_filter(text: str) -> Markup:
@@ -148,6 +149,20 @@ class ProductAwareTemplates(Jinja2Templates):
                 # Content
                 "feature_browse": features.browse_enabled,
                 "feature_sources": features.sources_enabled,
+                # Engagement
+                "feature_progress_tracker": features.progress_tracker_enabled,
+                "feature_readiness_assessment": features.readiness_assessment_enabled,
+                "feature_learning_paths": features.learning_paths_enabled,
+                "feature_export_reports": features.export_reports_enabled,
+                "feature_benchmarking": features.benchmarking_enabled,
+                "feature_multi_language": features.multi_language_enabled,
+                "feature_lessons": features.lessons_enabled,
+                # Collaborative
+                "feature_collective_learning": features.collective_learning_enabled,
+                "feature_intelligence_feed": features.intelligence_feed_enabled,
+                "feature_workflow_templates": features.workflow_templates_enabled,
+                "feature_data_registry": features.data_registry_enabled,
+                "feature_open_source_apps": features.open_source_apps_enabled,
                 # Admin
                 "feature_admin": features.admin_dashboard_enabled,
                 "feature_admin_ingestion": features.admin_ingestion_enabled,
@@ -167,6 +182,12 @@ class ProductAwareTemplates(Jinja2Templates):
             context.setdefault("nav_items", [])
             context.setdefault("edition_label", "")
             context.setdefault("edition_sealed", False)
+
+        # Inject locale context
+        locale = getattr(request.state, "locale", DEFAULT_LANGUAGE) if hasattr(request, "state") else DEFAULT_LANGUAGE
+        context["locale"] = locale
+        context["supported_languages"] = SUPPORTED_LANGUAGES
+        context["t"] = lambda key: translate(key, locale)
 
         return context
 
@@ -233,6 +254,19 @@ class ProductAwareTemplates(Jinja2Templates):
             # Content
             "/browse": features.browse_enabled,
             "/sources": features.sources_enabled,
+            # Engagement
+            "/progress": features.progress_tracker_enabled,
+            "/readiness": features.readiness_assessment_enabled,
+            "/learning-paths": features.learning_paths_enabled,
+            "/export": features.export_reports_enabled,
+            "/benchmarking": features.benchmarking_enabled,
+            "/lessons": features.lessons_enabled,
+            # Collaborative
+            "/collective-learning": features.collective_learning_enabled,
+            "/intelligence-feed": features.intelligence_feed_enabled,
+            "/workflow-templates": features.workflow_templates_enabled,
+            "/data-registry": features.data_registry_enabled,
+            "/apps": features.open_source_apps_enabled,
             # Admin
             "/admin": features.admin_dashboard_enabled,
         }

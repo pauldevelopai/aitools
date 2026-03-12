@@ -3,6 +3,9 @@
 Manages a background loop that rotates through a configurable list of
 missions, running them one at a time with delays between each.  All state
 is in-memory; individual runs are persisted as WorkflowRun records.
+
+Now uses the Grounded Brain (Claude-native tool_use) instead of the
+OpenAI Agents SDK.
 """
 import asyncio
 import logging
@@ -11,8 +14,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.db import SessionLocal
-from app.workflows.agent.engine import AgentEngine
-from app.workflows.agent.quality_judge import judge_mission_results
+from app.brain.engine import GroundedBrain
+from app.brain.quality import judge_mission_results
 from app.workflows.rate_limit import check_workflow_rate_limit
 from app.workflows.runtime import WorkflowRuntime
 
@@ -221,8 +224,8 @@ class AgentScheduler:
 
             runtime.update_status(run, status="running")
 
-            engine = AgentEngine(db)
-            result = await engine.run(mission_name, params, str(run.id))
+            brain = GroundedBrain(db)
+            result = await brain.run(mission_name, params, str(run.id))
 
             # Quality judging
             quality_report = None

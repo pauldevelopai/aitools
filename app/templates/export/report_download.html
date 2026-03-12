@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Implementation Report</title>
+    <style>
+        @media print {
+            body { margin: 0; font-size: 11pt; }
+            .page-break { page-break-before: always; }
+            .no-print { display: none !important; }
+            @page { margin: 2cm; }
+        }
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            color: #1a1a1a;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        h1 { font-size: 28pt; margin-bottom: 4px; }
+        h2 { font-size: 18pt; border-bottom: 2px solid {{ brand_primary_color }}; padding-bottom: 6px; margin-top: 40px; }
+        h3 { font-size: 14pt; margin-top: 24px; }
+        h4 { font-size: 12pt; margin-top: 16px; }
+        .cover { text-align: center; padding: 80px 0 60px; }
+        .cover h1 { color: {{ brand_primary_color }}; }
+        .meta { color: #666; font-size: 10pt; }
+        .score-grid { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; }
+        .score-card { background: #f7f7f7; border-radius: 6px; padding: 12px 16px; text-align: center; min-width: 100px; }
+        .score-card .value { font-size: 20pt; font-weight: bold; color: {{ brand_primary_color }}; }
+        .score-card .label { font-size: 9pt; color: #666; text-transform: capitalize; }
+        .progress-item { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 10pt; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .dot-green { background: #16a34a; }
+        .dot-gray { background: #d1d5db; }
+        .checklist-item { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eee; font-size: 10pt; }
+        .review-card { background: #f9f9f9; border-radius: 6px; padding: 12px; margin: 8px 0; }
+        .review-card .name { font-weight: bold; text-transform: capitalize; }
+        .stars { color: #eab308; letter-spacing: 1px; }
+        .rec-list li { margin-bottom: 6px; }
+        .print-btn {
+            position: fixed; top: 20px; right: 20px; padding: 10px 24px;
+            background: {{ brand_primary_color }}; color: white; border: none;
+            border-radius: 6px; cursor: pointer; font-size: 14px; font-family: sans-serif;
+        }
+        .print-btn:hover { opacity: 0.9; }
+        .footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 9pt; }
+    </style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+
+<!-- Cover -->
+<div class="cover">
+    <h1>AI Implementation Report</h1>
+    <p style="font-size: 14pt; color: #666; margin-top: 8px;">{{ user.username or user.email }}</p>
+    <p class="meta">Generated {{ generated_at.strftime('%d %B %Y') }} &middot; {{ product_name }}</p>
+</div>
+
+<!-- Table of Contents -->
+<div class="page-break">
+    <h2>Contents</h2>
+    <ol style="font-size: 11pt; line-height: 2;">
+        {% if sections.progress %}<li>Implementation Progress</li>{% endif %}
+        {% if sections.readiness %}<li>AI Readiness Assessment</li>{% endif %}
+        {% if sections.ethics_policy %}<li>{{ sections.ethics_policy.title }}</li>{% endif %}
+        {% if sections.legal_framework %}<li>{{ sections.legal_framework.title }}</li>{% endif %}
+        {% if sections.strategy_plan %}<li>AI Strategy Plan</li>{% endif %}
+        {% if sections.tool_reviews %}<li>Tool Evaluations</li>{% endif %}
+    </ol>
+</div>
+
+<!-- Progress Summary -->
+{% if sections.progress %}
+<div class="page-break">
+    <h2>1. Implementation Progress</h2>
+    <p>Overall completion: <strong>{{ sections.progress.overall_pct|round(0)|int }}%</strong></p>
+    <div style="margin: 16px 0;">
+        <div class="progress-item"><span class="dot {{ 'dot-green' if sections.progress.ethics_complete else 'dot-gray' }}"></span> Ethics Policy</div>
+        <div class="progress-item"><span class="dot {{ 'dot-green' if sections.progress.legal_complete else 'dot-gray' }}"></span> Legal Framework</div>
+        <div class="progress-item"><span class="dot {{ 'dot-green' if sections.progress.strategy_complete else 'dot-gray' }}"></span> Strategy Plan</div>
+        <div class="progress-item"><span class="dot {{ 'dot-green' if sections.progress.readiness_complete else 'dot-gray' }}"></span> Readiness Assessment</div>
+        <div class="progress-item"><span class="dot {{ 'dot-green' if sections.progress.tools_evaluated >= 3 else 'dot-gray' }}"></span> Tools Evaluated ({{ sections.progress.tools_evaluated }})</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Readiness Assessment -->
+{% if sections.readiness %}
+<div class="page-break">
+    <h2>{% if sections.progress %}2{% else %}1{% endif %}. AI Readiness Assessment</h2>
+    <div class="score-grid">
+        <div class="score-card">
+            <div class="value">{{ sections.readiness.overall_score|round(1) }}</div>
+            <div class="label">Overall (out of 5)</div>
+        </div>
+        {% for dim, score in sections.readiness.dimension_scores.items() %}
+        <div class="score-card">
+            <div class="value">{{ score|round(1) }}</div>
+            <div class="label">{{ dim }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <p><strong>Maturity Level:</strong> <span style="text-transform: capitalize;">{{ sections.readiness.maturity_level }}</span></p>
+    {% if sections.readiness.recommendations %}
+    <h3>Recommendations</h3>
+    <ul class="rec-list">
+        {% for rec in sections.readiness.recommendations %}
+        <li>{{ rec }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Ethics Policy -->
+{% if sections.ethics_policy %}
+<div class="page-break">
+    <h2>{{ sections.ethics_policy.title }}</h2>
+    <p class="meta">Version {{ sections.ethics_policy.version }}{% if sections.ethics_policy.published_at %} &middot; Published {{ sections.ethics_policy.published_at.strftime('%d %b %Y') }}{% endif %}</p>
+    {{ sections.ethics_policy.content_markdown | markdown }}
+</div>
+{% endif %}
+
+<!-- Legal Framework -->
+{% if sections.legal_framework %}
+<div class="page-break">
+    <h2>{{ sections.legal_framework.title }}</h2>
+    <p class="meta">Version {{ sections.legal_framework.version }}{% if sections.legal_framework.published_at %} &middot; Published {{ sections.legal_framework.published_at.strftime('%d %b %Y') }}{% endif %}</p>
+
+    {% if sections.legal_framework.framework_config and sections.legal_framework.framework_config.jurisdictions %}
+    <p><strong>Jurisdictions:</strong> {{ sections.legal_framework.framework_config.jurisdictions | join(', ') }}</p>
+    {% endif %}
+
+    {% if sections.legal_framework.narrative_markdown %}
+    {{ sections.legal_framework.narrative_markdown | markdown }}
+    {% endif %}
+
+    {% if sections.legal_framework.checklist_items %}
+    <h3>Compliance Checklist</h3>
+    {% for item in sections.legal_framework.checklist_items %}
+    <div class="checklist-item">
+        <span class="dot {{ 'dot-green' if item.status == 'complete' else 'dot-gray' }}"></span>
+        <div>
+            <strong>{{ item.obligation or item.description }}</strong>
+            {% if item.framework_ref %}<span class="meta"> ({{ item.framework_ref }})</span>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Strategy Plan -->
+{% if sections.strategy_plan %}
+<div class="page-break">
+    <h2>AI Strategy Plan</h2>
+    <p class="meta">Generated {{ sections.strategy_plan.created_at.strftime('%d %b %Y') }}</p>
+    {{ sections.strategy_plan.plan_text | markdown }}
+</div>
+{% endif %}
+
+<!-- Tool Reviews -->
+{% if sections.tool_reviews %}
+<div class="page-break">
+    <h2>Tool Evaluations</h2>
+    <p>{{ sections.tool_reviews|length }} tool{{ 's' if sections.tool_reviews|length != 1 }} evaluated.</p>
+    {% for review in sections.tool_reviews %}
+    <div class="review-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="name">{{ review.tool_slug|replace('-', ' ')|replace('_', ' ') }}</span>
+            <span class="stars">{{ '★' * review.rating }}{{ '☆' * (5 - review.rating) }}</span>
+        </div>
+        {% if review.comment %}<p style="margin: 4px 0 0; font-size: 10pt;">{{ review.comment }}</p>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="footer">
+    Generated by {{ product_name }} &middot; {{ generated_at.strftime('%d %B %Y') }}
+</div>
+
+</body>
+</html>

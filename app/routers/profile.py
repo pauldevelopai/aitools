@@ -140,3 +140,28 @@ async def my_tool_suggestions(
             "suggestions": suggestions,
         }
     )
+
+
+@router.post("/settings/language")
+async def set_language(
+    request: Request,
+    user: User = Depends(require_auth_page),
+    db: Session = Depends(get_db),
+):
+    """Save user's language preference."""
+    from app.services.i18n import SUPPORTED_LANGUAGES
+
+    form = await request.form()
+    lang = form.get("language", "en")
+
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = "en"
+
+    db_user = db.query(User).filter(User.id == user.id).first()
+    if db_user:
+        db_user.preferred_language = lang
+        db.commit()
+
+    # Redirect back to referrer or profile
+    referer = request.headers.get("referer", "/profile")
+    return RedirectResponse(url=referer, status_code=303)

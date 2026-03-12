@@ -668,8 +668,7 @@ async def generate_user_insights(
     """
     Generate AI insights about user engagement patterns.
     """
-    import os
-    from openai import OpenAI
+    from app.services.completion import get_completion_client
 
     target_user = db.query(User).filter(User.id == user_id).first()
 
@@ -703,20 +702,12 @@ Recent Chat Queries (up to 50):
 {chr(10).join(['- ' + q for q in chat_queries[:20]])}
 """
 
-    # Call OpenAI
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    # Call Claude
+    client = get_completion_client()
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an analytics assistant helping admins understand user engagement patterns on an AI editorial toolkit learning platform. Provide concise, actionable insights."
-                },
-                {
-                    "role": "user",
-                    "content": f"""Analyze this user's engagement with the AI Toolkit platform and provide insights:
+        insights = client.complete(
+            prompt=f"""Analyze this user's engagement with the Grounded platform and provide insights:
 
 {context}
 
@@ -726,13 +717,10 @@ Provide:
 3. Suggestions for content or features that might benefit them
 4. Any notable patterns or concerns
 
-Keep it concise and actionable."""
-                }
-            ],
-            max_tokens=500
+Keep it concise and actionable.""",
+            max_tokens=500,
+            system="You are an analytics assistant helping admins understand user engagement patterns on the Grounded AI platform. Provide concise, actionable insights.",
         )
-
-        insights = response.choices[0].message.content
     except Exception as e:
         insights = f"Error generating insights: {str(e)}"
 
@@ -2389,3 +2377,46 @@ async def delete_library_item(
     db.commit()
 
     return RedirectResponse(url="/admin/library", status_code=303)
+
+
+# =============================================================================
+# ADMIN INSIGHTS DASHBOARD
+# =============================================================================
+
+@router.get("/insights", response_class=HTMLResponse)
+async def admin_insights(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin insights dashboard — what do users need next."""
+    from app.services.admin_insights import (
+        get_onboarding_funnel,
+        get_orgs_without_policies,
+        get_sector_breakdown,
+        get_geographic_distribution,
+        get_engagement_metrics,
+        get_knowledge_gap_summary,
+    )
+
+    funnel = get_onboarding_funnel(db)
+    no_policy = get_orgs_without_policies(db, limit=10)
+    sectors = get_sector_breakdown(db)
+    geo = get_geographic_distribution(db)
+    engagement = get_engagement_metrics(db)
+    gaps = get_knowledge_gap_summary(db)
+
+    return templates.TemplateResponse(
+        "admin/insights.html",
+        {
+            "request": request,
+            "user": user,
+            "title": "Admin Insights",
+            "funnel": funnel,
+            "no_policy": no_policy,
+            "sectors": sectors,
+            "geo": geo,
+            "engagement": engagement,
+            "gaps": gaps,
+        },
+    )

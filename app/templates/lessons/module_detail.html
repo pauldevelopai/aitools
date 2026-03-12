@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}{{ module.name }} - Lessons - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-0">
+
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-gray-500 mb-4">
+        <a href="/lessons" class="hover:underline">Lessons</a>
+        <span class="mx-1">/</span>
+        <span class="text-gray-900">{{ module.name }}</span>
+    </nav>
+
+    <!-- Module header -->
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ module.name }}</h1>
+            <p class="text-gray-600">{{ module.description }}</p>
+            <div class="mt-2 text-xs text-gray-400 uppercase tracking-wider">
+                {{ module.difficulty }}
+                {% if module.sector %}&bull; {{ module.sector|replace('_', ' ')|title }}{% endif %}
+            </div>
+        </div>
+        {% if token_profile %}
+        <div class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-right flex-shrink-0 ml-4">
+            <div class="text-xl font-bold" style="color: {{ brand_primary_color }}">{{ token_profile.balance }}</div>
+            <div class="text-xs text-gray-500">tokens</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not unlocked %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <p class="text-yellow-800 text-sm">This module is locked. Complete the previous module to unlock it.</p>
+    </div>
+    {% endif %}
+
+    <!-- Lessons list -->
+    <div class="space-y-4">
+        {% for lesson in lessons %}
+        {% set prog = progress_map.get(lesson.id|string) %}
+        {% set is_completed = prog and prog.status == 'completed' %}
+        {% set is_started = prog and prog.status == 'started' %}
+
+        <a href="{% if unlocked %}/lessons/{{ module.slug }}/{{ lesson.slug }}{% else %}#{% endif %}"
+           class="block bg-white border rounded-lg p-5 transition-all
+                  {% if is_completed %}border-green-200 bg-green-50
+                  {% elif is_started %}border-yellow-200
+                  {% elif unlocked %}border-gray-200 hover:border-blue-300 hover:shadow-sm
+                  {% else %}border-gray-100 opacity-50 cursor-not-allowed{% endif %}">
+
+            <div class="flex items-start gap-4">
+                <!-- Status indicator -->
+                <div class="flex-shrink-0 mt-0.5">
+                    {% if is_completed %}
+                    <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    {% elif is_started %}
+                    <div class="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center">
+                        <span class="text-sm font-bold text-white">{{ lesson.order }}</span>
+                    </div>
+                    {% else %}
+                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span class="text-sm font-bold text-gray-500">{{ lesson.order }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <h3 class="text-base font-semibold text-gray-900">{{ lesson.title }}</h3>
+                        {% if is_completed %}
+                        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">Complete</span>
+                        {% elif is_started %}
+                        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">In Progress</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-gray-600">{{ lesson.description }}</p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                        <span class="capitalize">{{ lesson.task_type }}</span>
+                        {% if lesson.estimated_minutes %}
+                        <span>&bull; ~{{ lesson.estimated_minutes }} min</span>
+                        {% endif %}
+                        <span>&bull; {{ lesson.verification_type|replace('_', ' ')|title }}</span>
+                        <span class="font-medium" style="color: {{ brand_primary_color }}">&bull; +{{ lesson.token_reward }} token{{ 's' if lesson.token_reward != 1 }}</span>
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% if not lessons %}
+    <div class="text-center py-12 text-gray-500">
+        <p>No lessons in this module yet. Check back soon!</p>
+    </div>
+    {% endif %}
+
+    {% if not user %}
+    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+        <p class="text-blue-800 mb-3">Sign in to start completing lessons and earning tokens.</p>
+        <a href="/auth/login" class="inline-block px-4 py-2 text-sm font-medium text-white rounded-lg" style="background-color: {{ brand_primary_color }}">Sign In</a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

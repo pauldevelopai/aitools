@@ -2,12 +2,12 @@
 import logging
 from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
-from openai import OpenAI
 
 # Import auth models first to ensure User table is registered
 from app.models.auth import User  # noqa: F401
 from app.models.toolkit import StrategyPlan
 from app.services.rag import search_similar_chunks
+from app.services.completion import get_completion_client
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -181,7 +181,7 @@ def _generate_grounded_plan(
     context = "\n\n".join(context_parts)
 
     # Build prompt - focused on practical, actionable advice
-    system_prompt = """You are a practical AI implementation advisor for journalists and newsrooms.
+    system_prompt = """You are a practical AI implementation advisor for organisations.
 
 Your job is to create SHORT, ACTIONABLE implementation plans. Not corporate strategy documents.
 
@@ -190,7 +190,7 @@ RULES:
 2. Give concrete first steps someone can do TODAY.
 3. Cite sources using [1], [2] format.
 4. Skip generic advice like "consider your needs" or "evaluate options."
-5. If the toolkit content doesn't have a good match, say so briefly.
+5. If the Grounded content doesn't have a good match, say so briefly.
 6. Keep sections short. Bullet points over paragraphs.
 7. Focus on the 2-3 most relevant tools, not a comprehensive list.
 8. If USER PERSONALIZATION is provided, tailor recommendations to their interests and learning style.
@@ -278,20 +278,16 @@ List 2-3 specific tools from the content above. For each:
 
 Cite sources as [1], [2] etc. Keep it under 500 words total."""
 
-    # Call OpenAI API
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    # Call Claude API
+    client = get_completion_client()
 
     try:
-        completion = client.chat.completions.create(
-            model=settings.OPENAI_CHAT_MODEL,
-            temperature=0.2,  # Low for consistency
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
+        plan_text = client.complete(
+            prompt=user_prompt,
+            max_tokens=2048,
+            temperature=0.2,
+            system=system_prompt,
         )
-
-        plan_text = completion.choices[0].message.content
 
     except Exception as e:
         raise ValueError(f"Error generating strategy plan: {e}")

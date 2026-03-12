@@ -35,6 +35,7 @@ class DiscoveredTool(Base):
     # Categorization
     categories = Column(JSONB, nullable=True, default=list)  # List of categories/use cases
     tags = Column(JSONB, nullable=True, default=list)  # Auto-extracted tags
+    sectors = Column(JSONB, nullable=True, default=list)  # ["newsroom", "ngo", "law_firm", "business"]
 
     # Discovery metadata
     source_type = Column(String, nullable=False, index=True)  # "github", "producthunt", "awesome_list", "directory"

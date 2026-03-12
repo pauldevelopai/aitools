@@ -8,7 +8,6 @@ import re
 from typing import Optional
 import httpx
 from bs4 import BeautifulSoup
-from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from app.models.discovery import DiscoveredTool
@@ -16,8 +15,20 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client
-client = OpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+# Claude client is lazily initialized via get_completion_client()
+_claude_client = None
+
+
+def _get_claude_client():
+    """Get Claude completion client (lazy init)."""
+    global _claude_client
+    if _claude_client is None:
+        try:
+            from app.services.completion import get_completion_client
+            _claude_client = get_completion_client()
+        except Exception as e:
+            logger.warning(f"Claude client not available: {e}")
+    return _claude_client
 
 
 def fetch_url_content(url: str, timeout: float = 10.0) -> Optional[str]:
@@ -96,8 +107,9 @@ def generate_tool_content(
 
     Returns dict with 'description', 'purpose', and 'ai_summary'.
     """
+    client = _get_claude_client()
     if not client:
-        logger.warning("OpenAI client not available - skipping content generation")
+        logger.warning("Claude client not available - skipping content generation")
         return {
             "description": raw_description,
             "purpose": None,
@@ -118,11 +130,11 @@ def generate_tool_content(
 
     context = "\n\n".join(context_parts)
 
-    prompt = f"""You are a technical writer for AI Toolkit, a journalism AI tools platform. Based on the information provided about this tool, write:
+    prompt = f"""You are a technical writer for Grounded, an ethical AI implementation platform. Based on the information provided about this tool, write:
 
 1. A clear, factual DESCRIPTION (2-3 paragraphs) explaining what the tool is and what it does. Be specific about features and capabilities. Do not make up features - only describe what you can verify from the provided content.
 
-2. A PURPOSE statement (1-2 paragraphs) explaining why this tool is relevant for journalists and newsrooms. How could it be used in editorial workflows? What problems does it solve?
+2. A PURPOSE statement (1-2 paragraphs) explaining why this tool is relevant for organisations implementing AI. How could it be used in workflows? What problems does it solve?
 
 3. A brief AI_SUMMARY (1-2 sentences) that captures the essence of the tool.
 
@@ -134,29 +146,26 @@ Tool URL: {tool_url}
 Respond in this exact JSON format:
 {{
     "description": "Your detailed description here...",
-    "purpose": "Your purpose/journalism relevance statement here...",
+    "purpose": "Your purpose/relevance statement here...",
     "ai_summary": "Brief one-line summary here..."
 }}
 
 Important:
 - Be factual and accurate - do not invent features
 - If information is limited, acknowledge what the tool appears to do based on available evidence
-- Focus on practical value for journalists
+- Focus on practical value for organisations
 - Use professional, clear language
 - Do not include marketing fluff or exaggeration"""
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a technical documentation writer. Always respond with valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
+        content = client.complete(
+            prompt=prompt,
             max_tokens=1500,
+            temperature=0.3,
+            system="You are a technical documentation writer. Always respond with valid JSON.",
         )
 
-        content = response.choices[0].message.content.strip()
+        content = content.strip()
 
         # Parse JSON response
         import json

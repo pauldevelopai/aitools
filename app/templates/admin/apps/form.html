@@ -1,0 +1,163 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if app_item %}Edit{% else %}Create{% endif %} App{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">{% if app_item %}Edit App{% else %}Create App{% endif %}</h1>
+            <p class="text-sm text-gray-600 mt-1">
+                {% if app_item %}Update "{{ app_item.name }}"{% else %}Add a new open-source application to the directory{% endif %}
+            </p>
+        </div>
+        <a href="/admin/apps" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Apps</a>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <form action="{% if app_item %}/admin/apps/{{ app_item.id }}/edit{% else %}/admin/apps/create{% endif %}" method="POST" class="space-y-6">
+
+            <!-- Name -->
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700">Name *</label>
+                <input type="text" name="name" id="name" required
+                       value="{{ app_item.name if app_item else '' }}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- GitHub URL -->
+            <div>
+                <label for="github_url" class="block text-sm font-medium text-gray-700">GitHub URL *</label>
+                <input type="url" name="github_url" id="github_url" required
+                       value="{{ app_item.github_url if app_item else '' }}"
+                       placeholder="https://github.com/org/repo"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Website URL + Docs URL -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="website_url" class="block text-sm font-medium text-gray-700">Website URL</label>
+                    <input type="url" name="website_url" id="website_url"
+                           value="{{ app_item.website_url if app_item and app_item.website_url else '' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+                <div>
+                    <label for="docs_url" class="block text-sm font-medium text-gray-700">Docs URL</label>
+                    <input type="url" name="docs_url" id="docs_url"
+                           value="{{ app_item.docs_url if app_item and app_item.docs_url else '' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea name="description" id="description" rows="3"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">{{ app_item.description if app_item and app_item.description else '' }}</textarea>
+            </div>
+
+            <!-- License Type + Deployment Type + Difficulty -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="license_type" class="block text-sm font-medium text-gray-700">License Type</label>
+                    <input type="text" name="license_type" id="license_type"
+                           value="{{ app_item.license_type if app_item else 'MIT' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+                <div>
+                    <label for="deployment_type" class="block text-sm font-medium text-gray-700">Deployment Type</label>
+                    <select name="deployment_type" id="deployment_type"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                        <option value="self_hosted" {% if app_item and app_item.deployment_type == 'self_hosted' %}selected{% endif %}>Self Hosted</option>
+                        <option value="cloud" {% if app_item and app_item.deployment_type == 'cloud' %}selected{% endif %}>Cloud</option>
+                        <option value="hybrid" {% if app_item and app_item.deployment_type == 'hybrid' %}selected{% endif %}>Hybrid</option>
+                        <option value="desktop" {% if app_item and app_item.deployment_type == 'desktop' %}selected{% endif %}>Desktop</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="difficulty" class="block text-sm font-medium text-gray-700">Difficulty</label>
+                    <select name="difficulty" id="difficulty"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                        <option value="beginner" {% if app_item and app_item.difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
+                        <option value="intermediate" {% if app_item and app_item.difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                        <option value="advanced" {% if app_item and app_item.difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Pricing Model -->
+            <div>
+                <label for="pricing_model" class="block text-sm font-medium text-gray-700">Pricing Model</label>
+                <select name="pricing_model" id="pricing_model"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                    <option value="free" {% if app_item and app_item.pricing_model == 'free' %}selected{% endif %}>Free</option>
+                    <option value="freemium" {% if app_item and app_item.pricing_model == 'freemium' %}selected{% endif %}>Freemium</option>
+                    <option value="open_core" {% if app_item and app_item.pricing_model == 'open_core' %}selected{% endif %}>Open Core</option>
+                </select>
+            </div>
+
+            <!-- Platforms -->
+            <div>
+                <label for="platforms" class="block text-sm font-medium text-gray-700">Platforms (comma-separated)</label>
+                <input type="text" name="platforms" id="platforms"
+                       value="{{ platforms_str if platforms_str is defined else '' }}"
+                       placeholder="linux, macos, windows, docker"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Categories -->
+            <div>
+                <label for="categories" class="block text-sm font-medium text-gray-700">Categories (comma-separated)</label>
+                <input type="text" name="categories" id="categories"
+                       value="{{ categories_str if categories_str is defined else '' }}"
+                       placeholder="analytics, cms, collaboration"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Tags -->
+            <div>
+                <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+                <input type="text" name="tags" id="tags"
+                       value="{{ tags_str if tags_str is defined else '' }}"
+                       placeholder="ai, privacy, self-hosted"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Sectors -->
+            <div>
+                <label for="sectors" class="block text-sm font-medium text-gray-700">Sectors (comma-separated)</label>
+                <input type="text" name="sectors" id="sectors"
+                       value="{{ sectors_str if sectors_str is defined else '' }}"
+                       placeholder="media, education, healthcare"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Installation Guide -->
+            <div>
+                <label for="installation_guide" class="block text-sm font-medium text-gray-700">Installation Guide (Markdown)</label>
+                <textarea name="installation_guide" id="installation_guide" rows="12"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2 font-mono text-sm">{{ app_item.installation_guide if app_item and app_item.installation_guide else '' }}</textarea>
+            </div>
+
+            <!-- System Requirements -->
+            <div>
+                <label for="system_requirements" class="block text-sm font-medium text-gray-700">System Requirements (Markdown)</label>
+                <textarea name="system_requirements" id="system_requirements" rows="6"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2 font-mono text-sm">{{ app_item.system_requirements if app_item and app_item.system_requirements else '' }}</textarea>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                <a href="/admin/apps" class="text-sm text-gray-500 hover:text-gray-700">Cancel</a>
+                <button type="submit"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                    {% if app_item %}Save Changes{% else %}Create App{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

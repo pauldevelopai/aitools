@@ -41,6 +41,8 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/strategy/generate",
             "/health",
             "/ready",
+            "/readiness/submit",
+            "/settings/language",
         }
 
         # Path prefixes exempt from CSRF (protected by other auth mechanisms)
@@ -52,6 +54,13 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/legal-builder/",  # Protected by require_auth, JSON autosave via fetch()
             "/library/",  # Copy-to-draft POST via fetch(), protected by require_auth
             "/admin/agent/",  # AI Agent JSON fetch endpoints, protected by require_admin
+            "/learning-paths/",  # Enroll + step complete via fetch(), protected by require_auth
+            "/lessons/",  # Lesson start/complete via fetch(), protected by require_auth
+            "/collective-learning/",  # AJAX stats via fetch(), protected by require_auth
+            "/intelligence-feed/",  # Mark-as-read via fetch(), protected by require_auth
+            "/workflow-templates/",  # Start workflow via fetch(), protected by require_auth
+            "/data-registry/",  # Create/inquire via fetch(), protected by require_auth
+            "/apps/",  # Open source apps directory
         ]
 
     async def dispatch(self, request: Request, call_next):

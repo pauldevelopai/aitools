@@ -1,0 +1,124 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if lesson %}Edit{% else %}Create{% endif %} Lesson{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">{% if lesson %}Edit Lesson{% else %}Create Lesson{% endif %}</h1>
+            <p class="text-sm text-gray-600 mt-1">
+                {% if lesson %}Update "{{ lesson.title }}"{% else %}Add a new lesson to {{ module.name }}{% endif %}
+            </p>
+        </div>
+        <a href="/admin/lessons/module/{{ module.id }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to {{ module.name }}</a>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <form action="{% if lesson %}/admin/lessons/lesson/{{ lesson.id }}/edit{% else %}/admin/lessons/module/{{ module.id }}/create-lesson{% endif %}" method="POST" class="space-y-6">
+
+            <!-- Title -->
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700">Title *</label>
+                <input type="text" name="title" id="title" required
+                       value="{{ lesson.title if lesson else '' }}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea name="description" id="description" rows="3"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">{{ lesson.description if lesson and lesson.description else '' }}</textarea>
+            </div>
+
+            <!-- Content Markdown -->
+            <div>
+                <label for="content_markdown" class="block text-sm font-medium text-gray-700">Content (Markdown) *</label>
+                <textarea name="content_markdown" id="content_markdown" rows="16" required
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2 font-mono text-sm">{{ lesson.content_markdown if lesson else '' }}</textarea>
+            </div>
+
+            <!-- Learning Objectives -->
+            <div>
+                <label for="learning_objectives" class="block text-sm font-medium text-gray-700">Learning Objectives (comma-separated)</label>
+                <input type="text" name="learning_objectives" id="learning_objectives"
+                       value="{{ objectives_str if objectives_str is defined else '' }}"
+                       placeholder="Understand X, Apply Y, Evaluate Z"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Task Type + Verification Type row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="task_type" class="block text-sm font-medium text-gray-700">Task Type *</label>
+                    <select name="task_type" id="task_type" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                        <option value="action" {% if lesson and lesson.task_type == 'action' %}selected{% endif %}>Action</option>
+                        <option value="reflection" {% if lesson and lesson.task_type == 'reflection' %}selected{% endif %}>Reflection</option>
+                        <option value="quiz" {% if lesson and lesson.task_type == 'quiz' %}selected{% endif %}>Quiz</option>
+                        <option value="exploration" {% if lesson and lesson.task_type == 'exploration' %}selected{% endif %}>Exploration</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="verification_type" class="block text-sm font-medium text-gray-700">Verification Type *</label>
+                    <select name="verification_type" id="verification_type" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                        <option value="self_report" {% if lesson and lesson.verification_type == 'self_report' %}selected{% endif %}>Self Report</option>
+                        <option value="ai_review" {% if lesson and lesson.verification_type == 'ai_review' %}selected{% endif %}>AI Review</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Task Prompt -->
+            <div>
+                <label for="task_prompt" class="block text-sm font-medium text-gray-700">Task Prompt *</label>
+                <textarea name="task_prompt" id="task_prompt" rows="4" required
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">{{ lesson.task_prompt if lesson else '' }}</textarea>
+            </div>
+
+            <!-- Task Hints -->
+            <div>
+                <label for="task_hints" class="block text-sm font-medium text-gray-700">Task Hints (comma-separated)</label>
+                <input type="text" name="task_hints" id="task_hints"
+                       value="{{ hints_str if hints_str is defined else '' }}"
+                       placeholder="Try looking at..., Consider..., Remember..."
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+            </div>
+
+            <!-- Token Reward + Estimated Minutes + Order row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="token_reward" class="block text-sm font-medium text-gray-700">Token Reward</label>
+                    <input type="number" name="token_reward" id="token_reward"
+                           value="{{ lesson.token_reward if lesson else 1 }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+                <div>
+                    <label for="estimated_minutes" class="block text-sm font-medium text-gray-700">Estimated Minutes</label>
+                    <input type="number" name="estimated_minutes" id="estimated_minutes"
+                           value="{{ lesson.estimated_minutes if lesson and lesson.estimated_minutes else '' }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+                <div>
+                    <label for="order" class="block text-sm font-medium text-gray-700">Order</label>
+                    <input type="number" name="order" id="order"
+                           value="{{ lesson.order if lesson else 1 }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2">
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                <a href="/admin/lessons/module/{{ module.id }}" class="text-sm text-gray-500 hover:text-gray-700">Cancel</a>
+                <button type="submit"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                    {% if lesson %}Save Changes{% else %}Create Lesson{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

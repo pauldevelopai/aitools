@@ -9,8 +9,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from openai import OpenAI
-
+from app.services.completion import get_completion_client
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ class ExtractedPlaybook:
     source_citations: dict[str, list[str]]  # section -> list of source URLs that contributed
 
 
-EXTRACTION_SYSTEM_PROMPT = """You are an expert at extracting and synthesizing information from web content to create practical implementation guides for newsrooms.
+EXTRACTION_SYSTEM_PROMPT = """You are an expert at extracting and synthesizing information from web content to create practical implementation guides for organisations.
 
 Your task is to analyze the provided source content and extract ONLY information that is directly present or clearly implied in the sources. DO NOT invent, fabricate, or assume information not in the sources.
 
@@ -38,26 +37,26 @@ CRITICAL RULES:
 1. ONLY include information you can trace back to the provided sources
 2. If information for a section is not found in the sources, return null for that section
 3. For each piece of information, mentally note which source it came from
-4. Write for a newsroom audience - journalists, editors, and media organizations
+4. Write for a broad professional audience - organisations implementing AI ethically
 5. Be specific and practical, not generic or vague
 6. Include concrete examples when found in sources
 7. Preserve important caveats, limitations, and warnings from the sources
 
 You must respond with a JSON object containing the following fields:
-- best_use_cases: string or null - Best newsroom use cases for this tool (from real examples or documentation)
-- implementation_steps: string or null - Step-by-step how a newsroom would implement this tool
+- best_use_cases: string or null - Best use cases for this tool (from real examples or documentation)
+- implementation_steps: string or null - Step-by-step how an organisation would implement this tool
 - common_mistakes: string or null - Common mistakes, risks, or pitfalls mentioned in the sources
-- privacy_notes: string or null - Privacy, source protection, and security notes relevant to journalism
+- privacy_notes: string or null - Privacy, data protection, and security notes
 - replaces_improves: string or null - What workflows or tools this replaces or improves
-- key_features: array of strings - Key features particularly relevant to newsrooms
-- pricing_summary: string or null - Pricing information relevant to newsroom budgets
-- integration_notes: string or null - Integration with common newsroom tools (CMS, workflow tools, etc.)
+- key_features: array of strings - Key features particularly relevant to organisations
+- pricing_summary: string or null - Pricing information relevant to organisational budgets
+- integration_notes: string or null - Integration with common workflow tools
 - source_citations: object - Maps each non-null section name to array of source URLs that contributed
 
 Be thorough but only include what's supported by the sources."""
 
 
-EXTRACTION_USER_PROMPT = """Analyze the following scraped content from {tool_name}'s website and related pages to extract newsroom-relevant guidance.
+EXTRACTION_USER_PROMPT = """Analyze the following scraped content from {tool_name}'s website and related pages to extract implementation guidance.
 
 TOOL: {tool_name}
 TOOL URL: {tool_url}
@@ -66,10 +65,10 @@ TOOL DESCRIPTION: {tool_description}
 SCRAPED SOURCES:
 {sources_content}
 
-Extract information from these sources to create a newsroom implementation playbook. Remember:
+Extract information from these sources to create an implementation playbook. Remember:
 - ONLY include information found in the sources
 - Return null for sections where no relevant information was found
-- Be specific and practical for newsroom use
+- Be specific and practical
 
 Respond with a JSON object."""
 
@@ -79,21 +78,18 @@ class PlaybookExtractor:
 
     def __init__(
         self,
-        model: str | None = None,
         temperature: float = 0.1,
         max_tokens: int = 4000,
     ):
         """Initialize the extractor.
 
         Args:
-            model: OpenAI model to use (default from settings)
             temperature: Lower temperature for more factual extraction
             max_tokens: Maximum tokens in response
         """
-        self.model = model or settings.OPENAI_CHAT_MODEL
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = get_completion_client()
 
     def _format_sources(self, sources: list[dict]) -> str:
         """Format scraped sources for the prompt.
@@ -206,19 +202,14 @@ Content:
         )
 
         try:
-            # Call OpenAI
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                temperature=self.temperature,
+            # Call Claude
+            response_text = self.client.complete(
+                prompt=user_prompt,
                 max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt}
-                ]
+                temperature=self.temperature,
+                system=EXTRACTION_SYSTEM_PROMPT,
             )
 
-            response_text = completion.choices[0].message.content
             parsed = self._parse_response(response_text)
 
             return ExtractedPlaybook(
@@ -243,12 +234,10 @@ class PlaybookEnricher:
 
     def __init__(
         self,
-        model: str | None = None,
         temperature: float = 0.1,
     ):
-        self.model = model or settings.OPENAI_CHAT_MODEL
         self.temperature = temperature
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = get_completion_client()
 
     def enrich_section(
         self,
@@ -295,17 +284,12 @@ RULES:
 Respond with just the updated section text (or null)."""
 
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                temperature=self.temperature,
+            result = self.client.complete(
+                prompt=prompt,
                 max_tokens=1500,
-                messages=[
-                    {"role": "system", "content": "You enrich playbook sections with information from new sources. Be factual and source-grounded."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-
-            result = completion.choices[0].message.content.strip()
+                temperature=self.temperature,
+                system="You enrich playbook sections with information from new sources. Be factual and source-grounded.",
+            ).strip()
             if result.lower() == "null" or result.lower() == "none":
                 return existing_content
             return result

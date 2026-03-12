@@ -11,10 +11,9 @@ from app.db import Base
 
 
 class DiscoveredResource(Base):
-    """Resource about AI and media discovered via automated pipeline.
+    """Resource about AI discovered via automated pipeline.
 
-    Resources are reports, studies, articles about AI in journalism/media.
-    Sources include: Nieman Lab, Reuters Institute, Poynter, etc.
+    Resources are reports, studies, articles about ethical AI implementation.
     """
 
     __tablename__ = "discovered_resources"
@@ -31,6 +30,7 @@ class DiscoveredResource(Base):
     summary = Column(Text, nullable=True)  # Brief summary
     ai_extract = Column(Text, nullable=True)  # AI-extracted key points
     themes = Column(JSONB, nullable=True, default=list)  # Key themes/topics
+    sectors = Column(JSONB, nullable=True, default=list)  # ["newsroom", "ngo", "law_firm", "business"]
 
     # Source metadata
     source = Column(String, nullable=True)  # Publisher name (e.g., "Nieman Lab")

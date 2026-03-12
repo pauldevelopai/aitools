@@ -4,11 +4,11 @@ from typing import Optional
 from datetime import datetime, timezone
 
 import pandas as pd
-from openai import OpenAI
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.models.directory import MediaOrganization
+from app.services.completion import get_completion_client
 from app.settings import settings
 from app.models.spreadsheet_import import SpreadsheetImport
 
@@ -138,12 +138,12 @@ def parse_spreadsheet(file_path: str, file_type: str) -> dict:
 
 
 def ai_map_columns(headers: list, sample_rows: list, knowledge: dict = None) -> dict:
-    """Use GPT-4o-mini to map spreadsheet columns to target fields.
+    """Use Claude to map spreadsheet columns to target fields.
 
     Returns:
         dict with keys: mapping, unmapped, missing_required
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_completion_client()
 
     target_desc = "\n".join(
         f"- {field}: {info['description']} {'(REQUIRED)' if info['required'] else '(optional)'}"
@@ -163,17 +163,7 @@ def ai_map_columns(headers: list, sample_rows: list, knowledge: dict = None) -> 
             knowledge_text += f"- \"{col}\" was mapped to \"{info['field']}\" ({info['times_used']} times)\n"
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are a data mapping assistant. Given spreadsheet column headers and sample data,
-map them to target database fields. Return ONLY valid JSON with no markdown formatting.""",
-                },
-                {
-                    "role": "user",
-                    "content": f"""Map these spreadsheet columns to the target fields.
+        user_prompt = f"""Map these spreadsheet columns to the target fields.
 
 Spreadsheet columns: {json.dumps(headers)}
 
@@ -194,14 +184,14 @@ Rules:
 - Use null for columns that don't map to any target field
 - Be smart about synonyms: "Organisation" = name, "Type" = org_type, "Location"/"Country" = country, "URL"/"Web" = website
 - If previous mappings are provided, use them as strong hints for matching column names
-- Only map a column if you're reasonably confident""",
-                },
-            ],
+- Only map a column if you're reasonably confident"""
+
+        content = client.complete(
+            prompt=user_prompt,
             max_tokens=500,
             temperature=0.1,
-        )
-
-        content = response.choices[0].message.content.strip()
+            system="You are a data mapping assistant. Given spreadsheet column headers and sample data, map them to target database fields. Return ONLY valid JSON with no markdown formatting.",
+        ).strip()
         # Strip markdown code fences if present
         if content.startswith("```"):
             content = content.split("\n", 1)[1]
@@ -266,7 +256,7 @@ def ai_classify_rows(import_session: SpreadsheetImport, knowledge: dict = None) 
     Processes rows in batches and returns a row_overrides dict:
         {row_index_str: {"org_type": "...", "country": "..."}}
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_completion_client()
 
     mapping = import_session.column_mapping or {}
     # Find the column mapped to 'name'
@@ -346,29 +336,20 @@ def ai_classify_rows(import_session: SpreadsheetImport, knowledge: dict = None) 
   If you genuinely don't know, omit the country field for that row."""
 
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a media industry expert. Classify media organizations. Return ONLY valid JSON, no markdown.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"""Classify these media organizations. For each, provide:{field_instructions}
+            classify_prompt = f"""Classify these media organizations. For each, provide:{field_instructions}
 
 Organizations:
 {json.dumps(orgs_list)}
 
 Return a JSON array where each element has "idx" (the original index) and the classification fields.
-Example: [{{"idx": 0, "org_type": "newspaper", "country": "Ireland"}}]""",
-                    },
-                ],
+Example: [{{"idx": 0, "org_type": "newspaper", "country": "Ireland"}}]"""
+
+            content = client.complete(
+                prompt=classify_prompt,
                 max_tokens=2000,
                 temperature=0.1,
-            )
-
-            content = response.choices[0].message.content.strip()
+                system="You are a media industry expert. Classify media organizations. Return ONLY valid JSON, no markdown.",
+            ).strip()
             if content.startswith("```"):
                 content = content.split("\n", 1)[1]
                 if content.endswith("```"):
@@ -399,7 +380,7 @@ def generate_chat_response(import_session: SpreadsheetImport, user_message: str,
     Returns:
         dict with keys: response, chat_history, field_defaults, is_complete
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_completion_client()
 
     mapping = import_session.column_mapping or {}
     field_defaults = import_session.field_defaults or {}
@@ -488,19 +469,19 @@ def generate_chat_response(import_session: SpreadsheetImport, user_message: str,
 
 If no new blanket defaults, use: <defaults>{{}}</defaults>"""
 
-    messages = [{"role": "system", "content": system_prompt}]
+    messages = []
     # Include recent chat history (last 10 exchanges)
     for msg in chat_history[-10:]:
         messages.append({"role": msg["role"], "content": msg["content"]})
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
+        content = client.complete(
+            prompt="",  # Messages carry the conversation
             max_tokens=600,
             temperature=0.4,
+            system=system_prompt,
+            messages=messages,
         )
-        content = response.choices[0].message.content
     except Exception as e:
         content = f"Sorry, I had trouble processing that. Error: {str(e)}\n<defaults>{{}}</defaults>"
 

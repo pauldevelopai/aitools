@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Benchmarking - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Benchmarking</h1>
+    <p class="text-gray-600 mb-8">See how your AI adoption compares to peer organisations</p>
+
+    <!-- Adoption Stage Gauge -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Your Adoption Stage</h2>
+        <div class="flex items-center gap-6">
+            <div class="text-center">
+                <div class="text-5xl font-bold" style="color: {{ brand_primary_color }}">{{ comparison.user_stage|round(1) }}</div>
+                <div class="text-sm text-gray-500 mt-1">out of 5.0</div>
+            </div>
+            <div class="flex-1">
+                <div class="w-full bg-gray-200 rounded-full h-4 relative">
+                    <!-- User marker -->
+                    <div class="absolute h-4 rounded-full" style="width: {{ (comparison.user_stage / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+                    <!-- Sector avg marker -->
+                    {% if comparison.sector_avg %}
+                    <div class="absolute top-0 w-0.5 h-4 bg-orange-500" style="left: {{ (comparison.sector_avg / 5 * 100)|round }}%" title="Sector average: {{ comparison.sector_avg|round(1) }}"></div>
+                    {% endif %}
+                    <!-- Global avg marker -->
+                    {% if comparison.global_avg %}
+                    <div class="absolute top-0 w-0.5 h-4 bg-gray-600" style="left: {{ (comparison.global_avg / 5 * 100)|round }}%" title="Global average: {{ comparison.global_avg|round(1) }}"></div>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                    <span class="flex items-center gap-1">
+                        <span class="w-3 h-2 rounded" style="background-color: {{ brand_primary_color }}"></span> You
+                    </span>
+                    {% if comparison.sector_avg %}
+                    <span class="flex items-center gap-1">
+                        <span class="w-3 h-2 rounded bg-orange-500"></span> {{ comparison.sector|replace('_', ' ')|title if comparison.sector else 'Sector' }} avg ({{ comparison.sector_avg|round(1) }})
+                    </span>
+                    {% endif %}
+                    {% if comparison.global_avg %}
+                    <span class="flex items-center gap-1">
+                        <span class="w-3 h-2 rounded bg-gray-600"></span> Global avg ({{ comparison.global_avg|round(1) }})
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dimension Comparison -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Dimension Comparison</h2>
+
+        {% if comparison.user_dimensions %}
+        <div class="space-y-4">
+            {% for dim, score in comparison.user_dimensions.items() %}
+            {% set sector_score = comparison.sector_dimensions[dim] if comparison.sector_dimensions and dim in comparison.sector_dimensions else None %}
+            {% set global_score = comparison.global_dimensions[dim] if comparison.global_dimensions and dim in comparison.global_dimensions else None %}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-medium text-gray-700 capitalize">{{ dim }}</span>
+                    <span class="text-sm font-bold" style="color: {{ brand_primary_color }}">{{ score|round(1) }}</span>
+                </div>
+                <div class="relative">
+                    <!-- User bar -->
+                    <div class="w-full bg-gray-100 rounded-full h-3">
+                        <div class="h-3 rounded-full" style="width: {{ (score / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+                    </div>
+                    <!-- Sector marker -->
+                    {% if sector_score %}
+                    <div class="absolute top-0 w-0.5 h-3 bg-orange-500 rounded" style="left: {{ (sector_score / 5 * 100)|round }}%" title="{{ dim|title }} sector avg: {{ sector_score }}"></div>
+                    {% endif %}
+                </div>
+                <div class="flex gap-3 mt-0.5 text-xs text-gray-400">
+                    {% if sector_score %}<span>Sector: {{ sector_score }}</span>{% endif %}
+                    {% if global_score %}<span>Global: {{ global_score }}</span>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-400 text-sm">Take the <a href="/readiness" class="underline" style="color: {{ brand_primary_color }}">AI Readiness Assessment</a> to see your dimension scores.</p>
+        {% endif %}
+    </div>
+
+    <!-- Insights -->
+    {% if comparison.insights %}
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Insights</h2>
+        <ul class="space-y-2">
+            {% for insight in comparison.insights %}
+            <li class="flex items-start gap-2 text-gray-700">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" style="color: {{ brand_primary_color }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>{{ insight }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Privacy note -->
+    <p class="text-xs text-gray-400 text-center">
+        Based on anonymous aggregated data{% if comparison.sector_sample or comparison.global_sample %}
+        from {{ comparison.global_sample or comparison.sector_sample }} organisation{{ 's' if (comparison.global_sample or comparison.sector_sample) != 1 }}{% endif %}.
+        Individual data is never shared.
+    </p>
+
+</div>
+{% endblock %}

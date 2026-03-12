@@ -1,6 +1,6 @@
 {# Tool Playbook Component - Public View
 
-Shows newsroom implementation guidance from the playbook (if published).
+Shows implementation guidance from the playbook (if published).
 
 Usage:
 {% include "components/tool_playbook.html" %}
@@ -19,7 +19,7 @@ Required context:
         </span>
     </div>
     <p class="text-sm text-gray-500 mb-6">
-        Newsroom-specific guidance based on real documentation and case studies.
+        Practical guidance based on real documentation and case studies.
     </p>
 
     <!-- Navigation Tabs -->
@@ -68,7 +68,7 @@ Required context:
         {% if playbook.best_use_cases %}
         <div id="tab-use-cases" class="playbook-panel">
             <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span class="text-xl">🎯</span> Best Use Cases for Newsrooms
+                <span class="text-xl">🎯</span> Best Use Cases
             </h3>
             <div class="prose prose-sm max-w-none text-gray-700">
                 {{ playbook.best_use_cases | safe }}
@@ -114,7 +114,7 @@ Required context:
             {% if playbook.pricing_summary %}
             <div class="mb-6">
                 <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <span class="text-xl">💰</span> Pricing for Newsrooms
+                    <span class="text-xl">💰</span> Pricing
                 </h3>
                 <div class="prose prose-sm max-w-none text-gray-700">
                     {{ playbook.pricing_summary | safe }}
@@ -139,7 +139,7 @@ Required context:
     <!-- Key Features (if available) -->
     {% if playbook.key_features %}
     <div class="mt-6 pt-4 border-t border-gray-200">
-        <h3 class="text-sm font-semibold text-gray-700 mb-3">Key Features for Newsrooms</h3>
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Key Features</h3>
         <div class="flex flex-wrap gap-2">
             {% for feature in playbook.key_features %}
             <span class="text-xs px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
@@ -203,7 +203,7 @@ function showPlaybookTab(tabId) {
     <div class="text-4xl mb-3">📖</div>
     <h3 class="font-semibold text-gray-700 mb-2">Implementation Guide Coming Soon</h3>
     <p class="text-sm text-gray-500 max-w-md mx-auto">
-        We're working on a detailed newsroom playbook for {{ tool.name }}.
+        We're working on a detailed implementation guide for {{ tool.name }}.
         Check back soon for implementation steps, best practices, and privacy guidance.
     </p>
 </div>

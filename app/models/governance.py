@@ -344,6 +344,7 @@ class ContentItem(Base):
     tags = Column(JSONB, nullable=True, default=list)
     jurisdiction = Column(String, nullable=True, index=True)  # For governance content
     audience = Column(JSONB, nullable=True, default=list)  # ["journalists", "editors", "technologists"]
+    sectors = Column(JSONB, nullable=True, default=list)  # ["newsroom", "ngo", "law_firm", "business"]
 
     # Related entities
     framework_id = Column(

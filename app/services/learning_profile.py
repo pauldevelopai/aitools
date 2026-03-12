@@ -194,7 +194,7 @@ async def generate_profile_summary(db: Session, user: User, profile: UserLearnin
 
     This summary is used as context when generating personalized strategies.
     """
-    from openai import OpenAI
+    from app.services.completion import get_completion_client
 
     # Build context from profile data
     top_clusters = []
@@ -249,28 +249,20 @@ of their needs, preferences, and what they're looking for in AI tools.
 Write in third person (e.g., "This user..."). Be specific about their likely needs.
 If there's limited activity data, focus on their profile fields."""
 
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_completion_client()
 
     try:
-        response = client.chat.completions.create(
-            model=settings.OPENAI_CHAT_MODEL,
-            temperature=0.3,
+        summary = client.complete(
+            prompt=prompt,
             max_tokens=200,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant that creates concise user profile summaries for an AI editorial toolkit. Focus on journalistic needs and practical requirements."
-                },
-                {"role": "user", "content": prompt}
-            ]
+            temperature=0.3,
+            system="You are a helpful assistant that creates concise user profile summaries for the Grounded AI platform. Focus on practical needs and requirements.",
         )
-        summary = response.choices[0].message.content
         return summary.strip()
 
     except Exception as e:
         logger.error(f"Failed to generate profile summary: {e}")
-        # Return a basic summary if LLM fails
-        return f"User is a {user.role or 'journalist'} at a {user.organisation_type or 'newsroom'} with {user.ai_experience_level or 'some'} AI experience."
+        return f"User is a {user.role or 'professional'} at a {user.organisation_type or 'organisation'} with {user.ai_experience_level or 'some'} AI experience."
 
 
 async def get_personalized_context(db: Session, user: User) -> Dict[str, Any]:

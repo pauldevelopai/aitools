@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ locale|default('en') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -111,6 +111,21 @@
                     </div>
                 </div>
                 <div class="flex items-center">
+                    <!-- Language switcher -->
+                    {% if feature_multi_language|default(false) and supported_languages|default({})|length > 1 %}
+                    <div class="hidden lg:flex lg:items-center mr-2 relative" x-data="{ open: false }">
+                        <select onchange="document.getElementById('lang-form').querySelector('input[name=language]').value=this.value; document.getElementById('lang-form').submit();"
+                                class="text-xs border border-gray-200 rounded px-1 py-0.5 bg-white text-gray-600 cursor-pointer">
+                            {% for code, name in supported_languages.items() %}
+                            <option value="{{ code }}" {{ 'selected' if code == locale }}>{{ code|upper }}</option>
+                            {% endfor %}
+                        </select>
+                        <form id="lang-form" action="/settings/language" method="POST" class="hidden">
+                            <input type="hidden" name="language" value="{{ locale }}">
+                        </form>
+                    </div>
+                    {% endif %}
+
                     <!-- Desktop user menu -->
                     <div class="hidden lg:flex lg:items-center lg:ml-4 flex-shrink-0">
                         {% if user %}

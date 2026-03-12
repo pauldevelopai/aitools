@@ -5,7 +5,6 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Any
 import httpx
-from openai import AsyncOpenAI
 
 from app.workflows.governance.state import (
     GovernanceTargetState,
@@ -21,10 +20,10 @@ from app.workflows.governance.state import (
 # UTILITIES
 # =============================================================================
 
-def get_openai_client() -> AsyncOpenAI:
-    """Get OpenAI client."""
-    import os
-    return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def get_claude_client():
+    """Get Claude completion client."""
+    from app.services.completion import get_completion_client
+    return get_completion_client()
 
 
 async def fetch_url_content(url: str, timeout: int = 30) -> tuple[str, str]:
@@ -176,7 +175,7 @@ async def extract_framework_info(state: GovernanceTargetState) -> dict[str, Any]
 
     # Use LLM to extract framework information
     try:
-        client = get_openai_client()
+        client = get_claude_client()
 
         prompt = f"""Analyze the following content about "{target_name}" and extract structured information about this governance framework/regulation.
 
@@ -201,14 +200,12 @@ Extract and return a JSON object with these fields:
 
 Return ONLY valid JSON, no additional text."""
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+        result_text = await client.complete_async(
+            prompt=prompt,
             max_tokens=2000,
+            temperature=0.3,
         )
-
-        result_text = response.choices[0].message.content.strip()
+        result_text = result_text.strip()
 
         # Try to parse JSON
         if result_text.startswith("```"):
@@ -267,7 +264,7 @@ async def extract_controls(state: GovernanceTargetState) -> dict[str, Any]:
         }
 
     try:
-        client = get_openai_client()
+        client = get_claude_client()
 
         prompt = f"""Analyze the following content about "{target_name}" and extract specific controls, obligations, or requirements.
 
@@ -289,14 +286,12 @@ Extract up to 10 key controls/requirements. For each, return a JSON array with o
 
 Return ONLY a valid JSON array, no additional text."""
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+        result_text = await client.complete_async(
+            prompt=prompt,
             max_tokens=3000,
+            temperature=0.3,
         )
-
-        result_text = response.choices[0].message.content.strip()
+        result_text = result_text.strip()
 
         if result_text.startswith("```"):
             result_text = re.sub(r'^```(?:json)?\n?', '', result_text)
@@ -540,10 +535,10 @@ async def generate_framework_content(state: GovernanceTargetState) -> dict[str, 
     ]
 
     try:
-        client = get_openai_client()
+        client = get_claude_client()
 
         # Generate framework summary content
-        prompt = f"""Write a comprehensive guide about "{framework_name}" ({short_name}) for journalists and newsroom technologists.
+        prompt = f"""Write a comprehensive guide about "{framework_name}" ({short_name}) for organisations implementing AI.
 
 Framework Information:
 - Type: {extracted_framework.get('framework_type', 'regulation')}
@@ -557,28 +552,26 @@ Key Controls/Requirements:
 {json.dumps([{"name": c.get("name"), "description": c.get("description")} for c in extracted_controls[:5]], indent=2)}
 
 Write the content in Markdown format with:
-1. A brief introduction (what is this framework and why it matters to journalists)
+1. A brief introduction (what is this framework and why it matters for organisations using AI)
 2. Key requirements section (bullet points)
-3. Implications for newsrooms using AI tools
-4. Compliance checklist (what newsrooms should do)
+3. Implications for organisations using AI tools
+4. Compliance checklist (what organisations should do)
 5. Further resources section
 
-Keep the tone professional but accessible. Focus on practical implications for journalism."""
+Keep the tone professional but accessible. Focus on practical implications."""
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
+        content_markdown = await client.complete_async(
+            prompt=prompt,
             max_tokens=3000,
+            temperature=0.5,
         )
-
-        content_markdown = response.choices[0].message.content.strip()
+        content_markdown = content_markdown.strip()
 
         # Create slug
         slug = generate_slug(f"{short_name or framework_name}-guide")
 
         generated_content.append({
-            "title": f"{short_name or framework_name}: A Guide for Journalists",
+            "title": f"{short_name or framework_name}: A Guide for Organisations",
             "slug": slug,
             "content_markdown": content_markdown,
             "summary": extracted_framework.get("summary", ""),
@@ -586,7 +579,7 @@ Keep the tone professional but accessible. Focus on practical implications for j
             "section": "governance",
             "tags": ["governance", "compliance", jurisdiction.lower()] + extracted_framework.get("applies_to", []),
             "jurisdiction": jurisdiction,
-            "audience": ["journalists", "editors", "technologists"],
+            "audience": ["organisations", "professionals", "technologists"],
             "sources": sources,
         })
 
@@ -620,7 +613,7 @@ async def generate_tool_content(state: GovernanceTargetState) -> dict[str, Any]:
         }
 
     try:
-        client = get_openai_client()
+        client = get_claude_client()
 
         # Format test results for prompt
         test_summary = "\n".join([
@@ -628,7 +621,7 @@ async def generate_tool_content(state: GovernanceTargetState) -> dict[str, Any]:
             for r in test_results
         ])
 
-        prompt = f"""Write a brief governance assessment guide for the tool "{tool_name}" for journalists.
+        prompt = f"""Write a brief governance assessment guide for the tool "{tool_name}" for organisations.
 
 Tool URL: {tool_url}
 Overall Test Score: {overall_score * 100:.0f}%
@@ -644,18 +637,16 @@ Write the content in Markdown format with:
 2. Governance assessment summary (based on test results)
 3. Privacy and security considerations
 4. Red flags or concerns (if any)
-5. Recommendations for use in newsrooms
+5. Recommendations for use in organisations
 
 Be factual and balanced. If there are concerns, mention them clearly but fairly."""
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
+        content_markdown = await client.complete_async(
+            prompt=prompt,
             max_tokens=2000,
+            temperature=0.5,
         )
-
-        content_markdown = response.choices[0].message.content.strip()
+        content_markdown = content_markdown.strip()
 
         slug = generate_slug(f"{tool_name}-governance-guide")
 
@@ -668,7 +659,7 @@ Be factual and balanced. If there are concerns, mention them clearly but fairly.
             "section": "tools",
             "tags": ["tool-assessment", "governance", "compliance"],
             "jurisdiction": "",
-            "audience": ["journalists", "technologists"],
+            "audience": ["organisations", "technologists"],
             "sources": [{"url": tool_url, "title": tool_name, "retrieved_at": datetime.now(timezone.utc).isoformat()}],
         })
 

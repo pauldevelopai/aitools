@@ -147,6 +147,38 @@ class FeatureFlags:
     sources_enabled: bool = True
 
     # ==========================================================================
+    # ENGAGEMENT
+    # ==========================================================================
+    # Progress tracker / checklist
+    progress_tracker_enabled: bool = True
+    # AI Readiness Assessment
+    readiness_assessment_enabled: bool = True
+    # Learning Paths / Guided Journeys
+    learning_paths_enabled: bool = True
+    # Export/Report Generation
+    export_reports_enabled: bool = True
+    # Benchmarking
+    benchmarking_enabled: bool = True
+    # Multi-language support
+    multi_language_enabled: bool = True
+    # Micro-lessons with gamification
+    lessons_enabled: bool = True
+
+    # ==========================================================================
+    # COLLABORATIVE
+    # ==========================================================================
+    # Cross-org collective learning dashboard
+    collective_learning_enabled: bool = True
+    # Intelligence feed / curated AI news
+    intelligence_feed_enabled: bool = True
+    # Reusable workflow templates
+    workflow_templates_enabled: bool = True
+    # Data asset registry / dataset catalog
+    data_registry_enabled: bool = True
+    # Open source app directory
+    open_source_apps_enabled: bool = True
+
+    # ==========================================================================
     # ADMINISTRATION
     # ==========================================================================
     # Admin dashboard access
@@ -223,6 +255,20 @@ class FeatureFlags:
             # Content
             "browse_enabled": self.browse_enabled,
             "sources_enabled": self.sources_enabled,
+            # Engagement
+            "progress_tracker_enabled": self.progress_tracker_enabled,
+            "readiness_assessment_enabled": self.readiness_assessment_enabled,
+            "learning_paths_enabled": self.learning_paths_enabled,
+            "export_reports_enabled": self.export_reports_enabled,
+            "benchmarking_enabled": self.benchmarking_enabled,
+            "multi_language_enabled": self.multi_language_enabled,
+            "lessons_enabled": self.lessons_enabled,
+            # Collaborative
+            "collective_learning_enabled": self.collective_learning_enabled,
+            "intelligence_feed_enabled": self.intelligence_feed_enabled,
+            "workflow_templates_enabled": self.workflow_templates_enabled,
+            "data_registry_enabled": self.data_registry_enabled,
+            "open_source_apps_enabled": self.open_source_apps_enabled,
             # Administration
             "admin_dashboard_enabled": self.admin_dashboard_enabled,
             "admin_ingestion_enabled": self.admin_ingestion_enabled,

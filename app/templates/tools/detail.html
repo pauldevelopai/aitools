@@ -162,7 +162,7 @@
                 </div>
             </div>
 
-            <!-- Purpose & Journalism Relevance -->
+            <!-- Purpose & Relevance -->
             {% if tool.purpose or tool.journalism_relevance %}
             <div class="bg-white rounded-lg shadow p-6">
                 {% if tool.purpose %}
@@ -173,7 +173,7 @@
                 {% endif %}
                 {% if tool.journalism_relevance %}
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Why It Matters for Journalism</h2>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Why It Matters</h2>
                     <p class="text-gray-700">{{ tool.journalism_relevance }}</p>
                 </div>
                 {% endif %}
@@ -184,7 +184,7 @@
             {% if tool.time_dividend.time_saved or tool.time_dividend.reinvestment %}
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-2">Time Dividend</h2>
-                <p class="text-xs text-gray-500 mb-4">How this tool saves time, and how to reinvest that time into better journalism.</p>
+                <p class="text-xs text-gray-500 mb-4">How this tool saves time, and how to reinvest that time into higher-value work.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {% if tool.time_dividend.time_saved %}
                     <div class="p-4 bg-green-50 rounded-lg border border-green-200">
@@ -523,7 +523,7 @@
             <div class="bg-indigo-50 rounded-lg border border-indigo-200 p-5">
                 <h3 class="text-sm font-semibold text-indigo-900 mb-2">Not sure this is the right tool?</h3>
                 <p class="text-xs text-indigo-700 mb-3">
-                    Use the Tool Finder to match your journalism needs with the best AI tool based on cost, difficulty and privacy.
+                    Use the Tool Finder to match your needs with the best AI tool based on cost, difficulty and privacy.
                 </p>
                 <a href="/tools/finder"
                    class="block text-center text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md">

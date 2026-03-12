@@ -59,6 +59,14 @@ class GroundedSettings(BaseSettings):
         default="text-embedding-3-small",
         description="OpenAI embedding model to use",
     )
+    anthropic_api_key: Optional[str] = Field(
+        default=None,
+        description="Anthropic API key for Claude completion provider",
+    )
+    claude_completion_model: str = Field(
+        default="claude-sonnet-4-20250514",
+        description="Claude model to use for completions",
+    )
     embedding_dimensions: int = Field(
         default=1536,
         description="Embedding vector dimensions",

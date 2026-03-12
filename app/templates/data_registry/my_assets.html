@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}My Data Assets - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-gray-500 mb-6">
+        <a href="/data-registry/" class="hover:underline" style="color: {{ brand_primary_color }}">Data Registry</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-700">My Assets</span>
+    </nav>
+
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">My Data Assets</h1>
+            <p class="text-gray-600">Manage your registered data assets.</p>
+        </div>
+        <a href="/data-registry/create" class="text-sm px-4 py-2 text-white rounded-lg transition hover:opacity-90 flex-shrink-0" style="background-color: {{ brand_primary_color }}">
+            Register Asset
+        </a>
+    </div>
+
+    {% if assets %}
+    <div class="space-y-4">
+        {% for asset in assets %}
+        <div class="bg-white border border-gray-200 rounded-lg p-5">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full capitalize">{{ asset.asset_type|replace('_', ' ') }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full capitalize
+                            {% if asset.status == 'active' %}bg-green-100 text-green-700
+                            {% elif asset.status == 'draft' %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ asset.status }}
+                        </span>
+                        {% if asset.is_licensable %}
+                        <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">Licensable</span>
+                        {% endif %}
+                    </div>
+                    <a href="/data-registry/{{ asset.slug }}" class="text-lg font-semibold text-gray-900 hover:underline">{{ asset.name }}</a>
+                    {% if asset.description %}
+                    <p class="text-sm text-gray-600 mt-1 line-clamp-1">{{ asset.description }}</p>
+                    {% endif %}
+                </div>
+                <div class="text-right flex-shrink-0 ml-4">
+                    {% if asset.inquiry_count > 0 %}
+                    <div class="text-sm font-medium" style="color: {{ brand_primary_color }}">{{ asset.inquiry_count }} inquir{{ 'ies' if asset.inquiry_count != 1 else 'y' }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <p class="text-gray-500 mb-4">You haven't registered any data assets yet.</p>
+        <a href="/data-registry/create" class="inline-block px-4 py-2 text-sm font-medium text-white rounded-lg" style="background-color: {{ brand_primary_color }}">Register Your First Asset</a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

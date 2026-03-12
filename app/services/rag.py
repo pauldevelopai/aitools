@@ -1,12 +1,15 @@
 """RAG retrieval and answer generation service."""
+import logging
 from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, UUID
-from openai import OpenAI
 
 from app.models.toolkit import ToolkitChunk, ToolkitDocument, ChatLog
 from app.services.embeddings import get_embedding_provider
+from app.services.completion import get_completion_client
 from app.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class SearchResult:
@@ -148,32 +151,38 @@ def generate_answer(
     Returns:
         Dictionary with answer, citations, and metadata
     """
+    # Build sector-specific context for system prompt
+    org_type = (user_profile or {}).get("organisation_type", "")
+    sector_context = _get_sector_context(org_type)
+
     # Check if we have any results above threshold
     if not search_results:
         # No matching toolkit content — use LLM with general knowledge
         try:
-            fallback_prompt = """You are "Ask the Toolkit", a knowledgeable AI assistant for AI Toolkit, a journalism AI learning platform.
+            fallback_system = f"""You are Grounded AI, a knowledgeable assistant for the Grounded platform — helping organisations implement AI ethically and effectively.
 
-You have access to AI Toolkit knowledge base, but no directly relevant content was found for this query. Use your general knowledge to help the user.
-
+No directly relevant content was found in the Grounded knowledge base for this query. Use your general knowledge to help the user.
+{sector_context}
 RULES:
-1. If the user is greeting you or making small talk, respond warmly and mention you can help with questions about AI tools, strategies, and best practices for journalism.
+1. If the user is greeting you or making small talk, respond warmly and mention you can help with questions about AI tools, strategies, ethics policies, and best practices.
 2. If the user asked a substantive question, answer it using your general knowledge. Be helpful and informative.
-3. If your answer relates to topics covered in AI Toolkit (AI tools, journalism, verification, fact-checking, content generation, data analysis, security), mention that AI Toolkit may have more specific guidance and suggest they ask about a related topic.
+3. If your answer relates to topics covered in Grounded (AI tools, ethics, verification, data analysis, security, legal frameworks), suggest they explore specific Grounded features:
+   - The **AI Toolkit** for discovering and comparing AI tools
+   - The **Ethics Policy Builder** for creating an organisational AI ethics policy
+   - The **Legal Framework Builder** for understanding regulatory requirements
+   - The **Strategy Planner** for developing an AI implementation roadmap
 4. Be concise but thorough."""
 
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
-            completion = client.chat.completions.create(
-                model=settings.OPENAI_CHAT_MODEL,
+            client = get_completion_client()
+            fallback_answer = client.complete(
+                prompt=query,
+                max_tokens=1024,
                 temperature=0.7,
-                messages=[
-                    {"role": "system", "content": fallback_prompt},
-                    {"role": "user", "content": query}
-                ]
+                system=fallback_system,
             )
-            fallback_answer = completion.choices[0].message.content
-        except Exception:
-            fallback_answer = "I couldn't find anything related to that in AI Toolkit. Try asking about a specific AI tool or strategy."
+        except Exception as e:
+            logger.warning(f"Fallback completion failed: {e}")
+            fallback_answer = "I couldn't find anything related to that in Grounded. Try asking about a specific AI tool or strategy."
 
         response = {
             "answer": fallback_answer,
@@ -201,17 +210,18 @@ RULES:
         context = context[:settings.RAG_MAX_CONTEXT_LENGTH] + "..."
 
     # Build prompt with augmented grounding instructions
-    system_prompt = """You are "Ask the Toolkit", a knowledgeable AI assistant for AI Toolkit, a journalism AI learning platform.
-You have deep expertise in AI, journalism, and technology. You are augmented with specific editorial toolkit content provided below.
-
+    system_prompt = f"""You are Grounded AI, a knowledgeable assistant for the Grounded platform — helping organisations implement AI ethically and effectively.
+You have deep expertise in AI tools, ethics, governance, and technology. You are augmented with specific Grounded knowledge base content provided below.
+{sector_context}
 IMPORTANT RULES:
-1. If the user is greeting you or making small talk, respond warmly. Mention you can help with questions about AI tools for journalism.
-2. PRIORITISE the provided editorial toolkit context when answering. When you use toolkit content, cite which section ([1], [2], etc.) you're referencing.
-3. You MAY supplement with your general knowledge to give fuller, more useful answers — but clearly distinguish between what comes from AI Toolkit (cited) and your own knowledge.
-4. When citing CDI scores or other specific data from the toolkit, state the numbers exactly as given.
-5. If the question is outside AI Toolkit's scope, answer using your general knowledge and note that this isn't from the toolkit.
+1. If the user is greeting you or making small talk, respond warmly. Mention you can help with questions about AI tools, ethics policies, legal frameworks, and implementation strategies.
+2. PRIORITISE the provided Grounded context when answering. When you use Grounded content, cite which section ([1], [2], etc.) you're referencing.
+3. You MAY supplement with your general knowledge to give fuller, more useful answers — but clearly distinguish between what comes from Grounded (cited) and your own knowledge.
+4. When citing CDI scores or other specific data from Grounded, state the numbers exactly as given.
+5. If the question is outside Grounded's scope, answer using your general knowledge and note that this isn't from the knowledge base.
 6. Be helpful, concise, and accurate. Give practical advice where appropriate.
-7. If you're unsure, say so rather than guessing."""
+7. If you're unsure, say so rather than guessing.
+8. When relevant, suggest Grounded features the user might find useful (Ethics Policy Builder, Legal Framework Builder, Strategy Planner, AI Toolkit)."""
 
     # Append user profile context if available
     if user_profile:
@@ -232,7 +242,7 @@ IMPORTANT RULES:
 USER CONTEXT (tailor your answer's complexity and focus accordingly):
 {chr(10).join(profile_parts)}"""
 
-    user_prompt = f"""Context from AI Toolkit:
+    user_prompt = f"""Context from Grounded knowledge base:
 
 {context}
 
@@ -240,20 +250,16 @@ Question: {query}
 
 Answer the question using ONLY the context above. Cite your sources using [1], [2], etc."""
 
-    # Call OpenAI API
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    # Call Claude API
+    client = get_completion_client()
 
     try:
-        completion = client.chat.completions.create(
-            model=settings.OPENAI_CHAT_MODEL,
+        answer_text = client.complete(
+            prompt=user_prompt,
+            max_tokens=2048,
             temperature=settings.OPENAI_CHAT_TEMPERATURE,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
+            system=system_prompt,
         )
-
-        answer_text = completion.choices[0].message.content
 
     except Exception as e:
         raise ValueError(f"Error generating answer: {e}")
@@ -281,6 +287,40 @@ Answer the question using ONLY the context above. Cite your sources using [1], [
         _save_chat_log(db, query, response, user_id)
 
     return response
+
+
+def _get_sector_context(org_type: str) -> str:
+    """Build sector-specific context for the system prompt."""
+    sector_map = {
+        "newsroom": (
+            "\nYou are speaking with someone from a newsroom/media organisation. "
+            "Tailor your advice to journalism workflows: editorial processes, "
+            "fact-checking, content verification, audience analytics, and media ethics. "
+            "Reference journalism-specific AI tools, standards (SPJ, EBU, AP), and "
+            "case studies from news organisations when relevant."
+        ),
+        "ngo": (
+            "\nYou are speaking with someone from an NGO/non-profit. "
+            "Tailor your advice to social impact workflows: donor reporting, "
+            "programme evaluation, data collection ethics, beneficiary privacy, "
+            "and resource-constrained environments. Emphasise free/open-source tools "
+            "and frameworks relevant to the development sector."
+        ),
+        "law_firm": (
+            "\nYou are speaking with someone from a law firm/legal practice. "
+            "Tailor your advice to legal workflows: legal research, contract review, "
+            "e-discovery, compliance monitoring, and client confidentiality. "
+            "Emphasise data protection, privilege concerns, and regulatory compliance. "
+            "Reference legal-specific AI standards and bar association guidelines."
+        ),
+        "business": (
+            "\nYou are speaking with someone from a business/corporate organisation. "
+            "Tailor your advice to business workflows: operations, HR, customer service, "
+            "supply chain, and competitive intelligence. Focus on ROI, scalability, "
+            "enterprise security, and compliance with industry regulations."
+        ),
+    }
+    return sector_map.get(org_type, "")
 
 
 def _save_chat_log(db: Session, query: str, response: Dict[str, Any], user_id: str) -> None:
@@ -333,6 +373,20 @@ def rag_answer(
         similarity_threshold=similarity_threshold,
         filters=filters
     )
+
+    # Track knowledge gaps for the Brain's self-improvement loop
+    try:
+        from app.brain.gap_detector import KnowledgeGapDetector
+        gap_detector = KnowledgeGapDetector(db)
+        sector = user_profile.get("organisation_type") if user_profile else None
+
+        if not search_results:
+            gap_detector.detect_fallback_response(query, sector=sector)
+        elif search_results:
+            best_similarity = max(r.similarity_score for r in search_results)
+            gap_detector.detect_low_similarity(query, best_similarity, sector=sector)
+    except Exception as e:
+        logger.debug(f"Gap detection skipped: {e}")
 
     # Generate answer with citations
     return generate_answer(db, query, search_results, user_id=user_id, save_to_log=True, user_profile=user_profile)

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Lessons - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Header + token widget -->
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Lessons</h1>
+            <p class="text-gray-600">Complete practical tasks to earn tokens and build your AI skills.</p>
+        </div>
+        {% if token_profile %}
+        <div class="bg-white border border-gray-200 rounded-lg px-4 py-3 text-right flex-shrink-0 ml-4">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ token_profile.balance }}</div>
+            <div class="text-xs text-gray-500">tokens</div>
+            <div class="mt-1 text-sm text-gray-600">
+                <span title="Current streak">{{ token_profile.current_streak }} day streak</span>
+                &bull; Level {{ token_profile.level }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Module grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for item in module_data %}
+        {% set module = item.module %}
+        {% set unlocked = item.unlocked %}
+        <a href="{% if unlocked %}/lessons/{{ module.slug }}{% else %}#{% endif %}"
+           class="block bg-white border rounded-lg p-6 transition-all
+                  {% if unlocked %}hover:shadow-sm border-gray-200{% else %}border-gray-100 opacity-60 cursor-not-allowed{% endif %}"
+           {% if unlocked %}style="border-color: #e5e7eb;"{% endif %}>
+
+            <div class="flex items-start justify-between mb-3">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">{{ module.name }}</h2>
+                    <span class="text-xs text-gray-400 uppercase tracking-wider">
+                        {{ module.difficulty }}
+                        {% if module.sector %}&bull; {{ module.sector|replace('_', ' ')|title }}{% endif %}
+                    </span>
+                    {% if item.is_recommended %}
+                    <span class="inline-block ml-2 px-2 py-0.5 text-xs font-medium rounded-full"
+                          style="background-color: {{ brand_primary_color }}20; color: {{ brand_primary_color }}">
+                        Recommended for you
+                    </span>
+                    {% endif %}
+                </div>
+                {% if not unlocked %}
+                <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                {% endif %}
+            </div>
+
+            <p class="text-sm text-gray-600 mb-4">{{ module.description }}</p>
+
+            {% if item.total_count > 0 %}
+            <div class="flex items-center justify-between text-sm mb-2">
+                <span class="text-gray-500">{{ item.completed_count }}/{{ item.total_count }} lessons</span>
+                {% if item.completed_count == item.total_count and item.total_count > 0 %}
+                <span class="text-green-600 font-medium">Complete</span>
+                {% elif not unlocked %}
+                <span class="text-gray-400 text-xs">Complete previous module to unlock</span>
+                {% endif %}
+            </div>
+            {% if user %}
+            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                <div class="h-1.5 rounded-full transition-all" style="width: {{ ((item.completed_count / item.total_count) * 100)|int if item.total_count > 0 else 0 }}%; background-color: {{ brand_primary_color }}"></div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-sm text-gray-400">Coming soon</div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    {% if not module_data %}
+    <div class="text-center py-12 text-gray-500">
+        <p>No lesson modules available yet. Check back soon!</p>
+    </div>
+    {% endif %}
+
+    {% if not user %}
+    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+        <p class="text-blue-800 mb-3">Sign in to track your progress and earn tokens.</p>
+        <a href="/auth/login" class="inline-block px-4 py-2 text-sm font-medium text-white rounded-lg" style="background-color: {{ brand_primary_color }}">Sign In</a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

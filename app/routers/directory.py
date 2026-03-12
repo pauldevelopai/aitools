@@ -1542,8 +1542,7 @@ async def query_directory_insights(
     db: Session = Depends(get_db),
 ):
     """Query the directory with natural language using an LLM."""
-    import os
-    from openai import OpenAI
+    from app.services.completion import get_completion_client
 
     # Gather comprehensive data for the LLM
     organizations = db.query(MediaOrganization).all()
@@ -1611,38 +1610,27 @@ async def query_directory_insights(
 {"... and more" if len(engagement_data) > 30 else ""}
 """
 
-    # Call OpenAI
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    # Call Claude
+    client = get_completion_client()
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are an AI assistant helping an admin analyze their media directory CRM.
-You have access to data about journalists, media organizations, and AI training engagements.
-Provide helpful, specific insights based on the data. When listing people or organizations, use their actual names from the data.
-If asked about connections or patterns, analyze the data thoroughly.
-Format your response with clear sections and bullet points where appropriate.
-Be concise but thorough."""
-                },
-                {
-                    "role": "user",
-                    "content": f"""Based on this directory data:
+        answer = client.complete(
+            prompt=f"""Based on this directory data:
 
 {context}
 
 User's question: {question}
 
-Please provide a helpful, detailed response based on the actual data."""
-                }
-            ],
+Please provide a helpful, detailed response based on the actual data.""",
             max_tokens=1500,
-            temperature=0.7
+            temperature=0.7,
+            system="""You are an AI assistant helping an admin analyze their media directory CRM.
+You have access to data about journalists, media organizations, and AI training engagements.
+Provide helpful, specific insights based on the data. When listing people or organizations, use their actual names from the data.
+If asked about connections or patterns, analyze the data thoroughly.
+Format your response with clear sections and bullet points where appropriate.
+Be concise but thorough.""",
         )
-
-        answer = response.choices[0].message.content
     except Exception as e:
         answer = f"Error generating insights: {str(e)}"
 
@@ -1656,8 +1644,7 @@ async def generate_directory_summary(
     db: Session = Depends(get_db),
 ):
     """Generate an AI summary of the entire directory."""
-    import os
-    from openai import OpenAI
+    from app.services.completion import get_completion_client
 
     # Get all data
     organizations = db.query(MediaOrganization).all()
@@ -1691,31 +1678,21 @@ Organizations: {[o.name for o in organizations[:20]]}
 Recent engagements: {[(e.journalist.full_name, e.title, e.date.strftime('%Y-%m-%d')) for e in engagements[:20]]}
 """
 
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = get_completion_client()
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an AI assistant providing executive summaries of a media directory CRM."
-                },
-                {
-                    "role": "user",
-                    "content": f"""Generate a brief executive summary of this media directory, highlighting:
+        summary = client.complete(
+            prompt=f"""Generate a brief executive summary of this media directory, highlighting:
 1. Key statistics
 2. Notable patterns or trends
 3. Potential opportunities
 4. Suggested next actions
 
 Data:
-{context}"""
-                }
-            ],
-            max_tokens=800
+{context}""",
+            max_tokens=800,
+            system="You are an AI assistant providing executive summaries of a media directory CRM.",
         )
-        summary = response.choices[0].message.content
     except Exception as e:
         summary = f"Error: {str(e)}"
 

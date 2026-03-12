@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ path.name }} - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-0">
+
+    <a href="/learning-paths" class="text-sm text-gray-500 hover:text-gray-700 mb-4 inline-block">&larr; All Learning Paths</a>
+
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ path.name }}</h1>
+    <p class="text-gray-600 mb-6">{{ path.description }}</p>
+
+    <!-- Progress Bar -->
+    {% if enrollment %}
+    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-gray-700">Your Progress</span>
+            <span class="text-sm font-bold" style="color: {{ brand_primary_color }}">{{ enrollment.completion_pct|round(0)|int }}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="h-2 rounded-full transition-all" style="width: {{ enrollment.completion_pct }}%; background-color: {{ brand_primary_color }}"></div>
+        </div>
+    </div>
+    {% elif user %}
+    <form method="POST" action="/learning-paths/{{ path.slug }}/enroll" class="mb-6">
+        <button type="submit" class="px-6 py-3 text-white font-medium rounded-lg hover:opacity-90" style="background-color: {{ brand_primary_color }}">
+            Start This Path
+        </button>
+    </form>
+    {% else %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <p class="text-yellow-800 text-sm"><a href="/auth/login" class="underline font-medium">Log in</a> to enroll and track your progress.</p>
+    </div>
+    {% endif %}
+
+    <!-- Steps Timeline -->
+    <div class="space-y-4">
+        {% for step in path.steps|sort(attribute='order') %}
+        {% set is_complete = step.id in completed_steps %}
+        <div class="bg-white border rounded-lg p-5 {{ 'border-green-200' if is_complete else 'border-gray-200' }}">
+            <div class="flex items-start gap-4">
+                <!-- Step indicator -->
+                <div class="flex-shrink-0">
+                    {% if is_complete %}
+                    <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    {% else %}
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                        <span class="text-sm font-bold text-gray-400">{{ step.order }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Step content -->
+                <div class="flex-1">
+                    <h3 class="font-semibold text-gray-900">{{ step.title }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">{{ step.description }}</p>
+                </div>
+
+                <!-- Action -->
+                <div class="flex-shrink-0 flex items-center gap-2">
+                    {% if is_complete %}
+                    <span class="text-sm text-green-600 font-medium">Done</span>
+                    {% elif enrollment %}
+                    <a href="{{ step.action_url }}" class="text-sm font-medium px-3 py-1.5 rounded-lg text-white hover:opacity-90" style="background-color: {{ brand_primary_color }}">
+                        Go &rarr;
+                    </a>
+                    <button onclick="markComplete('{{ path.slug }}', '{{ step.id }}')" class="text-xs text-gray-400 hover:text-green-600 border border-gray-200 rounded px-2 py-1">
+                        Mark Done
+                    </button>
+                    {% else %}
+                    <a href="{{ step.action_url }}" class="text-sm text-gray-400 hover:text-blue-600">View &rarr;</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+{% if enrollment %}
+<script>
+async function markComplete(slug, stepId) {
+    const res = await fetch(`/learning-paths/${slug}/steps/${stepId}/complete`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+    });
+    if (res.ok) {
+        window.location.reload();
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

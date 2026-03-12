@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}AI Readiness Results - {{ product_name }}{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-0">
+
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Your AI Readiness Results</h1>
+    <p class="text-gray-600 mb-8">Here's where your organisation stands on the AI adoption journey.</p>
+
+    <!-- Overall Score -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-2">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Maturity Level</h2>
+                <p class="text-3xl font-bold mt-1" style="color: {{ brand_primary_color }}">{{ assessment.maturity_level }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-500">Overall Score</p>
+                <p class="text-4xl font-bold text-gray-900">{{ assessment.overall_score }}<span class="text-lg text-gray-400">/5</span></p>
+            </div>
+        </div>
+        <p class="text-gray-600 mt-3">{{ level.description }}</p>
+    </div>
+
+    <!-- Radar Chart -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Dimension Breakdown</h2>
+        <div class="mx-auto" style="max-width: 400px;">
+            <canvas id="radarChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Dimension Details -->
+    <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 mb-6">
+        <div class="px-6 py-4">
+            <h2 class="text-lg font-semibold text-gray-900">Scores by Dimension</h2>
+        </div>
+        {% set dimensions = [
+            ("awareness", "Awareness"),
+            ("policy", "Policy"),
+            ("tools", "Tools"),
+            ("governance", "Governance"),
+            ("skills", "Skills")
+        ] %}
+        {% for key, label in dimensions %}
+        {% set score = assessment.dimension_scores.get(key, 0) %}
+        <div class="px-6 py-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="font-medium text-gray-900">{{ label }}</span>
+                <span class="text-sm font-semibold" style="color: {{ brand_primary_color }}">{{ score }}/5</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="h-2 rounded-full" style="width: {{ (score / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Recommendations -->
+    {% if assessment.recommendations %}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-blue-900 mb-4">Recommendations</h2>
+        <ol class="space-y-3">
+            {% for rec in assessment.recommendations %}
+            <li class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-sm font-bold flex items-center justify-center">{{ loop.index }}</span>
+                <span class="text-blue-800">{{ rec }}</span>
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+
+    <!-- Next Steps -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">What to do next</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a href="/ethics-builder" class="block p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                <p class="font-medium text-gray-900">Build an Ethics Policy</p>
+                <p class="text-sm text-gray-500 mt-1">Create a tailored AI ethics policy for your organisation</p>
+            </a>
+            <a href="/legal-builder" class="block p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                <p class="font-medium text-gray-900">Build a Legal Framework</p>
+                <p class="text-sm text-gray-500 mt-1">Understand your regulatory requirements</p>
+            </a>
+            <a href="/strategy" class="block p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                <p class="font-medium text-gray-900">Create a Strategy Plan</p>
+                <p class="text-sm text-gray-500 mt-1">Get a personalised AI implementation roadmap</p>
+            </a>
+            <a href="/tools" class="block p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                <p class="font-medium text-gray-900">Explore AI Tools</p>
+                <p class="text-sm text-gray-500 mt-1">Browse verified AI tools for your sector</p>
+            </a>
+        </div>
+    </div>
+
+    {% if not user %}
+    <div class="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+        <h3 class="text-lg font-semibold text-green-900 mb-2">Save Your Results</h3>
+        <p class="text-green-700 mb-4">Create a free account to save your assessment, track progress, and access all platform features.</p>
+        <a href="/auth/register" class="inline-flex items-center px-6 py-3 text-white font-medium rounded-lg hover:opacity-90" style="background-color: {{ brand_primary_color }}">
+            Create Free Account
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Awareness', 'Policy', 'Tools', 'Governance', 'Skills'],
+            datasets: [{
+                label: 'Your Score',
+                data: [
+                    {{ assessment.dimension_scores.get('awareness', 0) }},
+                    {{ assessment.dimension_scores.get('policy', 0) }},
+                    {{ assessment.dimension_scores.get('tools', 0) }},
+                    {{ assessment.dimension_scores.get('governance', 0) }},
+                    {{ assessment.dimension_scores.get('skills', 0) }}
+                ],
+                backgroundColor: '{{ brand_primary_color }}33',
+                borderColor: '{{ brand_primary_color }}',
+                borderWidth: 2,
+                pointBackgroundColor: '{{ brand_primary_color }}',
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    min: 0,
+                    max: 5,
+                    ticks: { stepSize: 1 },
+                    pointLabels: { font: { size: 13 } }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

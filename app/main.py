@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 
-from app.routers import health, admin, rag, auth_routes, toolkit, strategy, tools, clusters, sources, profile, feedback, reviews, discovery, playbook, recommendations, resources, usecases, foundations, ethics_policy, legal_framework, demo_documents, api_interface, directory, governance, workflow_runs, ethics_builder, legal_builder, library, google_drive, agent
+from app.routers import health, admin, rag, auth_routes, toolkit, strategy, tools, clusters, sources, profile, feedback, reviews, discovery, playbook, recommendations, resources, usecases, foundations, ethics_policy, legal_framework, demo_documents, api_interface, directory, governance, workflow_runs, ethics_builder, legal_builder, library, google_drive, agent, progress, readiness, learning_paths, export, benchmarking, lessons, collective_learning, intelligence_feed, workflow_templates, data_registry, open_source_apps, admin_apps, admin_lessons, admin_workflows
 from app.routers.recommendations import page_router as recommendations_pages
 from app.routers.discovery import approved_router as approved_tools_router
 from app.dependencies import get_current_user
@@ -22,6 +22,7 @@ from app.middleware import (
     RequestLoggingMiddleware,
     RateLimitMiddleware,
     CSRFProtectionMiddleware,
+    LocaleMiddleware,
     setup_logging
 )
 
@@ -91,6 +92,9 @@ app.add_middleware(CSRFProtectionMiddleware)
 # 3. Rate Limiting
 app.add_middleware(RateLimitMiddleware)
 
+# 4. Locale Detection
+app.add_middleware(LocaleMiddleware)
+
 
 # =============================================================================
 # EXCEPTION HANDLERS
@@ -153,6 +157,20 @@ app.include_router(legal_builder.router)  # AI Legal Framework Builder
 app.include_router(library.router)  # Public Reference Library
 app.include_router(google_drive.router)  # Google Drive Admin Integration
 app.include_router(agent.router)  # AI Agent for database population
+app.include_router(progress.router)  # Progress Tracker
+app.include_router(readiness.router)  # AI Readiness Assessment
+app.include_router(learning_paths.router)  # Learning Paths
+app.include_router(export.router)  # Export/Report Generation
+app.include_router(benchmarking.router)  # Benchmarking
+app.include_router(lessons.router)  # Micro-lessons with gamification
+app.include_router(collective_learning.router)  # Collective Learning Dashboard
+app.include_router(intelligence_feed.router)    # Intelligence Feed
+app.include_router(workflow_templates.router)   # Workflow Templates
+app.include_router(data_registry.router)        # Data Asset Registry
+app.include_router(open_source_apps.router)    # Open Source Apps Directory
+app.include_router(admin_apps.router)          # Admin: Open Source Apps
+app.include_router(admin_lessons.router)       # Admin: Lessons
+app.include_router(admin_workflows.router)     # Admin: Workflow Templates
 
 
 @app.get("/", response_class=HTMLResponse)

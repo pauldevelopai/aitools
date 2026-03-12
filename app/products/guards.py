@@ -284,6 +284,44 @@ def require_admin_directory_import():
 
 
 # =============================================================================
+# ENGAGEMENT FEATURE GUARDS
+# =============================================================================
+
+def require_lessons():
+    """Require lessons feature."""
+    return require_feature("lessons")
+
+
+# =============================================================================
+# COLLABORATIVE FEATURE GUARDS
+# =============================================================================
+
+def require_collective_learning():
+    """Require collective learning feature."""
+    return require_feature("collective_learning")
+
+
+def require_intelligence_feed():
+    """Require intelligence feed feature."""
+    return require_feature("intelligence_feed")
+
+
+def require_workflow_templates():
+    """Require workflow templates feature."""
+    return require_feature("workflow_templates")
+
+
+def require_data_registry():
+    """Require data registry feature."""
+    return require_feature("data_registry")
+
+
+def require_open_source_apps():
+    """Require open source apps feature."""
+    return require_feature("open_source_apps")
+
+
+# =============================================================================
 # TEMPLATE HELPERS
 # =============================================================================
 

@@ -20,6 +20,7 @@ from grounded.ai.providers.embedding import (
     OpenAIEmbeddingProvider,
     LocalStubEmbeddingProvider,
 )
+from grounded.ai.providers.claude import ClaudeCompletionProvider
 from grounded.core.base import Registry
 from grounded.core.config import get_settings
 from grounded.core.exceptions import ProviderNotFoundError
@@ -47,6 +48,17 @@ def register_default_providers() -> None:
                 api_key=settings.openai_api_key,
                 model=settings.openai_embedding_model,
             ),
+        )
+
+    # Register Claude completion provider if API key is available
+    if settings.anthropic_api_key:
+        completion_registry.register(
+            "claude",
+            ClaudeCompletionProvider(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_completion_model,
+            ),
+            set_as_default=True,
         )
 
 
@@ -124,6 +136,7 @@ __all__ = [
     # Implementations
     "OpenAIEmbeddingProvider",
     "LocalStubEmbeddingProvider",
+    "ClaudeCompletionProvider",
     # Registries
     "embedding_registry",
     "completion_registry",

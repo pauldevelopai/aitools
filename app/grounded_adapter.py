@@ -6,10 +6,11 @@ gradually migrating the app to use GROUNDED infrastructure.
 """
 
 import logging
+import os
 from typing import Any, Dict, Optional
 
 from grounded import __version__ as grounded_version
-from grounded.ai import register_default_providers, get_embedding_provider
+from grounded.ai import register_default_providers, get_embedding_provider, get_completion_provider
 from grounded.core.config import get_settings as get_grounded_settings
 from grounded.core.base import ComponentStatus, HealthCheckResult
 from grounded.governance.audit.logger import get_audit_logger, AuditEvent, AuditEventType
@@ -18,6 +19,34 @@ logger = logging.getLogger(__name__)
 
 # Track initialization state
 _grounded_initialized = False
+
+
+def _bridge_settings_to_grounded() -> None:
+    """Bridge app-level settings to GROUNDED infrastructure env vars.
+
+    The app reads ANTHROPIC_API_KEY and OPENAI_API_KEY directly,
+    while GroundedSettings expects GROUNDED_-prefixed env vars.
+    Falls back to reading .env directly if shell env vars are empty.
+    """
+    from dotenv import dotenv_values
+    from app.settings import settings as app_settings
+
+    # Read .env as fallback for values that may be empty in the shell
+    dotenv_vals = dotenv_values(".env")
+
+    mappings = {
+        "GROUNDED_ANTHROPIC_API_KEY": (
+            app_settings.ANTHROPIC_API_KEY or dotenv_vals.get("ANTHROPIC_API_KEY", "")
+        ),
+        "GROUNDED_OPENAI_API_KEY": (
+            app_settings.OPENAI_API_KEY or dotenv_vals.get("OPENAI_API_KEY", "")
+        ),
+        "GROUNDED_CLAUDE_COMPLETION_MODEL": app_settings.CLAUDE_COMPLETION_MODEL,
+    }
+
+    for env_key, value in mappings.items():
+        if value and env_key not in os.environ:
+            os.environ[env_key] = value
 
 
 def initialize_grounded() -> bool:
@@ -37,11 +66,15 @@ def initialize_grounded() -> bool:
         return True
 
     try:
+        # Bridge app settings to GROUNDED infrastructure env vars
+        # (app uses ANTHROPIC_API_KEY, grounded expects GROUNDED_ANTHROPIC_API_KEY)
+        _bridge_settings_to_grounded()
+
         settings = get_grounded_settings()
         logger.info(f"Initializing GROUNDED infrastructure v{grounded_version}")
         logger.info(f"GROUNDED environment: {settings.env}")
 
-        # Register default AI providers
+        # Register default AI providers (including Claude if ANTHROPIC_API_KEY is set)
         register_default_providers()
         logger.info("GROUNDED AI providers registered")
 
@@ -134,6 +167,15 @@ def get_grounded_health() -> Dict[str, Any]:
         except Exception as e:
             provider_status = f"error: {e}"
 
+        # Check completion provider
+        completion_status = "healthy"
+        completion_name = "unknown"
+        try:
+            comp_provider = get_completion_provider()
+            completion_name = comp_provider.name
+        except Exception as e:
+            completion_status = f"error: {e}"
+
         return {
             "grounded": {
                 "status": "healthy",
@@ -143,6 +185,10 @@ def get_grounded_health() -> Dict[str, Any]:
                     "embedding_provider": {
                         "status": provider_status,
                         "provider": provider_name,
+                    },
+                    "completion_provider": {
+                        "status": completion_status,
+                        "provider": completion_name,
                     },
                     "audit_logging": {
                         "status": "healthy" if settings.audit_log_enabled else "disabled",

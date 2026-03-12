@@ -1,7 +1,8 @@
 """AI Agent admin routes.
 
 Provides a dashboard to launch, monitor, and review AI-powered
-research missions that populate the database using the OpenAI Agents SDK.
+research missions that populate the database using the Grounded Brain
+(Claude-native tool_use agentic loop).
 """
 import asyncio
 import logging
@@ -23,9 +24,9 @@ from app.models.governance import ContentItem
 from app.models.workflow import WorkflowRun
 from app.products.admin_context import get_admin_context_dict
 from app.templates_engine import templates
-from app.workflows.agent.engine import AgentEngine
-from app.workflows.agent.missions import MISSIONS
-from app.workflows.agent.quality_judge import judge_mission_results
+from app.brain.engine import GroundedBrain
+from app.brain.missions import MISSIONS
+from app.brain.quality import judge_mission_results
 from app.workflows.agent.scheduler import get_scheduler
 from app.workflows.rate_limit import check_workflow_rate_limit
 from app.workflows.runtime import WorkflowRuntime
@@ -228,8 +229,8 @@ async def _run_agent(run_id: str, mission_name: str, params: dict, db: Session):
 
         runtime.update_status(run, status="running")
 
-        engine = AgentEngine(bg_db)
-        result = await engine.run(mission_name, params, run_id)
+        brain = GroundedBrain(bg_db)
+        result = await brain.run(mission_name, params, run_id)
 
         # Quality judging
         quality_report = None
@@ -359,8 +360,8 @@ async def mission_results(
     pending_content = (
         db.query(ContentItem)
         .filter(
-            ContentItem.tags.contains(["agent-generated"]),
             ContentItem.title.in_(content_record_names),
+            (ContentItem.tags.contains(["brain-generated"]) | ContentItem.tags.contains(["agent-generated"])),
         )
         .all()
     ) if content_record_names else []
@@ -549,7 +550,7 @@ async def scheduler_config(
     delay = body.get("delay_between_missions")
 
     if reset:
-        from app.workflows.agent.scheduler import DEFAULT_SCHEDULE
+        from app.workflows.agent.scheduler import DEFAULT_SCHEDULE  # noqa: F811
         scheduler.update_schedule(list(DEFAULT_SCHEDULE), delay)
     elif new_schedule is not None:
         scheduler.update_schedule(new_schedule, delay)
@@ -566,3 +567,83 @@ async def scheduler_activity(
     """Return recent activity log entries."""
     scheduler = get_scheduler()
     return JSONResponse(content={"activity": scheduler.get_activity()})
+
+
+# ---------------------------------------------------------------------------
+# Lesson management (admin)
+# ---------------------------------------------------------------------------
+
+@router.get("/lessons")
+async def list_lessons(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Return modules with draft/published lesson counts + top knowledge gaps."""
+    from app.models.lessons import LessonModule, Lesson
+    from app.brain.gap_detector import KnowledgeGapDetector
+
+    modules = (
+        db.query(LessonModule)
+        .filter(LessonModule.is_active == True)
+        .order_by(LessonModule.order)
+        .all()
+    )
+
+    module_data = []
+    for mod in modules:
+        draft_count = db.query(Lesson).filter(Lesson.module_id == mod.id, Lesson.status == "draft").count()
+        published_count = db.query(Lesson).filter(Lesson.module_id == mod.id, Lesson.status == "published").count()
+        module_data.append({
+            "slug": mod.slug,
+            "name": mod.name,
+            "order": mod.order,
+            "draft": draft_count,
+            "published": published_count,
+        })
+
+    detector = KnowledgeGapDetector(db)
+    top_gaps = detector.get_top_gaps(limit=5)
+    gap_list = [{"topic": g.topic, "sector": g.sector, "priority": g.priority} for g in top_gaps]
+
+    return JSONResponse({
+        "modules": module_data,
+        "top_gaps": gap_list,
+    })
+
+
+@router.post("/lessons/{lesson_id}/publish")
+async def publish_lesson(
+    lesson_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Publish a draft lesson."""
+    from app.models.lessons import Lesson
+
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    lesson.status = "published"
+    db.commit()
+    logger.info(f"Admin {user.email} published lesson '{lesson.title}' (id={lesson.id})")
+    return JSONResponse({"status": "published", "title": lesson.title})
+
+
+@router.post("/lessons/{lesson_id}/archive")
+async def archive_lesson(
+    lesson_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Archive a lesson."""
+    from app.models.lessons import Lesson
+
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    lesson.status = "archived"
+    db.commit()
+    logger.info(f"Admin {user.email} archived lesson '{lesson.title}' (id={lesson.id})")
+    return JSONResponse({"status": "archived", "title": lesson.title})

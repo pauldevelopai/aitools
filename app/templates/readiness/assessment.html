@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}AI Readiness Assessment - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-0">
+
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">AI Readiness Assessment</h1>
+    <p class="text-gray-600 mb-8">Answer {{ questions|length }} questions to discover where your organisation stands on the AI adoption journey. Takes about 5 minutes.</p>
+
+    <form method="POST" action="/readiness/submit" id="assessment-form">
+        {% if csrf_token %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% endif %}
+
+        {% set ns = namespace(step=0) %}
+        {% for q in questions %}
+        {% if loop.index0 % 4 == 0 %}
+        {% set ns.step = ns.step + 1 %}
+        {% endif %}
+
+        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-4 question-card" data-step="{{ ns.step }}">
+            <div class="flex items-start gap-3 mb-4">
+                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-sm font-bold" style="background-color: {{ brand_primary_color }}">{{ loop.index }}</span>
+                <p class="text-gray-900 font-medium leading-relaxed">{{ q.text }}</p>
+            </div>
+            <div class="space-y-2 ml-11">
+                {% for opt in q.options %}
+                <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition-colors">
+                    <input type="radio" name="q_{{ q.id }}" value="{{ opt.value }}" required class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                    <span class="text-sm text-gray-700">{{ opt.label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Progress indicator -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between text-sm text-gray-500 mb-2">
+                <span>Answer all questions to see your results</span>
+                <span id="answered-count">0 / {{ questions|length }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="progress-bar" class="h-2 rounded-full transition-all duration-300" style="width: 0%; background-color: {{ brand_primary_color }}"></div>
+            </div>
+        </div>
+
+        <button type="submit" id="submit-btn" disabled class="w-full py-3 px-6 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity" style="background-color: {{ brand_primary_color }}">
+            See My Results
+        </button>
+    </form>
+</div>
+
+<script>
+(function() {
+    const form = document.getElementById('assessment-form');
+    const total = {{ questions|length }};
+    const bar = document.getElementById('progress-bar');
+    const count = document.getElementById('answered-count');
+    const btn = document.getElementById('submit-btn');
+
+    form.addEventListener('change', function() {
+        const answered = form.querySelectorAll('input[type="radio"]:checked').length;
+        const pct = (answered / total) * 100;
+        bar.style.width = pct + '%';
+        count.textContent = answered + ' / ' + total;
+        btn.disabled = answered < total;
+    });
+})();
+</script>
+{% endblock %}

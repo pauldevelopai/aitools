@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Data Asset Registry - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Data Asset Registry</h1>
+            <p class="text-gray-600">Discover and register data assets for collective licensing and collaboration.</p>
+        </div>
+        {% if user %}
+        <div class="flex gap-2 flex-shrink-0 ml-4">
+            <a href="/data-registry/my-assets" class="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                My Assets
+            </a>
+            <a href="/data-registry/create" class="text-sm px-4 py-2 text-white rounded-lg transition hover:opacity-90" style="background-color: {{ brand_primary_color }}">
+                Register Asset
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.total_assets }}</div>
+            <div class="text-xs text-gray-500">Total Assets</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.licensable_count }}</div>
+            <div class="text-xs text-gray-500">Licensable</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.by_type|length }}</div>
+            <div class="text-xs text-gray-500">Asset Types</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-wrap gap-2 mb-4">
+        <a href="/data-registry/"
+           class="px-3 py-1.5 text-sm rounded-full border transition
+                  {% if not active_type %}text-white{% else %}text-gray-700 border-gray-300 hover:border-gray-400{% endif %}"
+           {% if not active_type %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            All Types
+        </a>
+        {% for t in ['archive', 'dataset', 'api', 'feed', 'document_collection'] %}
+        <a href="/data-registry/?asset_type={{ t }}"
+           class="px-3 py-1.5 text-sm rounded-full border transition
+                  {% if active_type == t %}text-white{% else %}text-gray-700 border-gray-300 hover:border-gray-400{% endif %}"
+           {% if active_type == t %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            {{ t|replace('_', ' ')|title }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="flex gap-2 mb-6">
+        <a href="/data-registry/"
+           class="px-3 py-1 text-xs rounded-full border transition
+                  {% if not active_licensable %}font-medium{% else %}text-gray-600 border-gray-200{% endif %}"
+           {% if not active_licensable %}style="color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            All
+        </a>
+        <a href="/data-registry/?licensable=yes{% if active_type %}&asset_type={{ active_type }}{% endif %}"
+           class="px-3 py-1 text-xs rounded-full border transition
+                  {% if active_licensable == 'yes' %}text-white{% else %}text-gray-600 border-gray-200{% endif %}"
+           {% if active_licensable == 'yes' %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            Licensable Only
+        </a>
+    </div>
+
+    <!-- Asset cards -->
+    {% if assets %}
+    <div class="space-y-4">
+        {% for asset in assets %}
+        <a href="/data-registry/{{ asset.slug }}" class="block bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full capitalize">{{ asset.asset_type|replace('_', ' ') }}</span>
+                        {% if asset.is_licensable %}
+                        <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Licensable</span>
+                        {% endif %}
+                        {% if asset.classification != 'public' %}
+                        <span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full capitalize">{{ asset.classification }}</span>
+                        {% endif %}
+                    </div>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-1">{{ asset.name }}</h2>
+                    {% if asset.description %}
+                    <p class="text-sm text-gray-600 line-clamp-2">{{ asset.description }}</p>
+                    {% endif %}
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                        {% if asset.data_format %}
+                        <span class="uppercase">{{ asset.data_format }}</span>
+                        {% endif %}
+                        {% if asset.languages %}
+                        <span>{{ asset.languages|join(', ')|upper }}</span>
+                        {% endif %}
+                        {% if asset.record_count %}
+                        <span>{{ asset.record_count|string }} records</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-700 mb-2">No data assets yet</h3>
+        <p class="text-sm text-gray-500 mb-4">Be the first to register a data asset for the network.</p>
+        {% if user %}
+        <a href="/data-registry/create" class="inline-block px-4 py-2 text-sm font-medium text-white rounded-lg" style="background-color: {{ brand_primary_color }}">Register Asset</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if requires_login %}
+    <div class="mt-8">
+        {% include "components/login_prompt.html" %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

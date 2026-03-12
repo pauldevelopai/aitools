@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}My Workflow Runs - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-gray-500 mb-6">
+        <a href="/workflow-templates/" class="hover:underline" style="color: {{ brand_primary_color }}">Workflow Templates</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-700">My Runs</span>
+    </nav>
+
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">My Workflow Runs</h1>
+    <p class="text-gray-600 mb-6">Your workflow run history and progress.</p>
+
+    {% if runs %}
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="text-left px-4 py-3 font-medium text-gray-700">Workflow</th>
+                    <th class="text-left px-4 py-3 font-medium text-gray-700">Status</th>
+                    <th class="text-left px-4 py-3 font-medium text-gray-700">Started</th>
+                    <th class="text-left px-4 py-3 font-medium text-gray-700">Completed</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for run in runs %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-gray-900">{{ run.workflow_name }}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded text-xs capitalize
+                            {% if run.status == 'completed' %}bg-green-100 text-green-700
+                            {% elif run.status == 'running' %}bg-blue-100 text-blue-700
+                            {% elif run.status == 'failed' %}bg-red-100 text-red-700
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ run.status }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-600">{{ run.started_at[:10] if run.started_at else '—' }}</td>
+                    <td class="px-4 py-3 text-gray-600">{{ run.completed_at[:10] if run.completed_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <p class="text-gray-500 mb-4">No workflow runs yet.</p>
+        <a href="/workflow-templates/" class="text-sm hover:underline" style="color: {{ brand_primary_color }}">Browse templates to get started</a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

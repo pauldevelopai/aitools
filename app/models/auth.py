@@ -53,6 +53,9 @@ class User(Base):
     organisation_website = Column(String, nullable=True)
     organisation_notes = Column(Text, nullable=True)
 
+    # Locale preference
+    preferred_language = Column(String, nullable=True, default="en")
+
     # Product/Edition preference
     selected_product = Column(String, nullable=True, default="aitoolkit")
     selected_edition = Column(String, nullable=True)  # None means use active edition

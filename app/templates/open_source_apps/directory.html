@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Open Source Apps - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Open Source Apps</h1>
+            <p class="text-gray-600">Curated directory of open-source tools you can download and self-host.</p>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.total_apps }}</div>
+            <div class="text-xs text-gray-500">Apps</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.featured_count }}</div>
+            <div class="text-xs text-gray-500">Featured</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.deployment_types|length }}</div>
+            <div class="text-xs text-gray-500">Deployment Types</div>
+        </div>
+    </div>
+
+    <!-- Deployment type filter -->
+    <div class="flex flex-wrap gap-2 mb-4">
+        <a href="/apps/"
+           class="px-3 py-1.5 text-sm rounded-full border transition
+                  {% if not active_deployment_type %}text-white{% else %}text-gray-700 border-gray-300 hover:border-gray-400{% endif %}"
+           {% if not active_deployment_type %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            All
+        </a>
+        {% for dt in stats.deployment_types %}
+        <a href="/apps/?deployment_type={{ dt.type }}"
+           class="px-3 py-1.5 text-sm rounded-full border transition
+                  {% if active_deployment_type == dt.type %}text-white{% else %}text-gray-700 border-gray-300 hover:border-gray-400{% endif %}"
+           {% if active_deployment_type == dt.type %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            {{ dt.type|replace('_', ' ')|title }}
+            <span class="ml-1 opacity-75">({{ dt.count }})</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Difficulty filter -->
+    <div class="flex gap-2 mb-4">
+        {% for diff in ['beginner', 'intermediate', 'advanced'] %}
+        <a href="/apps/?difficulty={{ diff }}{% if active_deployment_type %}&deployment_type={{ active_deployment_type }}{% endif %}"
+           class="px-3 py-1 text-xs rounded-full border transition
+                  {% if active_difficulty == diff %}text-white{% else %}text-gray-600 border-gray-200 hover:border-gray-300{% endif %}"
+           {% if active_difficulty == diff %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            {{ diff|title }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Platform filter -->
+    <div class="flex gap-2 mb-6">
+        {% for plat in ['linux', 'macos', 'windows', 'docker'] %}
+        <a href="/apps/?platform={{ plat }}{% if active_deployment_type %}&deployment_type={{ active_deployment_type }}{% endif %}{% if active_difficulty %}&difficulty={{ active_difficulty }}{% endif %}"
+           class="px-3 py-1 text-xs rounded-full border transition
+                  {% if active_platform == plat %}text-white{% else %}text-gray-600 border-gray-200 hover:border-gray-300{% endif %}"
+           {% if active_platform == plat %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            {{ plat|title }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- App cards -->
+    {% if apps %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for app in apps %}
+        <a href="/apps/{{ app.slug }}" class="block bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
+            <div class="flex items-start justify-between mb-2">
+                <h2 class="text-lg font-semibold text-gray-900">{{ app.name }}</h2>
+                {% if app.is_featured %}
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background-color: {{ brand_primary_color }}20; color: {{ brand_primary_color }}">Featured</span>
+                {% endif %}
+            </div>
+
+            <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ app.description }}</p>
+
+            <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                <span class="px-2 py-0.5 bg-gray-100 rounded capitalize">{{ app.deployment_type|replace('_', ' ') }}</span>
+                <span class="px-2 py-0.5 bg-gray-100 rounded capitalize">{{ app.difficulty }}</span>
+                <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded">{{ app.license_type }}</span>
+            </div>
+
+            <!-- Stars & Rating -->
+            <div class="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                {% if app.github_stars %}
+                <span class="inline-flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                    {{ "{:,}".format(app.github_stars) }}
+                </span>
+                {% endif %}
+                {% if app.community_rating %}
+                <span class="inline-flex items-center gap-1">
+                    <span class="text-yellow-500">&#9733;</span>
+                    {{ "%.1f"|format(app.community_rating) }}/5
+                </span>
+                {% endif %}
+            </div>
+
+            {% if app.platforms %}
+            <div class="flex flex-wrap gap-1">
+                {% for plat in app.platforms %}
+                <span class="text-xs px-1.5 py-0.5 bg-gray-50 text-gray-600 rounded">{{ plat }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-700 mb-2">No apps yet</h3>
+        <p class="text-sm text-gray-500">Open source applications will appear here as they are curated.</p>
+    </div>
+    {% endif %}
+
+    {% if requires_login %}
+    <div class="mt-8">
+        {% include "components/login_prompt.html" %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

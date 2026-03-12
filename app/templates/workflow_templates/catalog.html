@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Workflow Templates - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Workflow Templates</h1>
+            <p class="text-gray-600">Multi-step AI workflows for real operational tasks.</p>
+        </div>
+        {% if user %}
+        <a href="/workflow-templates/my-runs" class="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+            My Runs
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.total_templates }}</div>
+            <div class="text-xs text-gray-500">Templates</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.total_runs }}</div>
+            <div class="text-xs text-gray-500">Total Runs</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ stats.categories|length }}</div>
+            <div class="text-xs text-gray-500">Categories</div>
+        </div>
+    </div>
+
+    <!-- Category filter -->
+    <div class="flex flex-wrap gap-2 mb-6">
+        <a href="/workflow-templates/"
+           class="px-3 py-1.5 text-sm rounded-full border transition
+                  {% if not active_category %}text-white{% else %}text-gray-700 border-gray-300 hover:border-gray-400{% endif %}"
+           {% if not active_category %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            All
+        </a>
+        {% for cat in stats.categories %}
+        <a href="/workflow-templates/?category={{ cat.category }}"
+           class="px-3 py-1.5 text-sm rounded-full border transition
+                  {% if active_category == cat.category %}text-white{% else %}text-gray-700 border-gray-300 hover:border-gray-400{% endif %}"
+           {% if active_category == cat.category %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            {{ cat.category|replace('_', ' ')|title }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Difficulty filter -->
+    <div class="flex gap-2 mb-6">
+        {% for diff in ['beginner', 'intermediate', 'advanced'] %}
+        <a href="/workflow-templates/?difficulty={{ diff }}{% if active_category %}&category={{ active_category }}{% endif %}"
+           class="px-3 py-1 text-xs rounded-full border transition
+                  {% if active_difficulty == diff %}text-white{% else %}text-gray-600 border-gray-200 hover:border-gray-300{% endif %}"
+           {% if active_difficulty == diff %}style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}"{% endif %}>
+            {{ diff|title }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Template cards -->
+    {% if templates %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for t in templates %}
+        <a href="/workflow-templates/{{ t.slug }}" class="block bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
+            <div class="flex items-start justify-between mb-2">
+                <h2 class="text-lg font-semibold text-gray-900">{{ t.name }}</h2>
+                {% if t.is_featured %}
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background-color: {{ brand_primary_color }}20; color: {{ brand_primary_color }}">Featured</span>
+                {% endif %}
+            </div>
+
+            <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ t.description }}</p>
+
+            <div class="flex items-center gap-3 text-xs text-gray-500">
+                <span class="px-2 py-0.5 bg-gray-100 rounded capitalize">{{ t.category|replace('_', ' ') }}</span>
+                <span class="px-2 py-0.5 bg-gray-100 rounded capitalize">{{ t.difficulty }}</span>
+                <span>{{ t.step_count }} steps</span>
+                {% if t.estimated_minutes %}
+                <span>~{{ t.estimated_minutes }} min</span>
+                {% endif %}
+            </div>
+
+            {% if t.usage_count > 0 %}
+            <div class="text-xs text-gray-400 mt-2">Used {{ t.usage_count }} time{{ 's' if t.usage_count != 1 }}</div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <p class="text-gray-500">No templates match your filters.</p>
+    </div>
+    {% endif %}
+
+    {% if requires_login %}
+    <div class="mt-8">
+        {% include "components/login_prompt.html" %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

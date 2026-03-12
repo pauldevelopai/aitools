@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ asset.name }} - Data Registry - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-0">
+
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-gray-500 mb-6">
+        <a href="/data-registry/" class="hover:underline" style="color: {{ brand_primary_color }}">Data Registry</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-700">{{ asset.name }}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full capitalize">{{ asset.asset_type|replace('_', ' ') }}</span>
+            {% if asset.is_licensable %}
+            <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Licensable</span>
+            {% endif %}
+            <span class="text-xs px-2 py-0.5 rounded-full capitalize
+                {% if asset.classification == 'public' %}bg-blue-100 text-blue-700
+                {% elif asset.classification == 'confidential' %}bg-red-100 text-red-700
+                {% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                {{ asset.classification }}
+            </span>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ asset.name }}</h1>
+        {% if asset.description %}
+        <p class="text-gray-600">{{ asset.description }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Details -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Details</h2>
+        <dl class="grid grid-cols-2 gap-4 text-sm">
+            {% if asset.data_format %}
+            <div>
+                <dt class="text-gray-500">Format</dt>
+                <dd class="text-gray-900 uppercase">{{ asset.data_format }}</dd>
+            </div>
+            {% endif %}
+            {% if asset.record_count %}
+            <div>
+                <dt class="text-gray-500">Records</dt>
+                <dd class="text-gray-900">{{ asset.record_count|string }}</dd>
+            </div>
+            {% endif %}
+            {% if asset.date_range_start %}
+            <div>
+                <dt class="text-gray-500">Date Range</dt>
+                <dd class="text-gray-900">{{ asset.date_range_start }} to {{ asset.date_range_end or 'present' }}</dd>
+            </div>
+            {% endif %}
+            {% if asset.languages %}
+            <div>
+                <dt class="text-gray-500">Languages</dt>
+                <dd class="text-gray-900">{{ asset.languages|join(', ')|upper }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+
+    <!-- Sectors / Tags -->
+    {% if asset.sectors %}
+    <div class="mb-4">
+        <span class="text-xs text-gray-500 uppercase tracking-wider">Sectors: </span>
+        {% for s in asset.sectors %}
+        <span class="text-xs text-gray-600 capitalize">{{ s|replace('_', ' ') }}{% if not loop.last %}, {% endif %}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if asset.tags %}
+    <div class="flex flex-wrap gap-2 mb-6">
+        {% for tag in asset.tags %}
+        <span class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">{{ tag }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Licensing -->
+    {% if asset.is_licensable %}
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Licensing</h2>
+        {% if asset.licensing_terms %}
+        <p class="text-sm text-gray-600 mb-4">{{ asset.licensing_terms }}</p>
+        {% endif %}
+
+        {% if user %}
+        <div>
+            <label for="inquiry-message" class="block text-sm font-medium text-gray-700 mb-2">Express Interest</label>
+            <textarea id="inquiry-message" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2" style="focus:ring-color: {{ brand_primary_color }}" placeholder="Describe your interest in this data asset..."></textarea>
+            <button onclick="submitInquiry()" class="mt-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition hover:opacity-90" style="background-color: {{ brand_primary_color }}" id="inquire-btn">
+                Submit Inquiry
+            </button>
+            <div id="inquire-result" class="mt-2 text-sm hidden"></div>
+        </div>
+        {% else %}
+        <div class="mt-4">
+            {% include "components/login_prompt.html" %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Back -->
+    <div class="mt-6">
+        <a href="/data-registry/" class="text-sm hover:underline" style="color: {{ brand_primary_color }}">
+            &larr; Back to Registry
+        </a>
+    </div>
+
+</div>
+
+{% if user and asset.is_licensable %}
+<script>
+async function submitInquiry() {
+    const btn = document.getElementById('inquire-btn');
+    const result = document.getElementById('inquire-result');
+    const message = document.getElementById('inquiry-message').value.trim();
+
+    if (!message) {
+        result.classList.remove('hidden');
+        result.innerHTML = '<span class="text-red-700">Please enter a message.</span>';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    try {
+        const resp = await fetch('/data-registry/{{ asset.slug }}/inquire', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: message})
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            result.classList.remove('hidden');
+            result.innerHTML = '<span class="text-green-700">Inquiry submitted successfully!</span>';
+            document.getElementById('inquiry-message').value = '';
+        } else {
+            result.classList.remove('hidden');
+            result.innerHTML = '<span class="text-red-700">' + (data.detail || 'Error submitting inquiry') + '</span>';
+        }
+    } catch (err) {
+        result.classList.remove('hidden');
+        result.innerHTML = '<span class="text-red-700">Network error. Please try again.</span>';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Submit Inquiry';
+}
+</script>
+{% endif %}
+{% endblock %}

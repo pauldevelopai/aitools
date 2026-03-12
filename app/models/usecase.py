@@ -39,6 +39,9 @@ class UseCase(Base):
     outcome = Column(Text, nullable=True)  # Results/impact
     lessons_learned = Column(Text, nullable=True)  # Key takeaways
 
+    # Sector tagging
+    sectors = Column(JSONB, nullable=True, default=list)  # ["newsroom", "ngo", "law_firm", "business"]
+
     # Tool references
     tools_used = Column(JSONB, nullable=True, default=list)  # List of tool slugs used (from our kit)
     tools_mentioned = Column(JSONB, nullable=True, default=list)  # Tools mentioned but not in kit

@@ -120,6 +120,72 @@ AITOOLKIT_PRODUCT = Product(
             icon="book-open",
             requires_auth=False,
         ),
+        NavigationItem(
+            label="My Progress",
+            route="/progress",
+            icon="clipboard-check",
+            requires_auth=True,
+        ),
+        NavigationItem(
+            label="AI Readiness",
+            route="/readiness",
+            icon="chart-bar",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Learning Paths",
+            route="/learning-paths",
+            icon="academic-cap",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Benchmarking",
+            route="/benchmarking",
+            icon="presentation-chart-bar",
+            requires_auth=True,
+        ),
+        NavigationItem(
+            label="Export Report",
+            route="/export",
+            icon="document-download",
+            requires_auth=True,
+        ),
+        NavigationItem(
+            label="Lessons",
+            route="/lessons",
+            icon="academic-cap",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Network",
+            route="/collective-learning",
+            icon="users",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Intelligence",
+            route="/intelligence-feed",
+            icon="rss",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Workflows",
+            route="/workflow-templates",
+            icon="template",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Data Registry",
+            route="/data-registry",
+            icon="database",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Apps",
+            route="/apps",
+            icon="code",
+            requires_auth=False,
+        ),
     ],
     content_scope=ContentScope.TOOLS,
     is_active=True,
@@ -180,6 +246,26 @@ AITOOLKIT_V1_FEATURES = FeatureFlags(
     # =========================================================================
     browse_enabled=True,
     sources_enabled=True,
+
+    # =========================================================================
+    # ENGAGEMENT - Not in V1
+    # =========================================================================
+    progress_tracker_enabled=False,
+    readiness_assessment_enabled=False,
+    learning_paths_enabled=False,
+    export_reports_enabled=False,
+    benchmarking_enabled=False,
+    multi_language_enabled=False,
+    lessons_enabled=False,
+
+    # =========================================================================
+    # COLLABORATIVE FEATURES - Not in V1
+    # =========================================================================
+    collective_learning_enabled=False,
+    intelligence_feed_enabled=False,
+    workflow_templates_enabled=False,
+    data_registry_enabled=False,
+    open_source_apps_enabled=False,
 
     # =========================================================================
     # ADMINISTRATION - V1 had basic admin only
@@ -265,6 +351,26 @@ AITOOLKIT_V2_FEATURES = FeatureFlags(
     sources_enabled=True,
 
     # =========================================================================
+    # ENGAGEMENT - Not in V2
+    # =========================================================================
+    progress_tracker_enabled=False,
+    readiness_assessment_enabled=False,
+    learning_paths_enabled=False,
+    export_reports_enabled=False,
+    benchmarking_enabled=False,
+    multi_language_enabled=False,
+    lessons_enabled=False,
+
+    # =========================================================================
+    # COLLABORATIVE FEATURES - Not in V2
+    # =========================================================================
+    collective_learning_enabled=False,
+    intelligence_feed_enabled=False,
+    workflow_templates_enabled=False,
+    data_registry_enabled=False,
+    open_source_apps_enabled=False,
+
+    # =========================================================================
     # ADMINISTRATION - All enabled
     # =========================================================================
     admin_dashboard_enabled=True,
@@ -347,6 +453,26 @@ AITOOLKIT_V3_FEATURES = FeatureFlags(
     # =========================================================================
     browse_enabled=True,
     sources_enabled=True,
+
+    # =========================================================================
+    # ENGAGEMENT - All enabled in V3
+    # =========================================================================
+    progress_tracker_enabled=True,
+    readiness_assessment_enabled=True,
+    learning_paths_enabled=True,
+    export_reports_enabled=True,
+    benchmarking_enabled=True,
+    multi_language_enabled=True,
+    lessons_enabled=True,
+
+    # =========================================================================
+    # COLLABORATIVE FEATURES - All enabled in V3
+    # =========================================================================
+    collective_learning_enabled=True,
+    intelligence_feed_enabled=True,
+    workflow_templates_enabled=True,
+    data_registry_enabled=True,
+    open_source_apps_enabled=True,
 
     # =========================================================================
     # ADMINISTRATION - All enabled

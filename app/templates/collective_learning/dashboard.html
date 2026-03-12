@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Collective Learning - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Collective Learning</h1>
+    <p class="text-gray-600 mb-8">Shared intelligence across the network — tool adoption, skill growth, and sector comparisons.</p>
+
+    <!-- Network Overview Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold" style="color: {{ brand_primary_color }}">{{ data.overview.total_users }}</div>
+            <div class="text-xs text-gray-500 mt-1">Active Users</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold" style="color: {{ brand_primary_color }}">{{ data.overview.total_tools }}</div>
+            <div class="text-xs text-gray-500 mt-1">Approved Tools</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold" style="color: {{ brand_primary_color }}">{{ data.overview.avg_readiness or '—' }}</div>
+            <div class="text-xs text-gray-500 mt-1">Avg Readiness</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold" style="color: {{ brand_primary_color }}">{{ data.overview.total_lessons_completed }}</div>
+            <div class="text-xs text-gray-500 mt-1">Lessons Completed</div>
+        </div>
+    </div>
+
+    <!-- Tool Adoption -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Tool Adoption</h2>
+
+        {% if data.tool_adoption.category_breakdown %}
+        <div class="space-y-3 mb-6">
+            {% for cat in data.tool_adoption.category_breakdown %}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm text-gray-700 capitalize">{{ cat.category|replace('_', ' ') }}</span>
+                    <span class="text-sm font-medium text-gray-900">{{ cat.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class="h-2 rounded-full" style="width: {{ (cat.count / data.tool_adoption.total_approved * 100)|round if data.tool_adoption.total_approved > 0 else 0 }}%; background-color: {{ brand_primary_color }}"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if data.tool_adoption.top_tools %}
+        <h3 class="text-sm font-medium text-gray-700 mb-2">Recent Additions</h3>
+        <div class="space-y-2">
+            {% for tool in data.tool_adoption.top_tools[:5] %}
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-900">{{ tool.name }}</span>
+                <span class="text-xs text-gray-400 capitalize">{{ tool.category|replace('_', ' ') }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400">No tools adopted yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Use Case Highlights -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Use Case Highlights</h2>
+
+        {% if data.use_case_highlights %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for uc in data.use_case_highlights %}
+            <div class="border border-gray-100 rounded-lg p-4">
+                <h3 class="font-medium text-gray-900 mb-1">{{ uc.title }}</h3>
+                <p class="text-sm text-gray-600 line-clamp-2">{{ uc.description }}</p>
+                {% if uc.sector %}
+                <span class="inline-block mt-2 text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded capitalize">{{ uc.sector|replace('_', ' ') }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400">No published use cases yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Skill Growth -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Skill Growth</h2>
+
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="text-center">
+                <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ data.skill_growth.total_completed }}</div>
+                <div class="text-xs text-gray-500">Lessons Completed</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ data.skill_growth.active_learners }}</div>
+                <div class="text-xs text-gray-500">Active Learners</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ data.skill_growth.avg_tokens_earned }}</div>
+                <div class="text-xs text-gray-500">Avg Tokens Earned</div>
+            </div>
+        </div>
+
+        {% if data.skill_growth.popular_modules %}
+        <h3 class="text-sm font-medium text-gray-700 mb-2">Most Active Modules</h3>
+        <div class="space-y-2">
+            {% for mod in data.skill_growth.popular_modules %}
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-900">{{ mod.module }}</span>
+                <span class="text-gray-500">{{ mod.completions }} completions</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sector Comparisons -->
+    {% if data.sector_comparisons %}
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Sector Comparisons</h2>
+        <div class="space-y-3">
+            {% for sector in data.sector_comparisons %}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm text-gray-700 capitalize">{{ sector.sector|replace('_', ' ') }}</span>
+                    <span class="text-sm font-medium text-gray-900">{{ sector.avg_stage|round(1) }} / 5.0</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class="h-2 rounded-full" style="width: {{ (sector.avg_stage / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+                </div>
+                <div class="text-xs text-gray-400 mt-0.5">{{ sector.sample_count }} organisation{{ 's' if sector.sample_count != 1 }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if requires_login %}
+    <div class="mt-6">
+        {% include "components/login_prompt.html" %}
+    </div>
+    {% endif %}
+
+    <!-- Privacy notice -->
+    <p class="text-xs text-gray-400 text-center mt-6">
+        Aggregated from {{ data.overview.total_users }} user{{ 's' if data.overview.total_users != 1 }}.
+        Individual data is never shared. Sector data requires a minimum of 3 organisations.
+    </p>
+
+</div>
+{% endblock %}

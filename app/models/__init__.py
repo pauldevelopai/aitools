@@ -30,6 +30,17 @@ from app.models.library_item import LibraryItem
 from app.models.google_drive import GoogleConnection, GoogleSyncItem
 from app.models.spreadsheet_import import SpreadsheetImport
 from app.models.ai_journey import AIJourneyEntry
+from app.models.brain import KnowledgeGap, ContentQualityScore, BrainRun
+from app.models.progress import UserProgress
+from app.models.readiness import ReadinessAssessment
+from app.models.learning_path import LearningPath, UserPathEnrollment
+from app.models.benchmark import OrgBenchmark, SectorBenchmarkAggregate
+from app.models.lessons import LessonModule, Lesson, UserLessonProgress, UserTokens, TokenTransaction
+from app.models.collective_learning import NetworkInsight
+from app.models.intelligence_feed import FeedItem, UserFeedRead
+from app.models.workflow_template import WorkflowTemplate
+from app.models.data_registry import DataAsset, LicenseInquiry
+from app.models.open_source_app import OpenSourceApp
 
 __all__ = [
     "User",
@@ -74,4 +85,25 @@ __all__ = [
     "GoogleSyncItem",
     "SpreadsheetImport",
     "AIJourneyEntry",
+    "KnowledgeGap",
+    "ContentQualityScore",
+    "BrainRun",
+    "UserProgress",
+    "ReadinessAssessment",
+    "LearningPath",
+    "UserPathEnrollment",
+    "OrgBenchmark",
+    "SectorBenchmarkAggregate",
+    "LessonModule",
+    "Lesson",
+    "UserLessonProgress",
+    "UserTokens",
+    "TokenTransaction",
+    "NetworkInsight",
+    "FeedItem",
+    "UserFeedRead",
+    "WorkflowTemplate",
+    "DataAsset",
+    "LicenseInquiry",
+    "OpenSourceApp",
 ]

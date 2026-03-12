@@ -9,7 +9,7 @@
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Foundations</h1>
         <p class="mt-2 text-gray-600 max-w-2xl">
-            The principles, frameworks and reference material that underpin responsible AI use in journalism.
+            The principles, frameworks and reference material that underpin responsible AI implementation.
             Read these before diving into the tools.
         </p>
     </div>
@@ -33,7 +33,7 @@
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">{{ section.title }}</h3>
                 <p class="text-sm text-gray-500">
                     {% if section.slug == 'introduction' %}
-                        Why {{ product_name }} exists and how AI is reshaping journalism education.
+                        Why {{ product_name }} exists and how AI is reshaping how organisations work.
                     {% elif section.slug == 'three-core-pillars' %}
                         Sovereignty, Time Reinvestment, and Balance &mdash; the guiding principles for all AI decisions.
                     {% elif section.slug == 'how-to-use' %}
@@ -41,13 +41,13 @@
                     {% elif section.slug == 'cdi-scores' %}
                         Understanding the Cost, Difficulty, and Invasiveness scoring system used for every tool.
                     {% elif section.slug == 'ai-audit-rubric' %}
-                        A structured checklist for evaluating any AI tool before using it in journalism.
+                        A structured checklist for evaluating any AI tool before using it in your organisation.
                     {% elif section.slug == 'ethical-guidelines' %}
                         Non-negotiable red lines for editorial control, integrity and data security.
                     {% elif section.slug == 'glossary' %}
                         Key terms explained &mdash; from LLMs and RAG to OSINT and end-to-end encryption.
                     {% elif section.slug == 'top-10-use-cases' %}
-                        The ten most impactful ways AI is being used in newsrooms worldwide.
+                        The ten most impactful ways AI is being used in organisations worldwide.
                     {% else %}
                         {{ section.content[:120] }}{% if section.content|length > 120 %}...{% endif %}
                     {% endif %}
