@@ -45,6 +45,14 @@ class OpenSourceApp(Base):
     difficulty = Column(String, nullable=False, default="beginner")
     pricing_model = Column(String, nullable=False, default="free")
 
+    # Installation & operation (for tool adapter framework)
+    install_commands = Column(JSONB, nullable=True)  # [{"platform": "macos", "commands": [...], "notes": ""}]
+    verification_command = Column(String, nullable=True)  # e.g. "ollama --version"
+    adapter_type = Column(String, nullable=True)  # "api", "cli", "web_ui"
+    default_port = Column(Integer, nullable=True)  # For API-based tools, e.g. 11434
+    health_check_url = Column(String, nullable=True)  # e.g. "http://localhost:11434/api/tags"
+    api_base_path = Column(String, nullable=True)  # e.g. "/api"
+
     # Popularity & quality
     github_stars = Column(Integer, nullable=True)
     community_rating = Column(Float, nullable=True)  # 0.0 - 5.0

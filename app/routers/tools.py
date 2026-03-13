@@ -10,7 +10,7 @@ from app.models.toolkit import UserActivity
 from app.dependencies import get_current_user, require_auth_page
 from app.middleware.csrf import CSRFProtectionMiddleware
 from app.services.kit_loader import (
-    get_all_tools, get_tool, get_all_clusters,
+    get_free_tools, get_tool, get_all_clusters,
     get_cluster_tools, search_tools,
     get_all_tools_with_approved, get_all_clusters_with_approved,
     get_approved_tools_from_db, ADMIN_APPROVED_CLUSTER_SLUG
@@ -236,7 +236,7 @@ async def tools_index(
         db.add(activity)
         db.commit()
 
-    all_tools_count = len(get_all_tools()) + len(get_approved_tools_from_db(db))
+    all_tools_count = len(get_free_tools()) + len(get_approved_tools_from_db(db))
 
     return templates.TemplateResponse(
         "tools/index.html",
@@ -338,6 +338,25 @@ async def tool_detail(
     except Exception:
         pass  # Fail gracefully
 
+    # Check if user has favorited this tool
+    is_favorited = False
+    if user:
+        try:
+            from app.services.learning_profile import is_tool_favorited
+            is_favorited = is_tool_favorited(db, str(user.id), slug)
+        except Exception:
+            pass
+
+    # Get community audit rubric aggregate
+    audit_aggregate = None
+    try:
+        from app.services.audit_rubric import get_tool_aggregate
+        agg = get_tool_aggregate(db, slug)
+        if agg.get("count", 0) > 0:
+            audit_aggregate = agg
+    except Exception:
+        pass
+
     # Log tool view activity
     if user:
         activity = UserActivity(
@@ -360,6 +379,8 @@ async def tool_detail(
             "similar_tools": similar_tools,
             "tool_guidance": tool_guidance,
             "playbook": playbook,
+            "is_favorited": is_favorited,
+            "audit_aggregate": audit_aggregate,
         }
     )
 

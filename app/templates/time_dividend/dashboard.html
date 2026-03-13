@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Time Dividend Tracker - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Time Dividend Tracker</h1>
+        <p class="text-gray-600">Track the hours you save with AI tools and decide how to reinvest that time.</p>
+    </div>
+
+    {% if requires_login %}
+        {% include "components/login_prompt.html" %}
+    {% else %}
+
+    <!-- Stats tiles -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold tabular-nums" style="color: {{ brand_primary_color }}" id="stat-weekly">
+                {{ summary.total_hours_weekly|default(0) }}
+            </div>
+            <div class="text-xs text-gray-500">Hours/Week Saved</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold tabular-nums" style="color: {{ brand_primary_color }}" id="stat-monthly">
+                {{ summary.total_hours_monthly|default(0) }}
+            </div>
+            <div class="text-xs text-gray-500">Monthly Impact</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold tabular-nums" style="color: {{ brand_primary_color }}" id="stat-yearly">
+                {{ summary.total_hours_yearly|default(0) }}
+            </div>
+            <div class="text-xs text-gray-500">Yearly Impact</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold tabular-nums" style="color: {{ brand_primary_color }}" id="stat-tools">
+                {{ summary.tool_count|default(0) }}
+            </div>
+            <div class="text-xs text-gray-500">Tools Tracked</div>
+        </div>
+    </div>
+
+    <!-- Add Tool form -->
+    <div class="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-4">Add Tool</h2>
+        <div id="add-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="tool-select" class="block text-xs font-medium text-gray-600 mb-1">Tool</label>
+                <select id="tool-select"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select a tool...</option>
+                    {% for t in available_tools %}
+                    <option value="{{ t.slug }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="hours-input" class="block text-xs font-medium text-gray-600 mb-1">Hours Saved / Week</label>
+                <input type="number" id="hours-input" min="0" max="168" step="0.5" value="1"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div>
+                <label for="category-select" class="block text-xs font-medium text-gray-600 mb-1">Reinvestment Category</label>
+                <select id="category-select"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Unallocated</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.key }}">{{ cat.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="notes-input" class="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
+                <input type="text" id="notes-input" placeholder="Brief note..."
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button onclick="addEntry()" id="add-btn"
+                    class="px-5 py-2 text-sm text-white font-medium rounded-lg transition hover:opacity-90"
+                    style="background-color: {{ brand_primary_color }}">
+                Add
+            </button>
+        </div>
+        <div id="add-error" class="text-sm text-red-600 mt-2 hidden"></div>
+    </div>
+
+    <!-- Active entries table -->
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden mb-6">
+        <div class="px-5 py-3 border-b border-gray-200">
+            <h2 class="text-base font-semibold text-gray-900">Active Entries</h2>
+        </div>
+        <div id="entries-container">
+            {% if entries %}
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                        <th class="px-5 py-2">Tool</th>
+                        <th class="px-5 py-2 text-right">Hours/Week</th>
+                        <th class="px-5 py-2">Category</th>
+                        <th class="px-5 py-2 text-right"></th>
+                    </tr>
+                </thead>
+                <tbody id="entries-tbody">
+                    {% for entry in entries %}
+                    <tr class="border-t border-gray-100 entry-row" data-slug="{{ entry.tool_slug }}">
+                        <td class="px-5 py-3 font-medium text-gray-900">{{ entry.tool_name }}</td>
+                        <td class="px-5 py-3 text-right tabular-nums text-gray-700">{{ entry.hours_saved_weekly }}</td>
+                        <td class="px-5 py-3">
+                            {% if entry.reinvestment_category %}
+                            {% set cat_colors = {'investigation': 'blue', 'community': 'green', 'product': 'purple', 'learning': 'amber'} %}
+                            {% set c = cat_colors.get(entry.reinvestment_category, 'gray') %}
+                            <span class="inline-block text-xs px-2 py-0.5 rounded-full bg-{{ c }}-100 text-{{ c }}-700">
+                                {{ entry.reinvestment_category|replace('_', ' ')|title }}
+                            </span>
+                            {% else %}
+                            <span class="text-xs text-gray-400">Unallocated</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-right">
+                            <button onclick="removeEntry('{{ entry.tool_slug }}')"
+                                    class="text-xs text-red-500 hover:text-red-700 transition">
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="px-5 py-8 text-center text-sm text-gray-400" id="empty-state">
+                No tools tracked yet. Add a tool above to start tracking your time dividend.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Reinvestment breakdown -->
+    <div class="bg-white border border-gray-200 rounded-lg p-5">
+        <h2 class="text-base font-semibold text-gray-900 mb-4">Reinvestment Breakdown</h2>
+        <div id="breakdown-container">
+            {% if summary and summary.by_category %}
+            {% set total_w = summary.total_hours_weekly if summary.total_hours_weekly > 0 else 1 %}
+            <div class="space-y-3">
+                {% for cat in categories %}
+                {% set cat_hours = summary.by_category.get(cat.key, 0) %}
+                {% set cat_pct = (cat_hours / total_w * 100)|round if total_w > 0 else 0 %}
+                {% set bar_colors = {'blue': '#3b82f6', 'green': '#22c55e', 'purple': '#a855f7', 'amber': '#f59e0b'} %}
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-gray-600">{{ cat.label }}</span>
+                        <span class="font-medium text-gray-800">{{ cat_hours }} hrs ({{ cat_pct }}%)</span>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="h-2 rounded-full transition-all" style="width: {{ cat_pct }}%; background-color: {{ bar_colors.get(cat.color, '#6b7280') }}"></div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% set unalloc = summary.by_category.get('unallocated', 0) %}
+                {% if unalloc > 0 %}
+                {% set unalloc_pct = (unalloc / total_w * 100)|round %}
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-gray-600">Unallocated</span>
+                        <span class="font-medium text-gray-800">{{ unalloc }} hrs ({{ unalloc_pct }}%)</span>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="h-2 rounded-full transition-all bg-gray-400" style="width: {{ unalloc_pct }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-400 text-center py-4">Add tools above to see your reinvestment breakdown.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+/* ---- Tool name map for JS-side rendering ---- */
+const toolMap = {{ tool_map|tojson }};
+const categories = {{ categories|tojson }};
+
+const catColorMap = {
+    'investigation': 'blue',
+    'community': 'green',
+    'product': 'purple',
+    'learning': 'amber',
+};
+
+function addEntry() {
+    const toolSlug = document.getElementById('tool-select').value;
+    const hours = parseFloat(document.getElementById('hours-input').value);
+    const category = document.getElementById('category-select').value || null;
+    const notes = document.getElementById('notes-input').value || null;
+    const errEl = document.getElementById('add-error');
+
+    errEl.classList.add('hidden');
+
+    if (!toolSlug) {
+        errEl.textContent = 'Please select a tool.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    if (isNaN(hours) || hours <= 0) {
+        errEl.textContent = 'Please enter valid hours.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+
+    fetch('/time-dividend/api/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            tool_slug: toolSlug,
+            hours_saved_weekly: hours,
+            reinvestment_category: category,
+            notes: notes,
+        }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            // Reload to show updated state
+            window.location.reload();
+        } else {
+            errEl.textContent = 'Failed to add entry.';
+            errEl.classList.remove('hidden');
+        }
+    })
+    .catch(() => {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.classList.remove('hidden');
+    });
+}
+
+function removeEntry(toolSlug) {
+    fetch('/time-dividend/api/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ tool_slug: toolSlug }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            window.location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

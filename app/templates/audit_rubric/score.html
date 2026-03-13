@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Score {{ tool.name }} - Audit Rubric - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <a href="/audit-rubric" class="hover:text-gray-700 transition">Audit Rubric</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-gray-900 font-medium">{{ tool.name }}</span>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Main scoring form -->
+        <div class="lg:col-span-2">
+
+            <!-- Tool header -->
+            <div class="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+                <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ tool.name }}</h1>
+                {% if tool.cluster_name %}
+                <span class="inline-block text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full mb-2">{{ tool.cluster_name }}</span>
+                {% endif %}
+                {% if tool.description %}
+                <p class="text-sm text-gray-600">{{ tool.description }}</p>
+                {% endif %}
+            </div>
+
+            {% if requires_login %}
+                {% include "components/login_prompt.html" %}
+            {% else %}
+
+            <!-- Scoring form -->
+            <form method="post" action="/audit-rubric/{{ tool.slug }}" id="score-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="space-y-4">
+                    {% for dim in dimensions %}
+                    <div class="bg-white border border-gray-200 rounded-lg p-5">
+                        <div class="flex items-start justify-between mb-3">
+                            <div>
+                                <h3 class="text-base font-semibold text-gray-900">{{ dim.label }}</h3>
+                                <p class="text-sm text-gray-500 mt-0.5">{{ dim.description }}</p>
+                            </div>
+                            <div class="flex-shrink-0 ml-4 text-2xl font-bold tabular-nums" style="color: {{ brand_primary_color }}" id="val-{{ dim.key }}">
+                                {% if existing_score %}{{ existing_score[dim.key] }}{% else %}0{% endif %}
+                            </div>
+                        </div>
+
+                        <input type="range" name="{{ dim.key }}" id="slider-{{ dim.key }}"
+                               min="0" max="5" step="1"
+                               value="{% if existing_score %}{{ existing_score[dim.key] }}{% else %}0{% endif %}"
+                               class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                               style="accent-color: {{ brand_primary_color }}"
+                               oninput="updateSlider('{{ dim.key }}', this.value)">
+
+                        <div class="flex justify-between mt-2">
+                            <span class="text-xs text-gray-400 max-w-[45%]">0 &mdash; {{ dim.zero_label }}</span>
+                            <span class="text-xs text-gray-400 max-w-[45%] text-right">5 &mdash; {{ dim.five_label }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Notes -->
+                <div class="bg-white border border-gray-200 rounded-lg p-5 mt-4">
+                    <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
+                    <textarea name="notes" id="notes" rows="3"
+                              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                              placeholder="Any observations or context for your scores...">{% if existing_score and existing_score.notes %}{{ existing_score.notes }}{% endif %}</textarea>
+                </div>
+
+                <!-- Total + Submit -->
+                <div class="bg-white border border-gray-200 rounded-lg p-5 mt-4 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500">Total Score</div>
+                        <div class="text-3xl font-bold tabular-nums" style="color: {{ brand_primary_color }}" id="total-score">
+                            {% if existing_score %}{{ existing_score.total_score }}{% else %}0{% endif %}
+                        </div>
+                        <div class="text-xs text-gray-400">out of 20</div>
+                    </div>
+                    <button type="submit"
+                            class="px-6 py-2.5 text-white font-medium rounded-lg transition hover:opacity-90"
+                            style="background-color: {{ brand_primary_color }}">
+                        {% if existing_score %}Update Score{% else %}Submit Score{% endif %}
+                    </button>
+                </div>
+            </form>
+
+            {% endif %}
+        </div>
+
+        <!-- Sidebar: community scores -->
+        <div class="lg:col-span-1">
+            <div class="bg-white border border-gray-200 rounded-lg p-5 sticky top-4">
+                <h3 class="text-sm font-semibold text-gray-900 mb-4">Community Scores</h3>
+
+                {% if aggregate and aggregate.count > 0 %}
+                <div class="text-center mb-4">
+                    <div class="text-3xl font-bold tabular-nums" style="color: {{ brand_primary_color }}">{{ aggregate.avg_total }}</div>
+                    <div class="text-xs text-gray-400">avg from {{ aggregate.count }} score{{ 's' if aggregate.count != 1 }}</div>
+                </div>
+
+                <div class="space-y-3">
+                    <!-- Data Sovereignty -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-600">Data Sovereignty</span>
+                            <span class="font-medium text-gray-800">{{ aggregate.avg_sovereignty }}/5</span>
+                        </div>
+                        <div class="bg-gray-200 rounded-full h-1.5">
+                            <div class="h-1.5 rounded-full" style="width: {{ (aggregate.avg_sovereignty / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+                        </div>
+                    </div>
+
+                    <!-- Exportability -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-600">Exportability</span>
+                            <span class="font-medium text-gray-800">{{ aggregate.avg_exportability }}/5</span>
+                        </div>
+                        <div class="bg-gray-200 rounded-full h-1.5">
+                            <div class="h-1.5 rounded-full" style="width: {{ (aggregate.avg_exportability / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+                        </div>
+                    </div>
+
+                    <!-- Business Model -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-600">Business Model</span>
+                            <span class="font-medium text-gray-800">{{ aggregate.avg_business_model }}/5</span>
+                        </div>
+                        <div class="bg-gray-200 rounded-full h-1.5">
+                            <div class="h-1.5 rounded-full" style="width: {{ (aggregate.avg_business_model / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+                        </div>
+                    </div>
+
+                    <!-- Security -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-600">Security</span>
+                            <span class="font-medium text-gray-800">{{ aggregate.avg_security }}/5</span>
+                        </div>
+                        <div class="bg-gray-200 rounded-full h-1.5">
+                            <div class="h-1.5 rounded-full" style="width: {{ (aggregate.avg_security / 5 * 100)|round }}%; background-color: {{ brand_primary_color }}"></div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-6">
+                    <svg class="mx-auto h-10 w-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <p class="text-sm text-gray-500">No community scores yet.</p>
+                    <p class="text-xs text-gray-400 mt-1">Be the first to score this tool.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function updateSlider(key, value) {
+    document.getElementById('val-' + key).textContent = value;
+    computeTotal();
+}
+
+function computeTotal() {
+    const keys = [
+        {% for dim in dimensions %}'{{ dim.key }}'{% if not loop.last %}, {% endif %}{% endfor %}
+    ];
+    let total = 0;
+    keys.forEach(function(key) {
+        const slider = document.getElementById('slider-' + key);
+        if (slider) {
+            total += parseInt(slider.value, 10);
+        }
+    });
+    document.getElementById('total-score').textContent = total;
+}
+</script>
+{% endblock %}

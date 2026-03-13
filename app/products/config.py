@@ -179,6 +179,20 @@ class FeatureFlags:
     open_source_apps_enabled: bool = True
 
     # ==========================================================================
+    # ENHANCEMENTS
+    # ==========================================================================
+    # Interactive AI Audit Rubric scoring
+    audit_rubric_enabled: bool = True
+    # Time dividend tracker / calculator
+    time_dividend_enabled: bool = True
+    # Personal tool stack (My Toolkit)
+    my_toolkit_enabled: bool = True
+    # Searchable glossary with tooltips
+    glossary_enabled: bool = True
+    # Expert directory (Who to Follow)
+    experts_enabled: bool = True
+
+    # ==========================================================================
     # ADMINISTRATION
     # ==========================================================================
     # Admin dashboard access
@@ -269,6 +283,12 @@ class FeatureFlags:
             "workflow_templates_enabled": self.workflow_templates_enabled,
             "data_registry_enabled": self.data_registry_enabled,
             "open_source_apps_enabled": self.open_source_apps_enabled,
+            # Enhancements
+            "audit_rubric_enabled": self.audit_rubric_enabled,
+            "time_dividend_enabled": self.time_dividend_enabled,
+            "my_toolkit_enabled": self.my_toolkit_enabled,
+            "glossary_enabled": self.glossary_enabled,
+            "experts_enabled": self.experts_enabled,
             # Administration
             "admin_dashboard_enabled": self.admin_dashboard_enabled,
             "admin_ingestion_enabled": self.admin_ingestion_enabled,

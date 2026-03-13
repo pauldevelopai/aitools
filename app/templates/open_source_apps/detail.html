@@ -80,6 +80,23 @@
         {% endif %}
     </div>
 
+    <!-- Operate Tool (if adapter available) -->
+    {% if has_adapter %}
+    <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900 mb-1">Operate {{ app.name }}</h2>
+                <p class="text-sm text-gray-600">Use this tool directly from Grounded. It runs on your local machine.</p>
+            </div>
+            <a href="/apps/{{ app.slug }}/operate"
+               class="px-4 py-2 text-sm font-medium text-white rounded-md transition hover:opacity-90"
+               style="background-color: {{ brand_primary_color }}">
+                Open Tool
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Installation Guide -->
     {% if app.installation_guide %}
     <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">

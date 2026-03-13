@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models.auth import User
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_auth_page
 from app.services.kit_loader import (
     get_all_clusters, get_cluster, get_cluster_tools,
     get_all_clusters_with_approved, get_approved_tools_from_db,
@@ -204,6 +204,28 @@ async def cluster_detail(
     tools = get_cluster_tools(slug)
     wts_blocks = parse_where_to_start(cluster.get("where_to_start", ""))
 
+    # Get user's adopted tools for this cluster
+    adopted_tools = []
+    if user:
+        try:
+            from app.services.learning_profile import get_or_create_profile
+            profile = get_or_create_profile(db, str(user.id))
+            interests = profile.tool_interests or {}
+            adopted_tools = [
+                slug_key for slug_key, info in interests.items()
+                if isinstance(info, dict) and info.get("adopted")
+            ]
+        except Exception:
+            pass
+
+    # Count total recommended tools from wts blocks
+    wts_tool_names = []
+    for block in wts_blocks:
+        intro = block.get("intro", "")
+        if intro:
+            # Extract tool names (usually the intro text before sections)
+            wts_tool_names.append(intro)
+
     return templates.TemplateResponse(
         "clusters/detail.html",
         {
@@ -212,5 +234,41 @@ async def cluster_detail(
             "cluster": cluster,
             "tools": tools,
             "wts_blocks": wts_blocks,
+            "adopted_tools": adopted_tools,
+            "adopted_count": len(adopted_tools),
         }
     )
+
+
+@router.post("/track/adopt")
+async def track_adopt(
+    request: Request,
+    user: User = Depends(require_auth_page),
+    db: Session = Depends(get_db),
+):
+    """Mark a tool as adopted/unadopted in a cluster pathway."""
+    from sqlalchemy.orm.attributes import flag_modified
+    from app.services.learning_profile import get_or_create_profile
+
+    body = await request.json()
+    tool_slug = body.get("tool_slug", "")
+    action = body.get("action", "adopt")  # "adopt" or "unadopt"
+
+    if not tool_slug:
+        return {"status": "error", "message": "tool_slug required"}
+
+    profile = get_or_create_profile(db, str(user.id))
+    interests = dict(profile.tool_interests or {})
+
+    if tool_slug not in interests:
+        interests[tool_slug] = {}
+
+    if not isinstance(interests[tool_slug], dict):
+        interests[tool_slug] = {"viewed": interests[tool_slug]} if isinstance(interests[tool_slug], int) else {}
+
+    interests[tool_slug]["adopted"] = (action == "adopt")
+    profile.tool_interests = interests
+    flag_modified(profile, "tool_interests")
+    db.commit()
+
+    return {"status": "ok", "adopted": action == "adopt", "tool_slug": tool_slug}

@@ -91,7 +91,17 @@
     <!-- Where to Start -->
     {% if wts_blocks %}
     <div class="bg-green-50 rounded-lg border border-green-200 p-6 mb-8">
-        <h2 class="text-xl font-semibold text-green-900 mb-6">Where to Start</h2>
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-green-900">Where to Start</h2>
+            {% if user and adopted_count is defined %}
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-green-700">{{ adopted_count }} adopted</span>
+                <div class="w-24 bg-green-200 rounded-full h-2">
+                    <div class="bg-green-600 h-2 rounded-full transition-all" style="width: {% if wts_blocks|length > 0 %}{{ (adopted_count / wts_blocks|length * 100)|round }}{% else %}0{% endif %}%"></div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
 
         <div class="space-y-5">
             {% for block in wts_blocks %}
@@ -109,7 +119,19 @@
                     {{ block.label }}
                 </span>
 
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">{{ block.intro }}</h3>
+                <div class="flex items-start justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">{{ block.intro }}</h3>
+                    {% if user and block.type != 'avoid' %}
+                    {% set tool_slug = block.intro|lower|replace(' ', '-')|replace("'", '')|replace('(', '')|replace(')', '') %}
+                    <button onclick="toggleAdopt('{{ tool_slug }}')"
+                            class="adopt-btn flex-shrink-0 ml-3 px-3 py-1 text-xs font-medium rounded-full border transition
+                            {% if tool_slug in adopted_tools %}bg-green-100 border-green-300 text-green-700{% else %}bg-white border-gray-300 text-gray-500 hover:border-green-300 hover:text-green-600{% endif %}"
+                            data-slug="{{ tool_slug }}"
+                            data-adopted="{% if tool_slug in adopted_tools %}true{% else %}false{% endif %}">
+                        {% if tool_slug in adopted_tools %}&#10003; Adopted{% else %}Mark as adopted{% endif %}
+                    </button>
+                    {% endif %}
+                </div>
 
                 {% if block.sections %}
                 <div class="space-y-3">
@@ -146,6 +168,38 @@
             {% endfor %}
         </div>
     </div>
+
+    <script>
+    async function toggleAdopt(toolSlug) {
+        const btn = document.querySelector(`[data-slug="${toolSlug}"]`);
+        if (!btn) return;
+        const isAdopted = btn.dataset.adopted === 'true';
+        const action = isAdopted ? 'unadopt' : 'adopt';
+
+        try {
+            const resp = await fetch('/clusters/track/adopt', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({tool_slug: toolSlug, action: action})
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            if (data.adopted) {
+                btn.dataset.adopted = 'true';
+                btn.innerHTML = '&#10003; Adopted';
+                btn.className = btn.className.replace(/bg-white border-gray-300 text-gray-500[^"]*/g, '');
+                btn.classList.add('bg-green-100', 'border-green-300', 'text-green-700');
+                btn.classList.remove('bg-white', 'border-gray-300', 'text-gray-500');
+            } else {
+                btn.dataset.adopted = 'false';
+                btn.innerHTML = 'Mark as adopted';
+                btn.classList.remove('bg-green-100', 'border-green-300', 'text-green-700');
+                btn.classList.add('bg-white', 'border-gray-300', 'text-gray-500');
+            }
+        } catch(e) { console.error('Adopt toggle failed:', e); }
+    }
+    </script>
     {% endif %}
 
 </div>

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Rubric - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Rubric</h1>
+        <p class="text-gray-600">Community-driven scoring of tools across data sovereignty, exportability, business model, and security.</p>
+    </div>
+
+    <!-- Stats tiles -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ total_tools }}</div>
+            <div class="text-xs text-gray-500">Total Tools</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ scored_count }}</div>
+            <div class="text-xs text-gray-500">Tools Scored</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ avg_score }}</div>
+            <div class="text-xs text-gray-500">Average Score</div>
+        </div>
+    </div>
+
+    <!-- Filter pills -->
+    <div class="flex flex-wrap gap-2 mb-6" id="filter-pills">
+        <button onclick="filterTools('all')" data-filter="all"
+                class="filter-pill px-3 py-1.5 text-sm rounded-full border transition text-white"
+                style="background-color: {{ brand_primary_color }}; border-color: {{ brand_primary_color }}">
+            All
+        </button>
+        <button onclick="filterTools('scored')" data-filter="scored"
+                class="filter-pill px-3 py-1.5 text-sm rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-400">
+            Scored
+        </button>
+        <button onclick="filterTools('unscored')" data-filter="unscored"
+                class="filter-pill px-3 py-1.5 text-sm rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-400">
+            Unscored
+        </button>
+    </div>
+
+    <!-- Tool cards -->
+    {% if tools %}
+    <div class="space-y-3" id="tool-list">
+        {% for tool in tools %}
+        <a href="/audit-rubric/{{ tool.slug }}"
+           class="tool-card block bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition"
+           data-scored="{{ 'yes' if tool.audit_count > 0 else 'no' }}">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <h2 class="text-base font-semibold text-gray-900 truncate">{{ tool.name }}</h2>
+                        {% if tool.cluster_name %}
+                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full flex-shrink-0">{{ tool.cluster_name }}</span>
+                        {% endif %}
+                    </div>
+                    <!-- CDI preview -->
+                    {% if tool.cdi_scores %}
+                    <div class="flex items-center gap-3 text-xs text-gray-400">
+                        <span>C:{{ tool.cdi_scores.cost|default(0) }}</span>
+                        <span>D:{{ tool.cdi_scores.difficulty|default(0) }}</span>
+                        <span>I:{{ tool.cdi_scores.invasiveness|default(0) }}</span>
+                    </div>
+                    {% endif %}
+                    {% if user and user_score_map.get(tool.slug) %}
+                    <div class="text-xs text-blue-600 mt-1">Your score: {{ user_score_map[tool.slug].total_score }}/20</div>
+                    {% endif %}
+                </div>
+                <!-- Audit score bar -->
+                <div class="flex-shrink-0 ml-4 w-32">
+                    {% if tool.audit_count > 0 %}
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-gray-200 rounded-full h-2.5">
+                            {% set pct = (tool.audit_avg_total / 20 * 100)|round %}
+                            {% if tool.audit_avg_total >= 15 %}
+                                {% set bar_color = '#22c55e' %}
+                            {% elif tool.audit_avg_total >= 10 %}
+                                {% set bar_color = '#f59e0b' %}
+                            {% else %}
+                                {% set bar_color = '#ef4444' %}
+                            {% endif %}
+                            <div class="h-2.5 rounded-full" style="width: {{ pct }}%; background-color: {{ bar_color }}"></div>
+                        </div>
+                        <span class="text-xs font-medium text-gray-600 w-8 text-right">{{ tool.audit_avg_total }}</span>
+                    </div>
+                    <div class="text-xs text-gray-400 text-right mt-0.5">{{ tool.audit_count }} score{{ 's' if tool.audit_count != 1 }}</div>
+                    {% else %}
+                    <div class="text-xs text-gray-400 text-right">Not yet scored</div>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-700 mb-2">No tools available</h3>
+        <p class="text-sm text-gray-500">Tools will appear here once they are loaded into the kit.</p>
+    </div>
+    {% endif %}
+
+    {% if requires_login %}
+    <div class="mt-8">
+        {% include "components/login_prompt.html" %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+function filterTools(type) {
+    const cards = document.querySelectorAll('.tool-card');
+    const pills = document.querySelectorAll('.filter-pill');
+
+    // Update pill styles
+    pills.forEach(pill => {
+        if (pill.dataset.filter === type) {
+            pill.style.backgroundColor = '{{ brand_primary_color }}';
+            pill.style.borderColor = '{{ brand_primary_color }}';
+            pill.classList.remove('text-gray-700', 'border-gray-300');
+            pill.classList.add('text-white');
+        } else {
+            pill.style.backgroundColor = '';
+            pill.style.borderColor = '';
+            pill.classList.add('text-gray-700', 'border-gray-300');
+            pill.classList.remove('text-white');
+        }
+    });
+
+    // Filter cards
+    cards.forEach(card => {
+        const isScored = card.dataset.scored === 'yes';
+        if (type === 'all') {
+            card.style.display = '';
+        } else if (type === 'scored') {
+            card.style.display = isScored ? '' : 'none';
+        } else if (type === 'unscored') {
+            card.style.display = isScored ? 'none' : '';
+        }
+    });
+}
+</script>
+{% endblock %}

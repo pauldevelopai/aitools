@@ -400,3 +400,47 @@ def track_strategy_feedback(
     )
     db.add(activity)
     db.commit()
+
+
+# =============================================================================
+# FAVORITES HELPERS
+# =============================================================================
+
+def is_tool_favorited(db: Session, user_id: str, tool_slug: str) -> bool:
+    """Check if a user has favorited a specific tool."""
+    profile = db.query(UserLearningProfile).filter(
+        UserLearningProfile.user_id == user_id
+    ).first()
+    if not profile or not profile.favorited_tools:
+        return False
+    return tool_slug in profile.favorited_tools
+
+
+def get_user_favorited_tools(db: Session, user_id: str) -> List[str]:
+    """Get list of favorited tool slugs for a user."""
+    profile = db.query(UserLearningProfile).filter(
+        UserLearningProfile.user_id == user_id
+    ).first()
+    if not profile or not profile.favorited_tools:
+        return []
+    return list(profile.favorited_tools)
+
+
+def toggle_favorite(db: Session, user_id: str, tool_slug: str) -> bool:
+    """Toggle a tool favorite. Returns True if now favorited, False if removed."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    profile = get_or_create_profile(db, user_id)
+    favorites = list(profile.favorited_tools or [])
+
+    if tool_slug in favorites:
+        favorites.remove(tool_slug)
+        is_favorited = False
+    else:
+        favorites.append(tool_slug)
+        is_favorited = True
+
+    profile.favorited_tools = favorites
+    flag_modified(profile, "favorited_tools")
+    db.commit()
+    return is_favorited

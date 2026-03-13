@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}My Toolkit - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">My Toolkit</h1>
+        <p class="text-gray-600">Your personal AI tool stack — the tools you have chosen to use.</p>
+    </div>
+
+    {% if requires_login %}
+        <!-- Login Prompt -->
+        <div class="mt-4">
+            {% include "components/login_prompt.html" %}
+        </div>
+    {% else %}
+
+        <!-- Stats Tiles -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ tool_count }}</div>
+                <div class="text-xs text-gray-500">Tools in Toolkit</div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ clusters_covered }}</div>
+                <div class="text-xs text-gray-500">Clusters Covered</div>
+            </div>
+        </div>
+
+        {% if favorited_tools %}
+        <!-- Tool Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="toolkit-grid">
+            {% for tool in favorited_tools %}
+            <div class="toolkit-card bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition flex flex-col"
+                 id="card-{{ tool.slug }}"
+                 data-slug="{{ tool.slug }}">
+
+                <!-- Tool Name & Cluster -->
+                <div class="mb-3">
+                    <h2 class="text-base font-semibold text-gray-900 mb-1">{{ tool.name }}</h2>
+                    {% if tool.cluster_name %}
+                    <span class="inline-block text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{{ tool.cluster_name }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- CDI Scores -->
+                {% if tool.cdi_scores %}
+                <div class="space-y-1.5 mb-4">
+                    <!-- Cost -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500 w-6">C</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-1.5">
+                            {% set cost_pct = (tool.cdi_scores.cost / 10 * 100)|round %}
+                            <div class="h-1.5 rounded-full bg-blue-500" style="width: {{ cost_pct }}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-500 w-6 text-right">{{ tool.cdi_scores.cost }}</span>
+                    </div>
+                    <!-- Difficulty -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500 w-6">D</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-1.5">
+                            {% set diff_pct = (tool.cdi_scores.difficulty / 10 * 100)|round %}
+                            <div class="h-1.5 rounded-full bg-amber-500" style="width: {{ diff_pct }}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-500 w-6 text-right">{{ tool.cdi_scores.difficulty }}</span>
+                    </div>
+                    <!-- Invasiveness -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500 w-6">I</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-1.5">
+                            {% set inv_pct = (tool.cdi_scores.invasiveness / 10 * 100)|round %}
+                            <div class="h-1.5 rounded-full bg-red-500" style="width: {{ inv_pct }}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-500 w-6 text-right">{{ tool.cdi_scores.invasiveness }}</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Time Dividend snippet -->
+                {% if tool.time_dividend %}
+                <div class="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 mb-3">
+                    {{ tool.time_dividend }}
+                </div>
+                {% endif %}
+
+                <!-- Actions -->
+                <div class="mt-auto flex items-center justify-between pt-3 border-t border-gray-100">
+                    <a href="/tools/{{ tool.slug }}" class="text-sm font-medium hover:underline" style="color: {{ brand_primary_color }}">
+                        View Tool &rarr;
+                    </a>
+                    <button onclick="removeTool('{{ tool.slug }}')"
+                            class="text-xs text-red-500 hover:text-red-700 transition font-medium">
+                        Remove
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-16 bg-white border border-gray-200 rounded-lg">
+            <svg class="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+            </svg>
+            <h3 class="text-lg font-medium text-gray-700 mb-2">Your toolkit is empty</h3>
+            <p class="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                Browse the tool directory to discover AI tools and add them to your personal toolkit.
+            </p>
+            <a href="/tools" class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-white rounded-lg transition"
+               style="background-color: {{ brand_primary_color }}">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                Browse Tools
+            </a>
+        </div>
+        {% endif %}
+
+    {% endif %}
+
+</div>
+
+<script>
+function removeTool(slug) {
+    if (!confirm('Remove this tool from your toolkit?')) return;
+
+    fetch('/my-toolkit/api/toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tool_slug: slug}),
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        if (data.status === 'ok' && !data.is_favorited) {
+            // Remove the card with a fade
+            var card = document.getElementById('card-' + slug);
+            if (card) {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+                setTimeout(function() {
+                    card.remove();
+                    // Update count
+                    var remaining = document.querySelectorAll('.toolkit-card').length;
+                    var countEl = document.querySelector('[data-stat="tool-count"]');
+                    // If no tools left, reload to show empty state
+                    if (remaining === 0) {
+                        window.location.reload();
+                    }
+                }, 300);
+            }
+        }
+    })
+    .catch(function(err) {
+        console.error('Failed to remove tool:', err);
+    });
+}
+</script>
+{% endblock %}

@@ -278,6 +278,35 @@ def require_admin_discovery():
     return require_feature("admin_discovery")
 
 
+# =============================================================================
+# ENHANCEMENT FEATURE GUARDS
+# =============================================================================
+
+def require_audit_rubric():
+    """Require audit rubric feature."""
+    return require_feature("audit_rubric")
+
+
+def require_time_dividend():
+    """Require time dividend feature."""
+    return require_feature("time_dividend")
+
+
+def require_my_toolkit():
+    """Require my toolkit feature."""
+    return require_feature("my_toolkit")
+
+
+def require_glossary():
+    """Require glossary feature."""
+    return require_feature("glossary")
+
+
+def require_experts():
+    """Require experts feature."""
+    return require_feature("experts")
+
+
 def require_admin_directory_import():
     """Require admin directory import feature."""
     return require_feature("admin_directory_import")

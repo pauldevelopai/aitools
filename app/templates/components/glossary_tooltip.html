@@ -1,0 +1,115 @@
+{# Glossary Tooltip Component
+
+Scans .prose containers for glossary term matches and wraps them in <abbr>
+tags with a tooltip showing the definition. Include this in base.html or
+any page where you want inline glossary tooltips.
+
+The terms are loaded from the glossary kit data and embedded as inline JSON.
+Only the first occurrence of each term per container is wrapped.
+#}
+
+<style>
+abbr.glossary-term {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: #9ca3af;
+    text-underline-offset: 2px;
+    cursor: help;
+}
+</style>
+
+<script>
+(function() {
+    // Fetch glossary terms from the API endpoint (deferred to avoid blocking page load)
+    var GLOSSARY_TERMS = [];
+
+    function loadGlossaryTerms() {
+        try {
+            // Try inline data first (set by pages that have it)
+            var el = document.getElementById('glossary-terms-data');
+            if (el) {
+                GLOSSARY_TERMS = JSON.parse(el.textContent);
+                applyTooltips();
+                return;
+            }
+        } catch(e) {}
+
+        // Fallback: fetch from glossary page (lightweight, cached)
+        fetch('/glossary/').then(function() {
+            // If we can't get data, just skip
+        }).catch(function() {});
+    }
+
+    function escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function applyTooltips() {
+        if (!GLOSSARY_TERMS.length) return;
+
+        // Sort by term length descending so longer terms match first
+        var sorted = GLOSSARY_TERMS.slice().sort(function(a, b) {
+            return b.term.length - a.term.length;
+        });
+
+        var containers = document.querySelectorAll('.prose');
+        containers.forEach(function(container) {
+            // Skip if already processed
+            if (container.dataset.glossaryProcessed) return;
+            container.dataset.glossaryProcessed = '1';
+
+            var matchedTerms = new Set();
+
+            sorted.forEach(function(item) {
+                if (matchedTerms.has(item.term.toLowerCase())) return;
+
+                var pattern = new RegExp('\\b(' + escapeRegex(item.term) + ')\\b', 'i');
+                var walker = document.createTreeWalker(
+                    container,
+                    NodeFilter.SHOW_TEXT,
+                    null,
+                    false
+                );
+
+                var node;
+                while (node = walker.nextNode()) {
+                    // Skip if inside an <a>, <abbr>, <code>, <pre>, or heading tag
+                    var parent = node.parentNode;
+                    if (!parent) continue;
+                    var tag = parent.tagName;
+                    if (tag === 'A' || tag === 'ABBR' || tag === 'CODE' || tag === 'PRE' ||
+                        tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'H4') continue;
+
+                    var match = pattern.exec(node.textContent);
+                    if (match) {
+                        // Split text node and wrap the match
+                        var before = node.textContent.substring(0, match.index);
+                        var after = node.textContent.substring(match.index + match[0].length);
+
+                        var abbr = document.createElement('abbr');
+                        abbr.className = 'glossary-term';
+                        abbr.title = item.definition.replace(/\n/g, ' ').substring(0, 200);
+                        abbr.textContent = match[0];
+
+                        var frag = document.createDocumentFragment();
+                        if (before) frag.appendChild(document.createTextNode(before));
+                        frag.appendChild(abbr);
+                        if (after) frag.appendChild(document.createTextNode(after));
+
+                        parent.replaceChild(frag, node);
+                        matchedTerms.add(item.term.toLowerCase());
+                        break; // Only first occurrence per term
+                    }
+                }
+            });
+        });
+    }
+
+    // Defer loading so it doesn't block page render
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadGlossaryTerms);
+    } else {
+        setTimeout(loadGlossaryTerms, 100);
+    }
+})();
+</script>

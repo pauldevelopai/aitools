@@ -448,7 +448,7 @@ def ingest_from_kit(
         Created ToolkitDocument instance
     """
     from app.services.kit_loader import (
-        get_all_tools, get_all_clusters, get_all_foundations, get_all_sources, clear_cache
+        get_free_tools, get_all_clusters, get_all_foundations, get_all_sources, clear_cache
     )
 
     # Clear cache to pick up any new data
@@ -465,7 +465,7 @@ def ingest_from_kit(
         # Bump version tag
         version_tag = f"{version_tag}-{uuid.uuid4().hex[:8]}"
 
-    tools = get_all_tools()
+    tools = get_free_tools()
     clusters = get_all_clusters()
     foundations = get_all_foundations()
     sources_data = get_all_sources()

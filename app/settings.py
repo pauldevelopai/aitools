@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     COMPLETION_PROVIDER: str = "claude"
     CLAUDE_COMPLETION_MODEL: str = "claude-sonnet-4-20250514"
 
+    # Ollama (for user-facing tool operation — users install locally)
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_DEFAULT_MODEL: str = "llama3.1"
+
     # Google Drive Integration
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None

@@ -1748,7 +1748,7 @@ async def admin_training(
     db: Session = Depends(get_db)
 ):
     """Training data management page."""
-    from app.services.kit_loader import get_all_tools, get_all_clusters, get_all_sources
+    from app.services.kit_loader import get_free_tools, get_all_clusters, get_all_sources
 
     # Get chunk stats by type (metadata uses 'type' key)
     chunk_type_stats = db.query(
@@ -1765,7 +1765,7 @@ async def admin_training(
     other_chunks = total_chunks - tool_chunks - source_chunks
 
     # Get kit stats
-    kit_tools = len(get_all_tools())
+    kit_tools = len(get_free_tools())
     kit_clusters = len(get_all_clusters()) + 1  # +1 for admin-approved cluster
 
     # Get source stats

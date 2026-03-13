@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 
-from app.routers import health, admin, rag, auth_routes, toolkit, strategy, tools, clusters, sources, profile, feedback, reviews, discovery, playbook, recommendations, resources, usecases, foundations, ethics_policy, legal_framework, demo_documents, api_interface, directory, governance, workflow_runs, ethics_builder, legal_builder, library, google_drive, agent, progress, readiness, learning_paths, export, benchmarking, lessons, collective_learning, intelligence_feed, workflow_templates, data_registry, open_source_apps, admin_apps, admin_lessons, admin_workflows
+from app.routers import health, admin, rag, auth_routes, toolkit, strategy, tools, clusters, sources, profile, feedback, reviews, discovery, playbook, recommendations, resources, usecases, foundations, ethics_policy, legal_framework, demo_documents, api_interface, directory, governance, workflow_runs, ethics_builder, legal_builder, library, google_drive, agent, progress, readiness, learning_paths, export, benchmarking, lessons, collective_learning, intelligence_feed, workflow_templates, data_registry, open_source_apps, admin_apps, admin_lessons, admin_workflows, audit_rubric, time_dividend, my_toolkit, glossary, experts, tool_operate
 from app.routers.recommendations import page_router as recommendations_pages
 from app.routers.discovery import approved_router as approved_tools_router
 from app.dependencies import get_current_user
@@ -171,6 +171,12 @@ app.include_router(open_source_apps.router)    # Open Source Apps Directory
 app.include_router(admin_apps.router)          # Admin: Open Source Apps
 app.include_router(admin_lessons.router)       # Admin: Lessons
 app.include_router(admin_workflows.router)     # Admin: Workflow Templates
+app.include_router(audit_rubric.router)        # Interactive Audit Rubric Scorer
+app.include_router(time_dividend.router)       # Time Dividend Tracker
+app.include_router(my_toolkit.router)          # Personal Tool Stack
+app.include_router(glossary.router)            # Searchable Glossary
+app.include_router(experts.router)             # Expert Directory
+app.include_router(tool_operate.router)        # Tool Operation Dashboard
 
 
 @app.get("/", response_class=HTMLResponse)

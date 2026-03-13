@@ -41,13 +41,32 @@ def get_all_tools() -> List[Dict[str, Any]]:
     return tools
 
 
+def is_free_tool(tool: Dict[str, Any]) -> bool:
+    """Check if a tool qualifies as free/open-source.
+
+    A tool is free if its CDI cost score is 0, or it has
+    'free' or 'open-source' tags.
+    """
+    cost = tool.get("cdi_scores", {}).get("cost", 99)
+    tags = {t.lower() for t in tool.get("tags", [])}
+    return cost == 0 or "free" in tags or "open-source" in tags
+
+
+def get_free_tools() -> List[Dict[str, Any]]:
+    """Get only free/open-source tools from the kit."""
+    return [t for t in get_all_tools() if is_free_tool(t)]
+
+
 def get_tool(slug: str) -> Optional[Dict[str, Any]]:
-    """Get a single tool by slug."""
+    """Get a single tool by slug (only if it's free)."""
     path = _KIT_DIR / "tools" / f"{slug}.json"
     if path.exists():
-        return _load_json(path)
-    # Fallback: search all tools
-    for tool in get_all_tools():
+        tool = _load_json(path)
+        if is_free_tool(tool):
+            return tool
+        return None
+    # Fallback: search free tools
+    for tool in get_free_tools():
         if tool.get("slug") == slug:
             return tool
     return None
@@ -77,8 +96,8 @@ def get_cluster(slug: str) -> Optional[Dict[str, Any]]:
 
 
 def get_cluster_tools(cluster_slug: str) -> List[Dict[str, Any]]:
-    """Get all tools belonging to a cluster."""
-    return [t for t in get_all_tools() if t.get("cluster_slug") == cluster_slug]
+    """Get free tools belonging to a cluster."""
+    return [t for t in get_free_tools() if t.get("cluster_slug") == cluster_slug]
 
 
 @lru_cache(maxsize=1)
@@ -168,7 +187,7 @@ def search_tools(query: str, cluster_slug: Optional[str] = None,
     query_lower = query.lower().strip() if query else ""
     results = []
 
-    for tool in get_all_tools():
+    for tool in get_free_tools():
         # Apply cluster filter
         if cluster_slug and tool.get("cluster_slug") != cluster_slug:
             continue
@@ -209,9 +228,9 @@ def search_tools(query: str, cluster_slug: Optional[str] = None,
 
 
 def get_kit_stats() -> Dict[str, Any]:
-    """Get summary statistics about the kit data."""
+    """Get summary statistics about the kit data (free tools only)."""
     manifest = get_manifest()
-    tools = get_all_tools()
+    tools = get_free_tools()
     clusters = get_all_clusters()
 
     # CDI averages
@@ -367,15 +386,15 @@ def get_all_clusters_with_approved(db) -> List[Dict[str, Any]]:
 
 def get_all_tools_with_approved(db) -> List[Dict[str, Any]]:
     """
-    Get all tools including admin-approved tools.
+    Get all free tools including admin-approved tools.
 
     Args:
         db: SQLAlchemy database session
 
     Returns:
-        List of all tools (kit + approved)
+        List of all free tools (kit + approved)
     """
-    tools = list(get_all_tools())  # Copy to avoid modifying cached list
+    tools = list(get_free_tools())  # Copy to avoid modifying cached list
     tools.extend(get_approved_tools_from_db(db))
     return tools
 
@@ -397,7 +416,7 @@ def get_kit_stats_with_approved(db) -> Dict[str, Any]:
     tools = get_all_tools_with_approved(db)
     clusters = get_all_clusters_with_approved(db)
 
-    # CDI averages
+    # CDI averages (free tools only)
     if tools:
         avg_cost = sum(t.get("cdi_scores", {}).get("cost", 0) for t in tools) / len(tools)
         avg_diff = sum(t.get("cdi_scores", {}).get("difficulty", 0) for t in tools) / len(tools)
@@ -421,3 +440,84 @@ def get_kit_stats_with_approved(db) -> Dict[str, Any]:
             "invasiveness": round(avg_inv, 1),
         },
     }
+
+
+# =============================================================================
+# GLOSSARY & EXPERTS PARSERS
+# =============================================================================
+
+def get_glossary_terms() -> list:
+    """Parse glossary.json content into structured term list.
+
+    Returns list of {term, definition, slug} dicts.
+    """
+    foundation = get_foundation("glossary")
+    if not foundation:
+        return []
+
+    content = foundation.get("content", "")
+    terms = []
+    parts = content.split("## ")
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        lines = part.split("\n", 1)
+        term = lines[0].strip()
+        definition = lines[1].strip() if len(lines) > 1 else ""
+        if term:
+            slug = term.lower().replace(" ", "-").replace("(", "").replace(")", "")
+            slug = "".join(c for c in slug if c.isalnum() or c == "-")
+            terms.append({"term": term, "definition": definition, "slug": slug})
+
+    return terms
+
+
+def get_experts() -> list:
+    """Parse addendum-e.json content into structured expert list.
+
+    Returns list of {name, description, linkedin_url, urls, slug} dicts.
+    """
+    import re as _re
+
+    foundation = get_foundation("addendum-e")
+    if not foundation:
+        return []
+
+    content = foundation.get("content", "")
+    experts = []
+
+    for line in content.split("\n- "):
+        line = line.lstrip("- ").strip()
+        if not line:
+            continue
+
+        # Extract URLs
+        urls = _re.findall(r'https?://[^\s]+', line)
+        linkedin_url = ""
+        other_urls = []
+        for url in urls:
+            if "linkedin.com" in url:
+                linkedin_url = url
+            else:
+                other_urls.append(url)
+
+        # Remove URLs from text
+        text = _re.sub(r'https?://[^\s]+', '', line).strip()
+
+        # Split on first period to get name and description
+        parts = text.split(". ", 1)
+        name = parts[0].strip().rstrip(".")
+        description = parts[1].strip().rstrip(".") if len(parts) > 1 else ""
+
+        if name:
+            experts.append({
+                "name": name,
+                "description": description,
+                "linkedin_url": linkedin_url,
+                "urls": other_urls,
+                "slug": name.lower().replace(" ", "-"),
+            })
+
+    return experts

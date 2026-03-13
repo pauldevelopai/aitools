@@ -79,12 +79,18 @@
             <div class="flex items-start justify-between">
                 <div class="flex-1">
                     <div class="flex items-center gap-2 mb-2">
+                        <!-- Traffic light sensitivity indicator -->
+                        <span class="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0
+                            {% if asset.classification == 'public' %}bg-green-500{% elif asset.classification == 'internal' %}bg-amber-500{% else %}bg-red-500{% endif %}"
+                            title="{{ asset.classification|title }} data"></span>
                         <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full capitalize">{{ asset.asset_type|replace('_', ' ') }}</span>
                         {% if asset.is_licensable %}
                         <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Licensable</span>
                         {% endif %}
-                        {% if asset.classification != 'public' %}
-                        <span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full capitalize">{{ asset.classification }}</span>
+                        {% if asset.classification == 'confidential' %}
+                        <span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">Confidential</span>
+                        {% elif asset.classification == 'internal' %}
+                        <span class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">Internal</span>
                         {% endif %}
                     </div>
                     <h2 class="text-lg font-semibold text-gray-900 mb-1">{{ asset.name }}</h2>

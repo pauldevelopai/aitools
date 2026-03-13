@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Glossary - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">AI & Journalism Glossary</h1>
+        <p class="text-gray-600">{{ total_terms }} terms explained — from foundational concepts to advanced AI techniques.</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ total_terms }}</div>
+            <div class="text-xs text-gray-500">Terms Defined</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold" style="color: {{ brand_primary_color }}">{{ letters|length }}</div>
+            <div class="text-xs text-gray-500">Letters Covered</div>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="mb-4">
+        <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" id="glossary-search" placeholder="Search terms or definitions..."
+                   value="{{ q }}"
+                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                   autocomplete="off">
+        </div>
+        <div id="search-count" class="text-sm text-gray-500 mt-2"></div>
+    </div>
+
+    <!-- Alphabet Quick-Jump -->
+    <div class="flex flex-wrap gap-1.5 mb-6" id="alpha-nav">
+        {% for letter in letters %}
+        <a href="#letter-{{ letter }}"
+           class="alpha-pill inline-flex items-center justify-center w-8 h-8 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:text-white transition"
+           style="hover-bg: {{ brand_primary_color }}"
+           onmouseover="this.style.backgroundColor='{{ brand_primary_color }}'; this.style.borderColor='{{ brand_primary_color }}'; this.style.color='white'"
+           onmouseout="this.style.backgroundColor=''; this.style.borderColor=''; this.style.color=''">
+            {{ letter }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Terms List -->
+    {% if terms %}
+    <div class="space-y-3" id="terms-list">
+        {% set ns = namespace(current_letter='') %}
+        {% for term in terms %}
+            {% set first_letter = term.term[:1]|upper %}
+            {% if first_letter != ns.current_letter %}
+                {% set ns.current_letter = first_letter %}
+                <div class="letter-anchor" id="letter-{{ first_letter }}">
+                    <div class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 py-2 -mx-4 sm:mx-0 sm:rounded-md">
+                        <span class="text-lg font-bold" style="color: {{ brand_primary_color }}">{{ first_letter }}</span>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="term-card bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition"
+                 id="{{ term.slug }}"
+                 data-term="{{ term.term|lower }}"
+                 data-definition="{{ term.definition|lower }}">
+                <h2 class="text-base font-semibold text-gray-900 mb-2">{{ term.term }}</h2>
+                <div class="text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none">{{ term.definition | markdown }}</div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-700 mb-2">No glossary terms found</h3>
+        <p class="text-sm text-gray-500">Glossary content will appear here once loaded.</p>
+    </div>
+    {% endif %}
+
+    <!-- Back to top -->
+    <div class="mt-8 text-center">
+        <a href="#" class="text-sm font-medium hover:underline" style="color: {{ brand_primary_color }}">Back to top</a>
+    </div>
+
+</div>
+
+<script>
+(function() {
+    const searchInput = document.getElementById('glossary-search');
+    const termsList = document.getElementById('terms-list');
+    const countEl = document.getElementById('search-count');
+    if (!searchInput || !termsList) return;
+
+    const cards = termsList.querySelectorAll('.term-card');
+    const letterAnchors = termsList.querySelectorAll('.letter-anchor');
+    const total = cards.length;
+
+    function filterTerms() {
+        const query = searchInput.value.toLowerCase().trim();
+        let visible = 0;
+
+        // Track which letter groups have visible cards
+        const visibleLetters = new Set();
+
+        cards.forEach(card => {
+            const term = card.dataset.term || '';
+            const def = card.dataset.definition || '';
+            const match = !query || term.includes(query) || def.includes(query);
+            card.style.display = match ? '' : 'none';
+            if (match) {
+                visible++;
+                // Get the first letter from the term
+                if (term.length > 0) {
+                    visibleLetters.add(term[0].toUpperCase());
+                }
+            }
+        });
+
+        // Show/hide letter group headers based on whether they have visible cards
+        letterAnchors.forEach(anchor => {
+            const letterId = anchor.id; // e.g. "letter-A"
+            const letter = letterId.replace('letter-', '');
+            anchor.style.display = (!query || visibleLetters.has(letter)) ? '' : 'none';
+        });
+
+        if (query) {
+            countEl.textContent = visible + ' of ' + total + ' terms shown';
+        } else {
+            countEl.textContent = '';
+        }
+    }
+
+    searchInput.addEventListener('keyup', filterTerms);
+    searchInput.addEventListener('search', filterTerms);
+
+    // Run on load if server-side q param
+    if (searchInput.value) filterTerms();
+})();
+</script>
+{% endblock %}

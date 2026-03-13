@@ -20,7 +20,7 @@ from app.models.auth import User
 from app.models.toolkit import UserActivity
 from app.models.review import ToolReview
 from app.models.playbook import ToolPlaybook, PlaybookSource
-from app.services.kit_loader import get_all_tools, get_tool, search_tools
+from app.services.kit_loader import get_free_tools, get_tool, search_tools
 from app.schemas.recommendation import (
     UserContext, ToolRecommendation, TailoredGuidance,
     Citation, CitationType, ScoreBreakdown, TrainingPlan, RolloutApproach
@@ -718,7 +718,7 @@ def get_recommendations(
         candidates = search_tools(query=query)
     elif use_case:
         # Filter by cluster slug (use_case dropdown shows clusters)
-        all_tools = get_all_tools()
+        all_tools = get_free_tools()
         candidates = [
             t for t in all_tools
             if t.get("cluster_slug") == use_case or
@@ -726,7 +726,7 @@ def get_recommendations(
         ]
     else:
         # All tools are candidates
-        candidates = get_all_tools()
+        candidates = get_free_tools()
 
     # Exclude tools user has already reviewed (they know these)
     candidates = [t for t in candidates if t.get("slug") not in context.reviewed_tools]

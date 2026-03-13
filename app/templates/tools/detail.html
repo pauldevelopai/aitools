@@ -45,7 +45,20 @@
                             {% endfor %}
                         </div>
                     </div>
-                    <span class="text-sm text-gray-400 font-mono">#{{ tool.number }}</span>
+                    <div class="flex items-center gap-2">
+                        {% if user %}
+                        <button id="favorite-btn"
+                                onclick="toggleFavorite('{{ tool.slug }}')"
+                                class="p-2 rounded-lg border transition
+                                {% if is_favorited %}border-red-300 bg-red-50 text-red-500{% else %}border-gray-200 hover:border-red-300 hover:bg-red-50 text-gray-400 hover:text-red-500{% endif %}"
+                                title="{% if is_favorited %}Remove from My Toolkit{% else %}Add to My Toolkit{% endif %}">
+                            <svg class="w-5 h-5" fill="{% if is_favorited %}currentColor{% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                            </svg>
+                        </button>
+                        {% endif %}
+                        <span class="text-sm text-gray-400 font-mono">#{{ tool.number }}</span>
+                    </div>
                 </div>
 
                 {% if tool.url %}
@@ -199,6 +212,43 @@
                     </div>
                     {% endif %}
                 </div>
+            </div>
+            {% endif %}
+
+            <!-- Community Audit Rubric Score -->
+            {% if audit_aggregate %}
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold text-gray-900">Audit Rubric Score</h2>
+                    <a href="/audit-rubric/{{ tool.slug }}" class="text-sm text-blue-600 hover:text-blue-800">Score this tool &rarr;</a>
+                </div>
+                <p class="text-xs text-gray-500 mb-4">Community average across {{ audit_aggregate.count }} evaluation{{ 's' if audit_aggregate.count != 1 else '' }}.</p>
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="text-3xl font-bold {% if audit_aggregate.avg_total >= 15 %}text-green-600{% elif audit_aggregate.avg_total >= 10 %}text-amber-600{% else %}text-red-600{% endif %}">
+                        {{ audit_aggregate.avg_total }}<span class="text-lg text-gray-400">/20</span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    {% for dim, label in [('avg_sovereignty', 'Data Sovereignty'), ('avg_exportability', 'Exportability'), ('avg_business_model', 'Business Model'), ('avg_security', 'Security')] %}
+                    <div>
+                        <div class="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>{{ label }}</span>
+                            <span>{{ audit_aggregate[dim] }}/5</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="h-2 rounded-full {% if audit_aggregate[dim] >= 4 %}bg-green-500{% elif audit_aggregate[dim] >= 2.5 %}bg-amber-500{% else %}bg-red-500{% endif %}" style="width: {{ (audit_aggregate[dim] / 5 * 100)|round }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% elif feature_audit_rubric %}
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Audit Rubric</h2>
+                    <a href="/audit-rubric/{{ tool.slug }}" class="text-sm text-blue-600 hover:text-blue-800">Be the first to score &rarr;</a>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">No audit scores yet. Evaluate this tool across 4 dimensions.</p>
             </div>
             {% endif %}
 
@@ -964,5 +1014,35 @@ document.getElementById('flag-modal')?.addEventListener('click', function(e) {
         closeFlagModal();
     }
 });
+
+// Favorite toggle
+async function toggleFavorite(toolSlug) {
+    try {
+        const resp = await fetch('/my-toolkit/api/toggle', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tool_slug: toolSlug})
+        });
+        if (!resp.ok) {
+            if (resp.status === 401) { window.location.href = '/login'; return; }
+            return;
+        }
+        const data = await resp.json();
+        const btn = document.getElementById('favorite-btn');
+        if (!btn) return;
+        const svg = btn.querySelector('svg');
+        if (data.is_favorited) {
+            btn.className = btn.className.replace(/border-gray-200.*?text-gray-400[^\s]*/g, '').trim();
+            btn.classList.add('border-red-300', 'bg-red-50', 'text-red-500');
+            svg.setAttribute('fill', 'currentColor');
+            btn.title = 'Remove from My Toolkit';
+        } else {
+            btn.classList.remove('border-red-300', 'bg-red-50', 'text-red-500');
+            btn.classList.add('border-gray-200', 'text-gray-400');
+            svg.setAttribute('fill', 'none');
+            btn.title = 'Add to My Toolkit';
+        }
+    } catch(e) { console.error('Favorite toggle failed:', e); }
+}
 </script>
 {% endblock %}

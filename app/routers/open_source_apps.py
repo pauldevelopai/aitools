@@ -12,6 +12,7 @@ from app.products.guards import require_open_source_apps
 from app.templates_engine import templates
 from app.services import open_source_apps as apps_service
 from app.services.lessons import get_lessons_for_app
+from app.tool_adapters.registry import get_adapter
 
 router = APIRouter(prefix="/apps", tags=["open_source_apps"])
 
@@ -70,6 +71,9 @@ async def app_detail(
     # Find lessons that reference this app
     related_lessons = get_lessons_for_app(db, slug)
 
+    # Check if a tool adapter exists for this app
+    has_adapter = get_adapter(slug) is not None
+
     return templates.TemplateResponse(
         "open_source_apps/detail.html",
         {
@@ -78,5 +82,6 @@ async def app_detail(
             "app": app,
             "related_lessons": related_lessons,
             "requires_login": not user,
+            "has_adapter": has_adapter,
         },
     )

@@ -186,6 +186,36 @@ AITOOLKIT_PRODUCT = Product(
             icon="code",
             requires_auth=False,
         ),
+        NavigationItem(
+            label="Audit",
+            route="/audit-rubric",
+            icon="clipboard-check",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Time Dividend",
+            route="/time-dividend",
+            icon="clock",
+            requires_auth=True,
+        ),
+        NavigationItem(
+            label="My Toolkit",
+            route="/my-toolkit",
+            icon="heart",
+            requires_auth=True,
+        ),
+        NavigationItem(
+            label="Glossary",
+            route="/glossary",
+            icon="book-open",
+            requires_auth=False,
+        ),
+        NavigationItem(
+            label="Experts",
+            route="/experts",
+            icon="users",
+            requires_auth=False,
+        ),
     ],
     content_scope=ContentScope.TOOLS,
     is_active=True,
@@ -266,6 +296,15 @@ AITOOLKIT_V1_FEATURES = FeatureFlags(
     workflow_templates_enabled=False,
     data_registry_enabled=False,
     open_source_apps_enabled=False,
+
+    # =========================================================================
+    # ENHANCEMENTS - Not in V1
+    # =========================================================================
+    audit_rubric_enabled=False,
+    time_dividend_enabled=False,
+    my_toolkit_enabled=False,
+    glossary_enabled=False,
+    experts_enabled=False,
 
     # =========================================================================
     # ADMINISTRATION - V1 had basic admin only
@@ -371,6 +410,15 @@ AITOOLKIT_V2_FEATURES = FeatureFlags(
     open_source_apps_enabled=False,
 
     # =========================================================================
+    # ENHANCEMENTS - Not in V2
+    # =========================================================================
+    audit_rubric_enabled=False,
+    time_dividend_enabled=False,
+    my_toolkit_enabled=False,
+    glossary_enabled=False,
+    experts_enabled=False,
+
+    # =========================================================================
     # ADMINISTRATION - All enabled
     # =========================================================================
     admin_dashboard_enabled=True,
@@ -473,6 +521,15 @@ AITOOLKIT_V3_FEATURES = FeatureFlags(
     workflow_templates_enabled=True,
     data_registry_enabled=True,
     open_source_apps_enabled=True,
+
+    # =========================================================================
+    # ENHANCEMENTS - All enabled in V3
+    # =========================================================================
+    audit_rubric_enabled=True,
+    time_dividend_enabled=True,
+    my_toolkit_enabled=True,
+    glossary_enabled=True,
+    experts_enabled=True,
 
     # =========================================================================
     # ADMINISTRATION - All enabled

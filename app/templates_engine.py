@@ -163,6 +163,12 @@ class ProductAwareTemplates(Jinja2Templates):
                 "feature_workflow_templates": features.workflow_templates_enabled,
                 "feature_data_registry": features.data_registry_enabled,
                 "feature_open_source_apps": features.open_source_apps_enabled,
+                # Enhancements
+                "feature_audit_rubric": features.audit_rubric_enabled,
+                "feature_time_dividend": features.time_dividend_enabled,
+                "feature_my_toolkit": features.my_toolkit_enabled,
+                "feature_glossary": features.glossary_enabled,
+                "feature_experts": features.experts_enabled,
                 # Admin
                 "feature_admin": features.admin_dashboard_enabled,
                 "feature_admin_ingestion": features.admin_ingestion_enabled,
@@ -267,6 +273,12 @@ class ProductAwareTemplates(Jinja2Templates):
             "/workflow-templates": features.workflow_templates_enabled,
             "/data-registry": features.data_registry_enabled,
             "/apps": features.open_source_apps_enabled,
+            # Enhancements
+            "/audit-rubric": features.audit_rubric_enabled,
+            "/time-dividend": features.time_dividend_enabled,
+            "/my-toolkit": features.my_toolkit_enabled,
+            "/glossary": features.glossary_enabled,
+            "/experts": features.experts_enabled,
             # Admin
             "/admin": features.admin_dashboard_enabled,
         }

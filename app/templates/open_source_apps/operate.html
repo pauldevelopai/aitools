@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}Operate {{ tool_name }} - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-0">
+
+    <a href="/apps/" class="text-sm text-gray-500 hover:text-gray-700 mb-4 inline-block">&larr; Back to Apps</a>
+
+    <!-- Header + Health Check -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-bold text-gray-900">Operate {{ tool_name }}</h1>
+            <div id="health-status" class="flex items-center gap-2 text-sm">
+                <span id="health-dot" class="w-3 h-3 rounded-full bg-gray-300"></span>
+                <span id="health-label" class="text-gray-500">Checking...</span>
+            </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3">
+            This tool runs on <strong>your local machine</strong>.
+            Grounded communicates with it at <code class="text-xs bg-gray-100 px-1 py-0.5 rounded">{{ base_url }}</code>.
+        </p>
+        <div id="cors-warning" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <strong>Connection failed.</strong> Make sure {{ tool_name }} is running locally.
+            {% if tool_slug == 'ollama' %}
+            <br>If Ollama is running but you see a CORS error, set: <code class="text-xs bg-amber-100 px-1 rounded">OLLAMA_ORIGINS=*</code> environment variable and restart Ollama.
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Installation Guide -->
+    {% if install_steps %}
+    <div id="install-section" class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Installation</h2>
+        <div class="flex gap-2 mb-4" role="tablist">
+            {% for step in install_steps %}
+            <button class="install-tab px-3 py-1.5 text-sm rounded-md border {{ 'bg-gray-900 text-white border-gray-900' if loop.first else 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}"
+                    data-platform="{{ step.platform }}"
+                    onclick="showInstallTab('{{ step.platform }}')">
+                {{ step.platform|capitalize }}
+            </button>
+            {% endfor %}
+        </div>
+        {% for step in install_steps %}
+        <div class="install-panel {{ '' if loop.first else 'hidden' }}" data-platform="{{ step.platform }}">
+            {% for cmd in step.commands %}
+            <div class="flex items-center gap-2 mb-2">
+                <code class="flex-1 block bg-gray-900 text-green-400 text-sm px-4 py-2 rounded font-mono">{{ cmd }}</code>
+                <button class="copy-btn px-2 py-2 text-gray-400 hover:text-gray-600" onclick="copyCommand(this, '{{ cmd|replace("'", "\\'") }}')" title="Copy">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                </button>
+            </div>
+            {% endfor %}
+            {% if step.notes %}
+            <p class="text-xs text-gray-500 mt-2">{{ step.notes }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    {% if actions %}
+    <div class="space-y-4">
+        {% for action in actions %}
+        <div class="bg-white border border-gray-200 rounded-lg p-6" id="action-{{ action.name }}">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">{{ action.label }}</h3>
+            <p class="text-sm text-gray-600 mb-4">{{ action.description }}</p>
+
+            <form onsubmit="executeAction(event, '{{ action.name }}', '{{ action.endpoint }}', '{{ action.method }}')" class="space-y-3">
+                {% for param in action.parameters %}
+                {% if param.type != 'hidden' %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ param.label }}
+                        {% if param.required %}<span class="text-red-500">*</span>{% endif %}
+                    </label>
+                    {% if param.type == 'textarea' %}
+                    <textarea name="{{ param.name }}" placeholder="{{ param.get('placeholder', '') }}"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+                              rows="3" {{ 'required' if param.required else '' }}></textarea>
+                    {% elif param.type == 'select' %}
+                    <select name="{{ param.name }}"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400">
+                        {% for opt in param.get('options', []) %}
+                        <option value="{{ opt.value }}" {{ 'selected' if opt.value == param.get('default') else '' }}>{{ opt.label }}</option>
+                        {% endfor %}
+                    </select>
+                    {% elif param.type == 'file' %}
+                    <input type="file" name="{{ param.name }}" accept="{{ param.get('accept', '') }}"
+                           class="w-full text-sm text-gray-700" {{ 'required' if param.required else '' }}>
+                    {% else %}
+                    <input type="text" name="{{ param.name }}" placeholder="{{ param.get('placeholder', '') }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+                           {{ 'required' if param.required else '' }}>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+
+                <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white rounded-md transition action-btn"
+                        style="background-color: {{ brand_primary_color }}">
+                    Run {{ action.label }}
+                </button>
+            </form>
+
+            <div class="action-result hidden mt-4">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-medium text-gray-700">Result</h4>
+                    <button class="text-xs text-gray-400 hover:text-gray-600" onclick="this.closest('.action-result').classList.add('hidden')">Clear</button>
+                </div>
+                <pre class="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto"></pre>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+        <p class="text-gray-500">No actions are configured for this tool yet.</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+const BASE_URL = '{{ base_url }}';
+const HEALTH_URL = '{{ health_check_url }}';
+const HEALTH_METHOD = '{{ health_check_method }}';
+
+// Health check
+async function checkHealth() {
+    const dot = document.getElementById('health-dot');
+    const label = document.getElementById('health-label');
+    const warning = document.getElementById('cors-warning');
+    try {
+        const resp = await fetch(HEALTH_URL, { method: HEALTH_METHOD, mode: 'cors' });
+        if (resp.ok) {
+            dot.className = 'w-3 h-3 rounded-full bg-green-500';
+            label.textContent = 'Running';
+            label.className = 'text-green-700';
+            warning.classList.add('hidden');
+            // Report status back to server
+            reportStatus(true);
+        } else {
+            throw new Error('Not OK');
+        }
+    } catch (e) {
+        dot.className = 'w-3 h-3 rounded-full bg-red-500';
+        label.textContent = 'Not detected';
+        label.className = 'text-red-600';
+        warning.classList.remove('hidden');
+        reportStatus(false);
+    }
+}
+
+async function reportStatus(isHealthy) {
+    try {
+        await fetch(`/apps/{{ tool_slug }}/operate/install-status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_healthy: isHealthy }),
+        });
+    } catch (e) {
+        // Silent fail — user might not be logged in
+    }
+}
+
+// Execute an action
+async function executeAction(event, actionName, endpoint, method) {
+    event.preventDefault();
+    const form = event.target;
+    const resultDiv = form.closest('[id^="action-"]').querySelector('.action-result');
+    const resultPre = resultDiv.querySelector('pre');
+    const btn = form.querySelector('.action-btn');
+
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+
+    // Collect form data
+    const formData = new FormData(form);
+    const params = {};
+    for (const [key, value] of formData.entries()) {
+        params[key] = value;
+    }
+
+    // Add hidden defaults
+    form.querySelectorAll('input[type="hidden"]').forEach(el => {
+        if (el.name === 'stream') params[el.name] = false;
+    });
+
+    const url = BASE_URL.replace(/\/+$/, '') + endpoint;
+
+    try {
+        const options = { method, mode: 'cors', headers: { 'Content-Type': 'application/json' } };
+        if (method !== 'GET') {
+            // For chat action, transform into correct format
+            if (actionName === 'chat') {
+                options.body = JSON.stringify({
+                    model: params.model || 'llama3.1',
+                    messages: [{ role: 'user', content: params.content || '' }],
+                    stream: false,
+                });
+            } else {
+                options.body = JSON.stringify(params);
+            }
+        }
+
+        const resp = await fetch(url, options);
+        const data = await resp.json();
+        resultPre.textContent = JSON.stringify(data, null, 2);
+        resultDiv.classList.remove('hidden');
+    } catch (e) {
+        resultPre.textContent = 'Error: ' + e.message + '\n\nMake sure the tool is running at ' + BASE_URL;
+        resultDiv.classList.remove('hidden');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Run ' + form.closest('[id^="action-"]').querySelector('h3').textContent;
+}
+
+// Install tab switching
+function showInstallTab(platform) {
+    document.querySelectorAll('.install-tab').forEach(t => {
+        t.className = t.dataset.platform === platform
+            ? 'install-tab px-3 py-1.5 text-sm rounded-md border bg-gray-900 text-white border-gray-900'
+            : 'install-tab px-3 py-1.5 text-sm rounded-md border bg-white text-gray-700 border-gray-300 hover:bg-gray-50';
+    });
+    document.querySelectorAll('.install-panel').forEach(p => {
+        p.classList.toggle('hidden', p.dataset.platform !== platform);
+    });
+}
+
+// Copy command
+function copyCommand(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    });
+}
+
+// Run health check on page load
+checkHealth();
+// Re-check every 30 seconds
+setInterval(checkHealth, 30000);
+</script>
+{% endblock %}

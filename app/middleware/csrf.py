@@ -61,6 +61,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/workflow-templates/",  # Start workflow via fetch(), protected by require_auth
             "/data-registry/",  # Create/inquire via fetch(), protected by require_auth
             "/apps/",  # Open source apps directory
+            "/audit-rubric/",  # Audit rubric scoring via fetch()
+            "/time-dividend/",  # Time dividend tracking via fetch()
+            "/my-toolkit/",  # Favorite toggle via fetch()
+            "/clusters/track/",  # Cluster adoption tracking via fetch()
         ]
 
     async def dispatch(self, request: Request, call_next):

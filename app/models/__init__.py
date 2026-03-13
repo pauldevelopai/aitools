@@ -41,6 +41,8 @@ from app.models.intelligence_feed import FeedItem, UserFeedRead
 from app.models.workflow_template import WorkflowTemplate
 from app.models.data_registry import DataAsset, LicenseInquiry
 from app.models.open_source_app import OpenSourceApp
+from app.models.user_installation import UserToolInstallation
+from app.models.enhancements import AuditScore, TimeDividendEntry
 
 __all__ = [
     "User",
@@ -106,4 +108,7 @@ __all__ = [
     "DataAsset",
     "LicenseInquiry",
     "OpenSourceApp",
+    "UserToolInstallation",
+    "AuditScore",
+    "TimeDividendEntry",
 ]
